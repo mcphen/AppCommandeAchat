@@ -1,9 +1,13 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem } from '@/types';
+import { type Boutique, type BreadcrumbItem } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Upload, X, FileText, Loader2, Send } from 'lucide-vue-next';
+import { ArrowLeft, Upload, X, FileText, Loader2, Send, Store } from 'lucide-vue-next';
 import { ref } from 'vue';
+
+const props = defineProps<{
+    boutique?: Boutique | null;
+}>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
@@ -47,6 +51,10 @@ const formatSize = (bytes: number) => {
 };
 
 const submit = () => {
+    if (!props.boutique) {
+        return;
+    }
+
     form.post(route('purchase-orders.store'), {
         forceFormData: true,
     });
@@ -56,7 +64,7 @@ const submit = () => {
 <template>
     <Head title="Nouvelle commande" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-4 p-3 max-w-3xl sm:gap-6 sm:p-6">
+        <div class="flex flex-col gap-4 p-3 w-full sm:gap-6 sm:p-6">
 
             <!-- Header -->
             <div class="flex items-center gap-4">
@@ -66,6 +74,27 @@ const submit = () => {
                 <div>
                     <h1 class="text-2xl font-bold text-foreground">Nouvelle commande</h1>
                     <p class="text-sm text-muted-foreground">Remplissez les informations de votre demande d'achat</p>
+                </div>
+            </div>
+
+            <div class="rounded-2xl border bg-card p-5 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                        <Store class="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Boutique emettrice</p>
+                        <template v-if="props.boutique">
+                            <p class="text-base font-semibold text-foreground">{{ props.boutique.name }}</p>
+                            <p class="text-sm text-muted-foreground">
+                                {{ props.boutique.code }}<template v-if="props.boutique.city"> · {{ props.boutique.city }}</template>
+                            </p>
+                        </template>
+                        <template v-else>
+                            <p class="text-sm font-medium text-red-600">Votre compte n'est rattache a aucune boutique.</p>
+                            <p class="text-sm text-muted-foreground">Un administrateur doit d'abord vous affecter a une boutique avant la creation d'une demande.</p>
+                        </template>
+                    </div>
                 </div>
             </div>
 
@@ -193,7 +222,7 @@ const submit = () => {
                     </Link>
                     <button
                         type="submit"
-                        :disabled="form.processing"
+                        :disabled="form.processing || !props.boutique"
                         class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-70"
                     >
                         <Loader2 v-if="form.processing" class="h-4 w-4 animate-spin" />

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import NavUser from '@/components/NavUser.vue';
+import NotificationPanel from '@/components/NotificationPanel.vue';
 import {
     Sidebar, SidebarContent, SidebarFooter, SidebarHeader,
     SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -10,7 +11,7 @@ import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
     LayoutDashboard, ShoppingCart, CheckSquare,
-    Users, Settings, ChevronRight, Shield,
+    Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -41,6 +42,12 @@ const mainNav = computed(() => {
             icon: CheckSquare,
             key: 'validations',
         });
+        items.push({
+            title: 'Audit & Historique',
+            href: route('audit.index'),
+            icon: ClipboardList,
+            key: 'audit',
+        });
     }
 
     return items;
@@ -49,6 +56,7 @@ const mainNav = computed(() => {
 const adminNav = computed(() => {
     if (role.value !== 'admin') return [];
     return [
+        { title: 'Boutiques', href: route('admin.boutiques.index'), icon: Building2, key: 'admin-boutiques' },
         { title: 'Utilisateurs', href: route('admin.users.index'), icon: Users, key: 'admin-users' },
         { title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings, key: 'admin-levels' },
     ];
@@ -58,21 +66,18 @@ const adminNav = computed(() => {
 <template>
     <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader class="border-b border-sidebar-border/40 pb-3">
-            <SidebarMenu>
-                <SidebarMenuItem>
-                    <SidebarMenuButton size="lg" as-child>
-                        <Link :href="route('dashboard')" class="flex items-center gap-3">
-                            <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-sidebar-primary/20 text-sidebar-primary shadow-inner border border-sidebar-primary/30">
-                                <ShoppingCart class="h-4 w-4" />
-                            </div>
-                            <div class="flex flex-col leading-tight">
-                                <span class="font-bold text-sm text-sidebar-foreground tracking-wide">AchatPro</span>
-                                <span class="text-[11px] text-sidebar-foreground/40 font-medium">Gestion des commandes</span>
-                            </div>
-                        </Link>
-                    </SidebarMenuButton>
-                </SidebarMenuItem>
-            </SidebarMenu>
+            <div class="flex items-center justify-between gap-2 px-1 py-1">
+                <Link :href="route('dashboard')" class="flex min-w-0 items-center gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary/20 text-sidebar-primary shadow-inner border border-sidebar-primary/30">
+                        <ShoppingCart class="h-4 w-4" />
+                    </div>
+                    <div class="flex min-w-0 flex-col leading-tight">
+                        <span class="font-bold text-sm text-sidebar-foreground tracking-wide">AchatPro</span>
+                        <span class="text-[11px] text-sidebar-foreground/40 font-medium">Gestion des commandes</span>
+                    </div>
+                </Link>
+                <NotificationPanel />
+            </div>
         </SidebarHeader>
 
         <SidebarContent class="gap-0 pt-2">
@@ -126,7 +131,6 @@ const adminNav = computed(() => {
         </SidebarContent>
 
         <SidebarFooter class="border-t border-sidebar-border/40 pt-2">
-            <!-- Badge rôle -->
             <div class="px-3 pb-1">
                 <div class="flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
                     <div

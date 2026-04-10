@@ -16,11 +16,23 @@ export interface NavItem {
     isActive?: boolean;
 }
 
+export interface AppNotification {
+    id: string;
+    type: string;
+    title: string;
+    body: string;
+    url: string | null;
+    color: 'blue' | 'amber' | 'emerald' | 'red';
+    read: boolean;
+    created_at: string;
+}
+
 export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
     flash: { success?: string; error?: string };
+    unread_notifications_count: number;
     ziggy: {
         location: string;
         url: string;
@@ -44,6 +56,15 @@ export interface ValidationLevel {
     validators_count?: number;
 }
 
+export interface Boutique {
+    id: number;
+    code: string;
+    name: string;
+    address?: string | null;
+    city?: string | null;
+    is_active: boolean;
+}
+
 export interface User {
     id: number;
     name: string;
@@ -51,8 +72,10 @@ export interface User {
     avatar?: string;
     role_id?: number;
     validation_level_id?: number;
+    boutique_id?: number | null;
     role?: Role;
     validation_level?: ValidationLevel;
+    boutique?: Boutique | null;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
@@ -72,7 +95,9 @@ export type OrderStatus = 'draft' | 'pending' | 'approved' | 'rejected';
 export interface PurchaseOrder {
     id: number;
     user_id: number;
+    boutique_id?: number | null;
     user?: User;
+    boutique?: Boutique | null;
     title: string;
     description: string;
     amount: string;
@@ -94,6 +119,7 @@ export interface ValidationLog {
     comment?: string;
     validation_level?: ValidationLevel;
     user?: User;
+    purchase_order?: PurchaseOrder;
     created_at: string;
 }
 

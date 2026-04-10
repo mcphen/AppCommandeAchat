@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Boutique;
 use App\Models\PurchaseOrder;
 use App\Models\Role;
 use App\Models\User;
@@ -15,8 +16,11 @@ class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(BoutiqueSeeder::class);
+
         $roles  = Role::pluck('id', 'slug');
         $levels = ValidationLevel::orderBy('order')->get();
+        $boutiques = Boutique::orderBy('name')->get()->values();
 
         // ── Validateurs (un par niveau) ──────────────────────────────────────
         $validateurs = [
@@ -58,12 +62,15 @@ class DemoDataSeeder extends Seeder
         ];
 
         $demandeurUsers = [];
-        foreach ($demandeurs as $data) {
-            $demandeurUsers[] = User::firstOrCreate(
+        foreach ($demandeurs as $index => $data) {
+            $boutique = $boutiques[$index % max($boutiques->count(), 1)] ?? null;
+
+            $demandeurUsers[] = User::updateOrCreate(
                 ['email' => $data['email']],
                 array_merge($data, [
                     'password' => Hash::make('password'),
                     'role_id'  => $roles['demandeur'],
+                    'boutique_id' => $boutique?->id,
                 ])
             );
         }
@@ -164,6 +171,7 @@ class DemoDataSeeder extends Seeder
 
                 $order = PurchaseOrder::create([
                     'user_id'             => $demandeur->id,
+                    'boutique_id'         => $demandeur->boutique_id,
                     'title'               => $template['title'],
                     'description'         => $descriptions[array_rand($descriptions)],
                     'amount'              => $amount,

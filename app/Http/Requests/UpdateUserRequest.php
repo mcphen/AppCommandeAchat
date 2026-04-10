@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Role;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
@@ -23,6 +24,11 @@ class UpdateUserRequest extends FormRequest
             'password'            => ['nullable', 'confirmed', Password::defaults()],
             'role_id'             => ['required', 'exists:roles,id'],
             'validation_level_id' => ['nullable', 'exists:validation_levels,id'],
+            'boutique_id'         => [
+                Rule::requiredIf(fn () => Role::whereKey($this->input('role_id'))->value('slug') === 'demandeur'),
+                'nullable',
+                'exists:boutiques,id',
+            ],
         ];
     }
 }

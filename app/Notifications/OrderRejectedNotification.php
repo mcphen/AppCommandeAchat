@@ -4,14 +4,11 @@ namespace App\Notifications;
 
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class OrderRejectedNotification extends Notification implements ShouldQueue
+class OrderRejectedNotification extends Notification
 {
-    use Queueable;
 
     public function __construct(
         private readonly PurchaseOrder $order,
@@ -21,7 +18,20 @@ class OrderRejectedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    public function toDatabase(object $notifiable): array
+    {
+        return [
+            'type'        => 'order_rejected',
+            'title'       => 'Commande refusée',
+            'body'        => "Votre commande \"{$this->order->title}\" a été refusée au niveau {$this->level->name}." . ($this->reason ? " Motif : {$this->reason}" : ''),
+            'url'         => route('purchase-orders.edit', $this->order),
+            'order_id'    => $this->order->id,
+            'order_title' => $this->order->title,
+            'color'       => 'red',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

@@ -3,20 +3,30 @@
 namespace App\Notifications;
 
 use App\Models\PurchaseOrder;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class OrderFinallyApprovedNotification extends Notification implements ShouldQueue
+class OrderFinallyApprovedNotification extends Notification
 {
-    use Queueable;
 
     public function __construct(private readonly PurchaseOrder $order) {}
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    public function toDatabase(object $notifiable): array
+    {
+        return [
+            'type'        => 'order_finally_approved',
+            'title'       => 'Commande entièrement approuvée',
+            'body'        => "Votre commande \"{$this->order->title}\" a été approuvée par tous les niveaux de validation.",
+            'url'         => route('purchase-orders.show', $this->order),
+            'order_id'    => $this->order->id,
+            'order_title' => $this->order->title,
+            'color'       => 'emerald',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

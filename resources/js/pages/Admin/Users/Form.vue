@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem, type Role, type User, type ValidationLevel } from '@/types';
+import { type Boutique, type BreadcrumbItem, type Role, type User, type ValidationLevel } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Loader2, Save } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 
 const props = defineProps<{
     user?: User;
     roles: Role[];
     levels: ValidationLevel[];
+    boutiques: Boutique[];
 }>();
 
 const isEdit = computed(() => !!props.user);
@@ -26,6 +27,7 @@ const form = useForm({
     password_confirmation: '',
     role_id: props.user?.role_id?.toString() ?? '',
     validation_level_id: props.user?.validation_level_id?.toString() ?? '',
+    boutique_id: props.user?.boutique_id?.toString() ?? '',
 });
 
 const submit = () => {
@@ -38,12 +40,22 @@ const submit = () => {
 
 const selectedRole = computed(() => props.roles.find(r => r.id === Number(form.role_id)));
 const needsLevel = computed(() => selectedRole.value?.slug === 'validateur' || selectedRole.value?.slug === 'admin');
+const needsBoutique = computed(() => selectedRole.value?.slug === 'demandeur');
+
+watch(needsBoutique, (value) => {
+    if (value) {
+        form.validation_level_id = '';
+        return;
+    }
+
+    form.boutique_id = '';
+}, { immediate: true });
 </script>
 
 <template>
     <Head :title="isEdit ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex flex-col gap-6 p-6 max-w-2xl">
+        <div class="flex w-full flex-col gap-6 p-6">
 
             <div class="flex items-center gap-4">
                 <Link :href="route('admin.users.index')" class="rounded-xl p-2 hover:bg-muted transition-colors text-muted-foreground">
@@ -57,11 +69,11 @@ const needsLevel = computed(() => selectedRole.value?.slug === 'validateur' || s
                 </div>
             </div>
 
-            <form @submit.prevent="submit" class="flex flex-col gap-5">
+            <form @submit.prevent="submit" class="flex w-full flex-col gap-5">
                 <div class="rounded-2xl border bg-card p-6 shadow-sm flex flex-col gap-4">
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Informations du compte</h2>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid gap-4 md:grid-cols-2">
                         <div class="flex flex-col gap-1.5">
                             <label class="text-sm font-medium text-foreground">Nom complet <span class="text-red-500">*</span></label>
                             <input
@@ -86,7 +98,7 @@ const needsLevel = computed(() => selectedRole.value?.slug === 'validateur' || s
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4">
+                    <div class="grid gap-4 md:grid-cols-2">
                         <div class="flex flex-col gap-1.5">
                             <label class="text-sm font-medium text-foreground">
                                 Mot de passe <span v-if="!isEdit" class="text-red-500">*</span>
@@ -120,7 +132,7 @@ const needsLevel = computed(() => selectedRole.value?.slug === 'validateur' || s
                         <label class="text-sm font-medium text-foreground">Rôle <span class="text-red-500">*</span></label>
                         <select
                             v-model="form.role_id"
-                            class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors appearance-none cursor-pointer"
+                            class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
                             :class="{ 'border-red-400': form.errors.role_id }"
                         >
                             <option value="">-- Sélectionner un rôle --</option>
@@ -131,13 +143,36 @@ const needsLevel = computed(() => selectedRole.value?.slug === 'validateur' || s
 
                     <div class="flex flex-col gap-1.5">
                         <label class="text-sm font-medium text-foreground">
+                            Boutique
+                            <span v-if="needsBoutique" class="text-red-500">*</span>
+                        </label>
+                        <select
+                            v-model="form.boutique_id"
+                            :disabled="!needsBoutique"
+                            class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:cursor-not-allowed disabled:text-black/60 disabled:opacity-50"
+                            :class="{ 'border-red-400': form.errors.boutique_id }"
+                        >
+                            <option value="">-- SÃƒÂ©lectionner une boutique --</option>
+                            <option v-for="boutique in boutiques" :key="boutique.id" :value="boutique.id">
+                                {{ boutique.name }} <template v-if="boutique.city">({{ boutique.city }})</template>
+                            </option>
+                        </select>
+                        <p v-if="form.errors.boutique_id" class="text-xs text-red-500">{{ form.errors.boutique_id }}</p>
+                        <p class="text-xs text-muted-foreground">
+                            <template v-if="needsBoutique">Obligatoire pour rattacher ce demandeur ÃƒÂ  une boutique.</template>
+                            <template v-else>Les validateurs et admins restent rattachÃƒÂ©s au groupe.</template>
+                        </p>
+                    </div>
+
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium text-foreground">
                             Niveau de validation
                             <span v-if="needsLevel" class="text-xs font-normal text-muted-foreground">(optionnel pour admin)</span>
                         </label>
                         <select
                             v-model="form.validation_level_id"
-                            :disabled="!form.role_id"
-                            class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            :disabled="!form.role_id || needsBoutique"
+                            class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:cursor-not-allowed disabled:text-black/60 disabled:opacity-50"
                         >
                             <option value="">-- Aucun niveau --</option>
                             <option v-for="level in levels" :key="level.id" :value="level.id">
@@ -170,3 +205,10 @@ const needsLevel = computed(() => selectedRole.value?.slug === 'validateur' || s
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+select,
+select option {
+    color: #000;
+}
+</style>

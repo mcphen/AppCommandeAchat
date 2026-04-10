@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\RejectValidationRequest;
+use App\Models\Boutique;
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
 use App\Models\ValidationLog;
@@ -10,20 +11,21 @@ use App\Notifications\OrderApprovedAtLevelNotification;
 use App\Notifications\OrderFinallyApprovedNotification;
 use App\Notifications\OrderRejectedNotification;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ValidationController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $user = auth()->user();
+        $user = $request->user();
 
         // L'admin voit toutes les commandes en attente
         // Le validateur voit celles à son niveau
         $query = PurchaseOrder::where('status', 'pending')
-            ->with(['user', 'attachments'])
+            ->with(['user', 'boutique', 'attachments'])
             ->latest('submitted_at');
 
         if (! $user->isAdmin()) {
@@ -31,10 +33,19 @@ class ValidationController extends Controller
             $query->where('current_level_order', $user->validationLevel->order);
         }
 
-        $orders = $query->paginate(10);
+        if ($request->filled('boutique_id')) {
+            $query->where('boutique_id', $request->integer('boutique_id'));
+        }
+
+        $orders = $query->paginate(10)->withQueryString();
 
         return Inertia::render('Validations/Index', [
             'orders' => $orders,
+            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
+            'levelsCount' => ValidationLevel::count(),
+            'filters' => [
+                'boutique_id' => $request->string('boutique_id')->toString(),
+            ],
         ]);
     }
 
@@ -44,6 +55,7 @@ class ValidationController extends Controller
 
         $purchaseOrder->load([
             'user',
+            'boutique',
             'attachments',
             'validationLogs.validationLevel',
             'validationLogs.user',

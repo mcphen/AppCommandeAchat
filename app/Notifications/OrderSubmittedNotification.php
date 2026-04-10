@@ -4,14 +4,11 @@ namespace App\Notifications;
 
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class OrderSubmittedNotification extends Notification implements ShouldQueue
+class OrderSubmittedNotification extends Notification
 {
-    use Queueable;
 
     public function __construct(
         private readonly PurchaseOrder $order,
@@ -20,7 +17,20 @@ class OrderSubmittedNotification extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['mail'];
+        return ['mail', 'database'];
+    }
+
+    public function toDatabase(object $notifiable): array
+    {
+        return [
+            'type'        => 'order_submitted',
+            'title'       => 'Nouvelle commande à valider',
+            'body'        => "La commande \"{$this->order->title}\" de {$this->order->user->name} nécessite votre validation au niveau {$this->level->name}.",
+            'url'         => route('validations.show', $this->order),
+            'order_id'    => $this->order->id,
+            'order_title' => $this->order->title,
+            'color'       => 'blue',
+        ];
     }
 
     public function toMail(object $notifiable): MailMessage

@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type PurchaseOrder } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Upload, X, FileText, Loader2, Save, Trash2 } from 'lucide-vue-next';
+import { ArrowLeft, Upload, X, FileText, Loader2, Save, Trash2, Store } from 'lucide-vue-next';
 import { ref } from 'vue';
 
 const props = defineProps<{ order: PurchaseOrder }>();
@@ -83,6 +83,21 @@ const submit = () => {
             <div v-if="order.status === 'rejected' && order.validation_logs?.length" class="rounded-2xl border border-red-200 bg-red-50 p-5">
                 <p class="text-sm font-semibold text-red-800 mb-1">Motif du dernier refus</p>
                 <p class="text-sm text-red-700">{{ order.validation_logs[0]?.comment }}</p>
+            </div>
+
+            <div v-if="order.boutique" class="rounded-2xl border bg-card p-5 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                        <Store class="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Boutique emettrice</p>
+                        <p class="text-base font-semibold text-foreground">{{ order.boutique.name }}</p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ order.boutique.code }}<template v-if="order.boutique.city"> · {{ order.boutique.city }}</template>
+                        </p>
+                    </div>
+                </div>
             </div>
 
             <form @submit.prevent="submit" class="flex flex-col gap-5">

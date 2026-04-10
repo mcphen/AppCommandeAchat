@@ -10,6 +10,7 @@ class PurchaseOrder extends Model
 {
     protected $fillable = [
         'user_id',
+        'boutique_id',
         'title',
         'description',
         'amount',
@@ -27,6 +28,11 @@ class PurchaseOrder extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function boutique(): BelongsTo
+    {
+        return $this->belongsTo(Boutique::class);
     }
 
     public function attachments(): HasMany

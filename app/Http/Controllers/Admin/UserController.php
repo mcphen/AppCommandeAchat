@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\Boutique;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\ValidationLevel;
@@ -17,7 +18,7 @@ class UserController extends Controller
 {
     public function index(): Response
     {
-        $users = User::with(['role', 'validationLevel'])
+        $users = User::with(['role', 'validationLevel', 'boutique'])
             ->latest()
             ->paginate(15);
 
@@ -29,8 +30,9 @@ class UserController extends Controller
     public function create(): Response
     {
         return Inertia::render('Admin/Users/Form', [
-            'roles'  => Role::all(),
-            'levels' => ValidationLevel::orderBy('order')->get(),
+            'roles'     => Role::all(),
+            'levels'    => ValidationLevel::orderBy('order')->get(),
+            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -42,6 +44,7 @@ class UserController extends Controller
             'password'            => Hash::make($request->password),
             'role_id'             => $request->role_id,
             'validation_level_id' => $request->validation_level_id,
+            'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
         ]);
 
         return redirect()->route('admin.users.index')
@@ -51,9 +54,10 @@ class UserController extends Controller
     public function edit(User $user): Response
     {
         return Inertia::render('Admin/Users/Form', [
-            'user'   => $user->load(['role', 'validationLevel']),
-            'roles'  => Role::all(),
-            'levels' => ValidationLevel::orderBy('order')->get(),
+            'user'      => $user->load(['role', 'validationLevel', 'boutique']),
+            'roles'     => Role::all(),
+            'levels'    => ValidationLevel::orderBy('order')->get(),
+            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -64,6 +68,7 @@ class UserController extends Controller
             'email'               => $request->email,
             'role_id'             => $request->role_id,
             'validation_level_id' => $request->validation_level_id,
+            'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
         ];
 
         if ($request->filled('password')) {
@@ -84,5 +89,11 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Utilisateur supprimé.');
+    }
+    private function resolveBoutiqueId(?string $roleId, ?string $boutiqueId): ?string
+    {
+        $role = Role::find($roleId);
+
+        return $role?->slug === 'demandeur' ? $boutiqueId : null;
     }
 }

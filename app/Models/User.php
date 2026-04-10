@@ -20,6 +20,7 @@ class User extends Authenticatable
         'password',
         'role_id',
         'validation_level_id',
+        'boutique_id',
     ];
 
     protected $hidden = [
@@ -43,6 +44,11 @@ class User extends Authenticatable
     public function validationLevel(): BelongsTo
     {
         return $this->belongsTo(ValidationLevel::class);
+    }
+
+    public function boutique(): BelongsTo
+    {
+        return $this->belongsTo(Boutique::class);
     }
 
     public function purchaseOrders(): HasMany

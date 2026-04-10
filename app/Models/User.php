@@ -21,6 +21,8 @@ class User extends Authenticatable
         'role_id',
         'validation_level_id',
         'boutique_id',
+        'onboarding_completed_at',
+        'checklist_dismissed_at',
     ];
 
     protected $hidden = [
@@ -31,9 +33,16 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'email_verified_at'        => 'datetime',
+            'onboarding_completed_at'  => 'datetime',
+            'checklist_dismissed_at'   => 'datetime',
+            'password'                 => 'hashed',
         ];
+    }
+
+    public function needsOnboarding(): bool
+    {
+        return $this->onboarding_completed_at === null;
     }
 
     public function role(): BelongsTo
@@ -59,6 +68,63 @@ class User extends Authenticatable
     public function validationLogs(): HasMany
     {
         return $this->hasMany(ValidationLog::class);
+    }
+
+    public function delegationsGiven(): HasMany
+    {
+        return $this->hasMany(ValidationDelegation::class, 'delegator_id');
+    }
+
+    public function delegationsReceived(): HasMany
+    {
+        return $this->hasMany(ValidationDelegation::class, 'delegatee_id');
+    }
+
+    public function activeDelegationsReceived(): HasMany
+    {
+        return $this->delegationsReceived()
+            ->where('is_active', true)
+            ->whereDate('starts_at', '<=', now())
+            ->whereDate('ends_at', '>=', now());
+    }
+
+    /**
+     * Returns all validation level orders this user can act on
+     * (own level + delegated levels).
+     */
+    public function validatableLevelOrders(): array
+    {
+        $orders = [];
+
+        if ($this->validationLevel) {
+            $orders[] = $this->validationLevel->order;
+        }
+
+        $delegated = $this->activeDelegationsReceived()
+            ->with('validationLevel')
+            ->get()
+            ->pluck('validationLevel.order')
+            ->filter()
+            ->toArray();
+
+        return array_values(array_unique(array_merge($orders, $delegated)));
+    }
+
+    /**
+     * If the user is validating at $levelOrder via delegation,
+     * returns the delegator's id; otherwise null.
+     */
+    public function getDelegatorIdForLevel(int $levelOrder): ?int
+    {
+        if ($this->validationLevel?->order === $levelOrder) {
+            return null; // own level, not delegated
+        }
+
+        return $this->activeDelegationsReceived()
+            ->with('validationLevel')
+            ->get()
+            ->first(fn ($d) => $d->validationLevel?->order === $levelOrder)
+            ?->delegator_id;
     }
 
     public function isAdmin(): bool

@@ -13,6 +13,7 @@ class ValidationLog extends Model
         'user_id',
         'action',
         'comment',
+        'delegated_by_id',
     ];
 
     public function purchaseOrder(): BelongsTo
@@ -28,6 +29,16 @@ class ValidationLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function delegatedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'delegated_by_id');
+    }
+
+    public function isDelegated(): bool
+    {
+        return $this->delegated_by_id !== null;
     }
 
     public function isApproved(): bool { return $this->action === 'approved'; }

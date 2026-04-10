@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import AdminChecklist from '@/components/AdminChecklist.vue';
+import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type Boutique, type BreadcrumbItem, type PurchaseOrder, type SharedData, type ValidationLevel } from '@/types';
+import { type Boutique, type BreadcrumbItem, type Budget, type PurchaseOrder, type SharedData, type ValidationLevel } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
     ShoppingCart, Clock, CheckCircle2, XCircle, FileText,
     TrendingUp, Users, Settings, ArrowRight, Eye,
-    Store, Layers, Wallet, Ban, Building2,
+    Store, Layers, Wallet, Ban, Building2, PiggyBank, AlertTriangle, UserCheck,
 } from 'lucide-vue-next';
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Tooltip } from 'chart.js';
 import { Bar, Doughnut } from 'vue-chartjs';
@@ -29,6 +31,29 @@ interface BoutiqueStat {
     budget_approved: number | null;
 }
 
+interface ActiveDelegation {
+    id: number;
+    delegator: { id: number; name: string };
+    validationLevel: { id: number; name: string; order: number };
+    ends_at: string;
+}
+
+interface ChecklistStep {
+    key: string;
+    label: string;
+    detail: string;
+    done: boolean;
+    href: string;
+    cta: string;
+}
+
+interface Checklist {
+    steps: ChecklistStep[];
+    completed: number;
+    total: number;
+    all_done: boolean;
+}
+
 const props = defineProps<{
     stats: Record<string, number>;
     recentOrders?: PurchaseOrder[];
@@ -45,6 +70,9 @@ const props = defineProps<{
         rejected: number[];
         draft: number[];
     };
+    alertBudgets?: Budget[];
+    activeDelegations?: ActiveDelegation[];
+    checklist?: Checklist | null;
 }>();
 
 const statusConfig = {
@@ -178,8 +206,32 @@ const hasBarData = computed(() =>
                 </p>
             </div>
 
+            <!-- Banner intérim (validateur avec délégations actives reçues) -->
+            <div v-if="activeDelegations && activeDelegations.length > 0"
+                 class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+                <div class="flex items-start gap-3">
+                    <UserCheck class="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
+                    <div class="text-sm text-indigo-800">
+                        <p class="font-semibold mb-1">Vous validez par intérim pour :</p>
+                        <ul class="space-y-0.5">
+                            <li v-for="d in activeDelegations" :key="d.id">
+                                <span class="font-medium">{{ d.delegator.name }}</span>
+                                — niveau <span class="font-medium">{{ d.validationLevel.name }}</span>
+                                jusqu'au {{ new Date(d.ends_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) }}
+                            </li>
+                        </ul>
+                    </div>
+                    <Link :href="route('delegations.index')" class="ml-auto shrink-0 text-xs font-medium text-indigo-600 hover:underline">
+                        Gérer
+                    </Link>
+                </div>
+            </div>
+
             <!-- ===== ADMIN ===== -->
             <template v-if="role === 'admin'">
+
+                <!-- Checklist d'activation -->
+                <AdminChecklist v-if="checklist" :checklist="checklist" />
 
                 <!-- Stat cards (counts) -->
                 <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -306,6 +358,47 @@ const hasBarData = computed(() =>
                             <div class="col-span-3 text-right">
                                 <p class="text-sm font-semibold text-emerald-600">{{ formatAmountShort(b.budget_approved ?? 0) }}</p>
                                 <p class="text-xs text-muted-foreground">validé</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Budgets en alerte -->
+                <div v-if="alertBudgets && alertBudgets.length > 0" class="rounded-2xl border bg-card shadow-sm">
+                    <div class="flex items-center justify-between border-b px-4 py-4 sm:px-6">
+                        <h2 class="font-semibold text-foreground flex items-center gap-2">
+                            <PiggyBank class="h-4 w-4 text-muted-foreground" />
+                            Suivi budgétaire
+                        </h2>
+                        <Link :href="route('admin.budgets.index')" class="text-sm text-primary hover:underline flex items-center gap-1">
+                            Tout voir <ArrowRight class="h-3.5 w-3.5" />
+                        </Link>
+                    </div>
+                    <div class="divide-y">
+                        <div v-for="b in alertBudgets" :key="b.id" class="px-4 py-3 sm:px-6 hover:bg-muted/20 transition-colors">
+                            <div class="flex items-center justify-between gap-3 mb-2">
+                                <div class="flex items-center gap-2 min-w-0 flex-1">
+                                    <AlertTriangle v-if="b.consumption?.is_exceeded" class="h-3.5 w-3.5 shrink-0 text-red-500" />
+                                    <AlertTriangle v-else-if="b.consumption?.is_warning" class="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-medium text-foreground truncate">
+                                            {{ b.boutique?.name ?? 'Toutes boutiques' }}
+                                            <span class="text-muted-foreground font-normal"> · {{ b.category?.name ?? 'Toutes catégories' }}</span>
+                                        </p>
+                                        <p class="text-xs text-muted-foreground">{{ b.period }}</p>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <span class="text-sm font-bold" :class="b.consumption?.is_exceeded ? 'text-red-600' : b.consumption?.is_warning ? 'text-amber-600' : 'text-foreground'">
+                                        {{ b.consumption?.percent_engaged ?? 0 }}%
+                                    </span>
+                                    <p class="text-xs text-muted-foreground">engagé</p>
+                                </div>
+                            </div>
+                            <div class="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                                <div class="h-full rounded-full transition-all"
+                                    :class="b.consumption?.is_exceeded ? 'bg-red-500' : b.consumption?.is_warning ? 'bg-amber-400' : 'bg-emerald-500'"
+                                    :style="{ width: Math.min(100, b.consumption?.percent_engaged ?? 0) + '%' }" />
                             </div>
                         </div>
                     </div>
@@ -593,23 +686,16 @@ const hasBarData = computed(() =>
             </div>
 
             <!-- CTA vide (demandeur) -->
-            <div
+            <EmptyState
                 v-else-if="role === 'demandeur' && stats.total === 0"
-                class="rounded-2xl border-2 border-dashed border-border bg-card p-8 text-center sm:p-12"
-            >
-                <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-                    <ShoppingCart class="h-7 w-7 text-primary" />
-                </div>
-                <h3 class="font-semibold text-foreground mb-2">Aucune commande pour l'instant</h3>
-                <p class="text-sm text-muted-foreground mb-6">Créez votre première commande d'achat</p>
-                <Link
-                    :href="route('purchase-orders.create')"
-                    class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors"
-                >
-                    <ShoppingCart class="h-4 w-4" />
-                    Nouvelle commande
-                </Link>
-            </div>
+                :icon="ShoppingCart"
+                icon-bg="bg-primary/10"
+                icon-color="text-primary"
+                title="Aucune commande pour l'instant"
+                description="Créez votre première demande d'achat, sélectionnez vos articles et soumettez-la pour validation."
+                :action-href="route('purchase-orders.create')"
+                action-label="Créer ma première commande"
+            />
 
         </div>
     </AppLayout>

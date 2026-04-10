@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type ValidationLevel } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -168,17 +169,16 @@ const deleteLevel = async (level: ValidationLevel) => {
             </template>
 
             <!-- État vide -->
-            <div v-else class="rounded-2xl border-2 border-dashed border-border bg-card p-16 text-center">
-                <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                    <Settings class="h-7 w-7 text-muted-foreground" />
-                </div>
-                <h3 class="font-semibold text-foreground mb-2">Aucun niveau configuré</h3>
-                <p class="text-sm text-muted-foreground mb-6">Définissez les niveaux de validation du circuit d'approbation</p>
-                <Link :href="route('admin.validation-levels.create')" class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors">
-                    <Plus class="h-4 w-4" />
-                    Créer le premier niveau
-                </Link>
-            </div>
+            <EmptyState
+                v-else
+                :icon="Settings"
+                icon-bg="bg-slate-100"
+                icon-color="text-slate-500"
+                title="Aucun niveau configuré"
+                description="Définissez les niveaux d'approbation du circuit de validation. Les commandes passeront par chaque niveau avant d'être approuvées."
+                :action-href="route('admin.validation-levels.create')"
+                action-label="Créer le premier niveau"
+            />
         </div>
     </AppLayout>
 </template>

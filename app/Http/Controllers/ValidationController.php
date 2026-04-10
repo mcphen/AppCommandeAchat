@@ -29,8 +29,9 @@ class ValidationController extends Controller
             ->latest('submitted_at');
 
         if (! $user->isAdmin()) {
-            abort_unless($user->validationLevel, 403);
-            $query->where('current_level_order', $user->validationLevel->order);
+            $validatableOrders = $user->validatableLevelOrders();
+            abort_unless(count($validatableOrders) > 0, 403, 'Vous n\'avez aucun niveau de validation actif.');
+            $query->whereIn('current_level_order', $validatableOrders);
         }
 
         if ($request->filled('boutique_id')) {
@@ -59,6 +60,8 @@ class ValidationController extends Controller
             'attachments',
             'validationLogs.validationLevel',
             'validationLogs.user',
+            'validationLogs.delegatedBy',
+            'comments.user',
         ]);
 
         $levels = ValidationLevel::orderBy('order')->get();
@@ -82,6 +85,7 @@ class ValidationController extends Controller
                 'validation_level_id' => $currentLevel->id,
                 'user_id'             => $user->id,
                 'action'              => 'approved',
+                'delegated_by_id'     => $user->getDelegatorIdForLevel($currentLevel->order),
             ]);
 
             $nextLevel = ValidationLevel::nextAfter($currentLevel->order);
@@ -123,6 +127,7 @@ class ValidationController extends Controller
                 'user_id'             => $user->id,
                 'action'              => 'rejected',
                 'comment'             => $request->comment,
+                'delegated_by_id'     => $user->getDelegatorIdForLevel($currentLevel->order),
             ]);
 
             $purchaseOrder->update([
@@ -147,7 +152,12 @@ class ValidationController extends Controller
             return;
         }
 
-        abort_unless($user->isValidateur() && $user->validationLevel, 403);
-        abort_unless($user->validationLevel->order === $purchaseOrder->current_level_order, 403, 'Cette commande n\'est pas à votre niveau de validation.');
+        $validatableOrders = $user->validatableLevelOrders();
+        abort_unless(count($validatableOrders) > 0, 403, 'Vous n\'avez aucun niveau de validation actif.');
+        abort_unless(
+            in_array($purchaseOrder->current_level_order, $validatableOrders),
+            403,
+            'Cette commande n\'est pas à votre niveau de validation.'
+        );
     }
 }

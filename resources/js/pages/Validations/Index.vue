@@ -1,15 +1,17 @@
 <script setup lang="ts">
+import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOrder, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Building2, Calendar, CheckSquare, Clock, Eye, FileText } from 'lucide-vue-next';
+import { Building2, Calendar, CheckSquare, Clock, Eye, FileText, Filter, RotateCcw } from 'lucide-vue-next';
+import { computed } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
     { title: 'Validations', href: '/validations' },
 ];
 
-defineProps<{
+const props = defineProps<{
     orders: PaginatedData<PurchaseOrder>;
     boutiques: Boutique[];
     levelsCount: number;
@@ -53,6 +55,8 @@ const resetFilters = () => {
         replace: true,
     });
 };
+
+const hasActiveFilters = computed(() => !!props.filters.boutique_id);
 </script>
 
 <template>
@@ -177,13 +181,34 @@ const resetFilters = () => {
                     </div>
                 </template>
 
-                <div v-else class="flex flex-col items-center justify-center py-12 text-center sm:py-16">
-                    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50">
-                        <CheckSquare class="h-7 w-7 text-emerald-500" />
-                    </div>
-                    <h3 class="mb-2 font-semibold text-foreground">Aucune commande en attente</h3>
-                    <p class="text-sm text-muted-foreground">Aucune commande ne correspond au filtre actuel.</p>
-                </div>
+                <EmptyState
+                    v-else-if="hasActiveFilters"
+                    :icon="Filter"
+                    icon-bg="bg-slate-100"
+                    icon-color="text-slate-400"
+                    title="Aucun résultat"
+                    description="Aucune commande ne correspond aux filtres appliqués. Réinitialisez pour voir toutes les commandes en attente."
+                    :bordered="false"
+                >
+                    <button
+                        class="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                        @click="resetFilters"
+                    >
+                        <RotateCcw class="h-4 w-4" />
+                        Réinitialiser les filtres
+                    </button>
+                </EmptyState>
+                <EmptyState
+                    v-else
+                    :icon="CheckSquare"
+                    icon-bg="bg-emerald-50"
+                    icon-color="text-emerald-500"
+                    title="Tout est à jour !"
+                    description="Il n'y a aucune commande en attente de validation pour l'instant. Revenez plus tard ou consultez l'historique."
+                    :action-href="route('dashboard')"
+                    action-label="Retour au tableau de bord"
+                    :bordered="false"
+                />
             </div>
         </div>
     </AppLayout>

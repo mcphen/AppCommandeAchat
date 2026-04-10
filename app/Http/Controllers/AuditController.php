@@ -73,6 +73,7 @@ class AuditController extends Controller
             'purchaseOrder.user',
             'validationLevel',
             'user',
+            'delegatedBy',
         ])->latest();
 
         // Validateur : uniquement ses propres actions

@@ -12,6 +12,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     LayoutDashboard, ShoppingCart, CheckSquare,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
+    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -33,6 +34,12 @@ const mainNav = computed(() => {
             icon: ShoppingCart,
             key: 'purchase-orders',
         });
+        items.push({
+            title: 'Réceptions',
+            href: route('receptions.index'),
+            icon: ClipboardCheck,
+            key: 'receptions',
+        });
     }
 
     if (role.value === 'validateur' || role.value === 'admin') {
@@ -41,6 +48,12 @@ const mainNav = computed(() => {
             href: route('validations.index'),
             icon: CheckSquare,
             key: 'validations',
+        });
+        items.push({
+            title: 'Délégations',
+            href: route('delegations.index'),
+            icon: UserCheck,
+            key: 'delegations',
         });
         items.push({
             title: 'Audit & Historique',
@@ -53,12 +66,24 @@ const mainNav = computed(() => {
     return items;
 });
 
+const analyticsNav = computed(() => {
+    if (role.value !== 'admin') return [];
+    return [
+        { title: 'Analytique', href: route('analytics.index'), icon: BarChart2, key: 'analytics' },
+    ];
+});
+
 const adminNav = computed(() => {
     if (role.value !== 'admin') return [];
     return [
-        { title: 'Boutiques', href: route('admin.boutiques.index'), icon: Building2, key: 'admin-boutiques' },
-        { title: 'Utilisateurs', href: route('admin.users.index'), icon: Users, key: 'admin-users' },
-        { title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings, key: 'admin-levels' },
+        { title: 'Boutiques',            href: route('admin.boutiques.index'),         icon: Building2,  key: 'admin-boutiques' },
+        { title: 'Utilisateurs',         href: route('admin.users.index'),             icon: Users,      key: 'admin-users' },
+        { title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings,   key: 'admin-levels' },
+        { title: 'Catégories',           href: route('admin.categories.index'),        icon: FolderTree, key: 'admin-categories' },
+        { title: 'Articles',             href: route('admin.articles.index'),          icon: Package,    key: 'admin-articles' },
+        { title: 'Fournisseurs',         href: route('admin.fournisseurs.index'),      icon: Truck,      key: 'admin-fournisseurs' },
+        { title: 'Budgets',              href: route('admin.budgets.index'),           icon: PiggyBank,  key: 'admin-budgets' },
+        { title: 'Comptabilité',         href: route('admin.accounting.index'),        icon: BookOpen,   key: 'admin-accounting' },
     ];
 });
 </script>
@@ -102,6 +127,32 @@ const adminNav = computed(() => {
                     </SidebarMenu>
                 </SidebarGroupContent>
             </SidebarGroup>
+
+            <template v-if="analyticsNav.length > 0">
+                <SidebarSeparator class="mx-4 my-2" />
+                <SidebarGroup class="px-2">
+                    <SidebarGroupLabel class="text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/40 px-2 mb-1 flex items-center gap-1.5">
+                        <BarChart2 class="h-3 w-3" />
+                        Analytique
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem v-for="item in analyticsNav" :key="item.key">
+                                <SidebarMenuButton
+                                    as-child
+                                    :is-active="isActive(item.href)"
+                                    class="group relative h-9 rounded-lg transition-all"
+                                >
+                                    <Link :href="item.href" class="flex items-center gap-3">
+                                        <component :is="item.icon" class="h-4 w-4 shrink-0" />
+                                        <span class="font-medium text-sm">{{ item.title }}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+            </template>
 
             <template v-if="adminNav.length > 0">
                 <SidebarSeparator class="mx-4 my-2" />

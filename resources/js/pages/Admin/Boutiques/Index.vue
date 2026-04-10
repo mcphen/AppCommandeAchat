@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -116,20 +117,16 @@ const deleteBoutique = async (boutique: Boutique) => {
                 </div>
             </div>
 
-            <div v-else class="rounded-2xl border-2 border-dashed border-border bg-card p-16 text-center">
-                <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                    <Building2 class="h-7 w-7 text-muted-foreground" />
-                </div>
-                <h3 class="mb-2 font-semibold text-foreground">Aucune boutique</h3>
-                <p class="mb-6 text-sm text-muted-foreground">Commence par creer les boutiques du groupe avant d'affecter les gerants.</p>
-                <Link
-                    :href="route('admin.boutiques.create')"
-                    class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                >
-                    <Plus class="h-4 w-4" />
-                    Creer la premiere boutique
-                </Link>
-            </div>
+            <EmptyState
+                v-else
+                :icon="Building2"
+                icon-bg="bg-blue-50"
+                icon-color="text-blue-500"
+                title="Aucune boutique"
+                description="Créez vos boutiques ou départements pour affecter les demandeurs et suivre les dépenses par entité."
+                :action-href="route('admin.boutiques.create')"
+                action-label="Créer la première boutique"
+            />
         </div>
     </AppLayout>
 </template>

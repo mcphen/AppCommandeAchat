@@ -2,10 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Article;
 use App\Models\Boutique;
+use App\Models\Budget;
+use App\Models\Category;
+use App\Models\Fournisseur;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Models\ValidationLevel;
+use App\Services\BudgetService;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -29,6 +34,7 @@ class DashboardController extends Controller
 
     private function adminDashboard(): Response
     {
+        $budgetService = app(BudgetService::class);
         $stats = [
             'total'           => PurchaseOrder::count(),
             'pending'         => PurchaseOrder::where('status', 'pending')->count(),
@@ -59,14 +65,18 @@ class DashboardController extends Controller
 
         $monthlyData = $this->getMonthlyData();
 
+        $alertBudgets = $budgetService->getAlertBudgets(now()->year, 5);
+
         return Inertia::render('Dashboard', [
-            'stats'         => $stats,
-            'recentOrders'  => $recentOrders,
-            'totalUsers'    => $totalUsers,
-            'totalLevels'   => $totalLevels,
+            'stats'          => $stats,
+            'recentOrders'   => $recentOrders,
+            'totalUsers'     => $totalUsers,
+            'totalLevels'    => $totalLevels,
             'totalBoutiques' => $totalBoutiques,
-            'boutiqueStats' => $boutiqueStats,
-            'monthlyData'   => $monthlyData,
+            'boutiqueStats'  => $boutiqueStats,
+            'monthlyData'    => $monthlyData,
+            'alertBudgets'   => $alertBudgets,
+            'checklist'      => $this->buildChecklist(auth()->user()),
         ]);
     }
 
@@ -93,11 +103,16 @@ class DashboardController extends Controller
 
         $totalLevels = ValidationLevel::count();
 
+        $activeDelegations = $user->activeDelegationsReceived()
+            ->with(['delegator', 'validationLevel'])
+            ->get();
+
         return Inertia::render('Dashboard', [
-            'stats'           => $stats,
-            'recentOrders'    => $recentOrders,
-            'validationLevel' => $user->validationLevel,
-            'totalLevels'     => $totalLevels,
+            'stats'             => $stats,
+            'recentOrders'      => $recentOrders,
+            'validationLevel'   => $user->validationLevel,
+            'totalLevels'       => $totalLevels,
+            'activeDelegations' => $activeDelegations,
         ]);
     }
 
@@ -129,6 +144,83 @@ class DashboardController extends Controller
             'boutique'     => $user->boutique,
             'totalLevels'  => $totalLevels,
         ]);
+    }
+
+    private function buildChecklist(User $user): ?array
+    {
+        // Ne pas afficher si l'admin a fermé définitivement la checklist
+        if ($user->checklist_dismissed_at !== null) {
+            return null;
+        }
+
+        $hasBoutique        = Boutique::where('is_active', true)->exists();
+        $hasValidationLevel = ValidationLevel::exists();
+        $hasOtherUser       = User::where('id', '!=', $user->id)->exists();
+        $hasBudget          = class_exists(Budget::class) && Budget::exists();
+        $hasArticle         = Article::where('is_active', true)->exists();
+        $hasFournisseur     = Fournisseur::where('is_approved', true)->exists();
+
+        $steps = [
+            [
+                'key'       => 'boutique',
+                'label'     => 'Créer une boutique',
+                'detail'    => 'Définissez votre premier point de vente ou département.',
+                'done'      => $hasBoutique,
+                'href'      => '/admin/boutiques/create',
+                'cta'       => 'Créer une boutique',
+            ],
+            [
+                'key'       => 'validation_level',
+                'label'     => 'Configurer le circuit de validation',
+                'detail'    => 'Définissez au moins un niveau d\'approbation pour les commandes.',
+                'done'      => $hasValidationLevel,
+                'href'      => '/admin/validation-levels/create',
+                'cta'       => 'Ajouter un niveau',
+            ],
+            [
+                'key'       => 'invite_user',
+                'label'     => 'Inviter un utilisateur',
+                'detail'    => 'Ajoutez un demandeur ou un validateur à votre équipe.',
+                'done'      => $hasOtherUser,
+                'href'      => '/admin/users/create',
+                'cta'       => 'Ajouter un utilisateur',
+            ],
+            [
+                'key'       => 'fournisseur',
+                'label'     => 'Approuver un fournisseur',
+                'detail'    => 'Ajoutez et approuvez au moins un fournisseur dans le référentiel.',
+                'done'      => $hasFournisseur,
+                'href'      => '/admin/fournisseurs/create',
+                'cta'       => 'Ajouter un fournisseur',
+            ],
+            [
+                'key'       => 'article',
+                'label'     => 'Créer un article dans le catalogue',
+                'detail'    => 'Les demandeurs sélectionneront leurs articles depuis ce catalogue.',
+                'done'      => $hasArticle,
+                'href'      => '/admin/articles/create',
+                'cta'       => 'Ajouter un article',
+            ],
+            [
+                'key'       => 'budget',
+                'label'     => 'Définir un budget',
+                'detail'    => 'Configurez une enveloppe budgétaire pour contrôler les dépenses.',
+                'done'      => $hasBudget,
+                'href'      => '/admin/budgets/create',
+                'cta'       => 'Créer un budget',
+            ],
+        ];
+
+        $completed = collect($steps)->where('done', true)->count();
+        $total     = count($steps);
+        $allDone   = $completed === $total;
+
+        return [
+            'steps'     => $steps,
+            'completed' => $completed,
+            'total'     => $total,
+            'all_done'  => $allDone,
+        ];
     }
 
     private function getMonthlyData(?int $userId = null): array

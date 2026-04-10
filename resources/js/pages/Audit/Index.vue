@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type SharedData, type User, type ValidationLevel, type ValidationLog } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -421,21 +422,32 @@ const exportUrl = (format: string) => {
                 </template>
 
                 <!-- Empty state -->
-                <div v-else class="flex flex-col items-center justify-center px-6 py-16 text-center">
-                    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                        <ClipboardList class="h-7 w-7 text-muted-foreground" />
-                    </div>
-                    <h3 class="mb-2 font-semibold text-foreground">Aucune action trouvée</h3>
-                    <p class="mb-4 text-sm text-muted-foreground">Aucun log de validation ne correspond aux filtres appliqués.</p>
+                <EmptyState
+                    v-else-if="hasActiveFilters"
+                    :icon="Filter"
+                    icon-bg="bg-slate-100"
+                    icon-color="text-slate-400"
+                    title="Aucun résultat"
+                    description="Aucune entrée d'audit ne correspond aux filtres appliqués. Modifiez ou réinitialisez les filtres."
+                    :bordered="false"
+                >
                     <button
-                        v-if="hasActiveFilters"
-                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                        class="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
                         @click="resetFilters"
                     >
                         <RotateCcw class="h-4 w-4" />
                         Réinitialiser les filtres
                     </button>
-                </div>
+                </EmptyState>
+                <EmptyState
+                    v-else
+                    :icon="ClipboardList"
+                    icon-bg="bg-muted"
+                    icon-color="text-muted-foreground"
+                    title="Aucune action enregistrée"
+                    description="L'historique des validations apparaîtra ici dès que des commandes seront approuvées ou refusées."
+                    :bordered="false"
+                />
             </div>
         </div>
     </AppLayout>

@@ -2,8 +2,11 @@
 
 namespace Database\Seeders;
 
+use App\Models\Article;
 use App\Models\Boutique;
+use App\Models\Fournisseur;
 use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderLine;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\ValidationLevel;
@@ -18,9 +21,11 @@ class DemoDataSeeder extends Seeder
     {
         $this->call(BoutiqueSeeder::class);
 
-        $roles  = Role::pluck('id', 'slug');
-        $levels = ValidationLevel::orderBy('order')->get();
-        $boutiques = Boutique::orderBy('name')->get()->values();
+        $roles      = Role::pluck('id', 'slug');
+        $levels     = ValidationLevel::orderBy('order')->get();
+        $boutiques  = Boutique::orderBy('name')->get()->values();
+        $fournisseurs = Fournisseur::where('is_active', true)->get();
+        $articles     = Article::where('is_active', true)->get();
 
         // ── Validateurs (un par niveau) ──────────────────────────────────────
         $validateurs = [
@@ -54,11 +59,11 @@ class DemoDataSeeder extends Seeder
 
         // ── Demandeurs ────────────────────────────────────────────────────────
         $demandeurs = [
-            ['name' => 'Awa Touré',       'email' => 'a.toure@achatpro.ci'],
-            ['name' => 'Ibrahima Seck',   'email' => 'i.seck@achatpro.ci'],
-            ['name' => 'Mariam Coulibaly','email' => 'm.coulibaly@achatpro.ci'],
-            ['name' => 'Seydou Traoré',   'email' => 's.traore@achatpro.ci'],
-            ['name' => 'Aminata Bah',     'email' => 'a.bah@achatpro.ci'],
+            ['name' => 'Awa Touré',        'email' => 'a.toure@achatpro.ci'],
+            ['name' => 'Ibrahima Seck',    'email' => 'i.seck@achatpro.ci'],
+            ['name' => 'Mariam Coulibaly', 'email' => 'm.coulibaly@achatpro.ci'],
+            ['name' => 'Seydou Traoré',    'email' => 's.traore@achatpro.ci'],
+            ['name' => 'Aminata Bah',      'email' => 'a.bah@achatpro.ci'],
         ];
 
         $demandeurUsers = [];
@@ -68,8 +73,8 @@ class DemoDataSeeder extends Seeder
             $demandeurUsers[] = User::updateOrCreate(
                 ['email' => $data['email']],
                 array_merge($data, [
-                    'password' => Hash::make('password'),
-                    'role_id'  => $roles['demandeur'],
+                    'password'    => Hash::make('password'),
+                    'role_id'     => $roles['demandeur'],
                     'boutique_id' => $boutique?->id,
                 ])
             );
@@ -120,23 +125,23 @@ class DemoDataSeeder extends Seeder
         $start = Carbon::create(2025, 6, 1);
         $end   = Carbon::create(2026, 4, 7);
 
-        // Distribution des statuts sur la période
         $scenarii = [
-            // [status, submitted, fully_validated, nb_levels_validated]
-            ['approved', true,  true,  3],  // approuvée complètement
             ['approved', true,  true,  3],
             ['approved', true,  true,  3],
-            ['rejected', true,  true,  1],  // rejetée au niveau 1
-            ['rejected', true,  true,  2],  // rejetée au niveau 2
-            ['pending',  true,  false, 1],  // en attente au niveau 2
-            ['pending',  true,  false, 0],  // en attente au niveau 1
-            ['draft',    false, false, 0],  // jamais soumise
+            ['approved', true,  true,  3],
+            ['rejected', true,  true,  1],
+            ['rejected', true,  true,  2],
+            ['pending',  true,  false, 1],
+            ['pending',  true,  false, 0],
+            ['draft',    false, false, 0],
         ];
 
+        $approvedFournisseurs = $fournisseurs->where('is_approved', true)->values();
+        $allFournisseurs      = $fournisseurs->values();
         $orderCount = 0;
+        $lineCount  = 0;
 
         foreach ($demandeurUsers as $demandeur) {
-            // Chaque demandeur génère entre 6 et 10 commandes
             $nbOrders = rand(6, 10);
 
             for ($i = 0; $i < $nbOrders; $i++) {
@@ -146,12 +151,10 @@ class DemoDataSeeder extends Seeder
 
                 [$status, $submitted, $fullyValidated, $nbLevelsValidated] = $scenario;
 
-                // Soumission 1 à 5 jours après création
                 $submittedAt = $submitted
                     ? $createdAt->copy()->addDays(rand(1, 5))
                     : null;
 
-                // Ne pas soumettre si la date de soumission dépasse le 7 avril 2026
                 if ($submittedAt && $submittedAt->greaterThan($end)) {
                     $submittedAt = null;
                     $status      = 'draft';
@@ -160,18 +163,25 @@ class DemoDataSeeder extends Seeder
 
                 $currentLevelOrder = match ($status) {
                     'pending'  => $nbLevelsValidated + 1,
-                    'approved' => null,
-                    'rejected' => null,
                     default    => null,
                 };
 
+                // Stratégie fournisseur + lignes (2 commandes sur 3 ont des lignes)
+                $useLines         = ($i % 3 !== 0) && $articles->isNotEmpty() && $fournisseurs->isNotEmpty();
+                $orderFournisseur = null;
+
+                // 1 commande sur 3 a un fournisseur au niveau commande (sans lignes)
+                if (!$useLines && $allFournisseurs->isNotEmpty()) {
+                    $orderFournisseur = $allFournisseurs->random();
+                }
+
                 $amount = rand($template['amount_min'], $template['amount_max']);
-                // Arrondi à 1000 FCFA
                 $amount = round($amount / 1000) * 1000;
 
                 $order = PurchaseOrder::create([
                     'user_id'             => $demandeur->id,
                     'boutique_id'         => $demandeur->boutique_id,
+                    'fournisseur_id'      => $orderFournisseur?->id,
                     'title'               => $template['title'],
                     'description'         => $descriptions[array_rand($descriptions)],
                     'amount'              => $amount,
@@ -182,6 +192,43 @@ class DemoDataSeeder extends Seeder
                     'updated_at'          => $submittedAt ?? $createdAt,
                 ]);
 
+                // Lignes de commande
+                if ($useLines) {
+                    $nbLines      = rand(2, 5);
+                    $sampledItems = $articles->random(min($nbLines, $articles->count()));
+                    $totalAmount  = 0;
+
+                    foreach ($sampledItems as $article) {
+                        $qty        = rand(1, 10);
+                        $unitPrice  = $article->unit_price ?? rand(10000, 500000);
+                        // Légère variation du prix de référence (±20%)
+                        $unitPrice  = round($unitPrice * (0.8 + lcg_value() * 0.4) / 500) * 500;
+                        $lineFournisseur = $approvedFournisseurs->isNotEmpty()
+                            ? $approvedFournisseurs->random()
+                            : null;
+
+                        // 1 ligne sur 5 peut avoir un fournisseur non homologué
+                        if (rand(1, 5) === 1 && $allFournisseurs->isNotEmpty()) {
+                            $lineFournisseur = $allFournisseurs->random();
+                        }
+
+                        PurchaseOrderLine::create([
+                            'purchase_order_id' => $order->id,
+                            'article_id'        => $article->id,
+                            'fournisseur_id'    => $lineFournisseur?->id,
+                            'quantity'          => $qty,
+                            'unit_price'        => $unitPrice,
+                            'note'              => null,
+                        ]);
+
+                        $totalAmount += $qty * $unitPrice;
+                        $lineCount++;
+                    }
+
+                    // Recalculer le montant depuis les lignes
+                    $order->updateQuietly(['amount' => $totalAmount]);
+                }
+
                 // Logs de validation
                 if ($submitted && $nbLevelsValidated > 0) {
                     $validationDate = $submittedAt->copy();
@@ -191,14 +238,14 @@ class DemoDataSeeder extends Seeder
                         $level          = $levels->firstWhere('order', $lvl);
                         $validateur     = $validateurUsers[$lvl - 1] ?? $validateurUsers[0];
 
-                        $isLastLevel  = ($lvl === $nbLevelsValidated);
-                        $action       = match ($status) {
+                        $isLastLevel = ($lvl === $nbLevelsValidated);
+                        $action      = match ($status) {
                             'rejected' => $isLastLevel ? 'rejected' : 'approved',
                             default    => 'approved',
                         };
 
                         ValidationLog::create([
-                            'purchase_order_id'  => $order->id,
+                            'purchase_order_id'   => $order->id,
                             'validation_level_id' => $level?->id,
                             'user_id'             => $validateur->id,
                             'action'              => $action,
@@ -216,6 +263,7 @@ class DemoDataSeeder extends Seeder
         }
 
         $this->command->info("✓ {$orderCount} commandes créées pour " . count($demandeurUsers) . " demandeurs.");
+        $this->command->info("✓ {$lineCount} lignes de commande créées.");
         $this->command->info("✓ " . count($validateurUsers) . " validateurs créés.");
     }
 

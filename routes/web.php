@@ -1,13 +1,24 @@
 <?php
 
-use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\AccountingController;
+use App\Http\Controllers\ChecklistController;
+use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\Admin\ArticleController;
 use App\Http\Controllers\Admin\BoutiqueController;
+use App\Http\Controllers\Admin\BudgetController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\FournisseurController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ValidationLevelController;
 use App\Http\Controllers\AttachmentController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\DelegationController;
+use App\Http\Controllers\OrderCommentController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\ReceptionController;
 use App\Http\Controllers\ValidationController;
 use Illuminate\Support\Facades\Route;
 
@@ -24,7 +35,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('purchase-orders', PurchaseOrderController::class);
         Route::post('purchase-orders/{purchase_order}/submit', [PurchaseOrderController::class, 'submit'])
             ->name('purchase-orders.submit');
+        Route::post('purchase-orders/{purchase_order}/mark-ordered', [PurchaseOrderController::class, 'markOrdered'])
+            ->name('purchase-orders.mark-ordered');
+
+        Route::post('purchase-orders/{purchase_order}/receptions', [ReceptionController::class, 'store'])
+            ->name('purchase-orders.receptions.store');
+        Route::patch('purchase-orders/{purchase_order}/receptions/{reception}/invoice', [ReceptionController::class, 'updateInvoice'])
+            ->name('purchase-orders.receptions.invoice');
+
+        // Tableau de bord réceptions / livraisons
+        Route::get('receptions', [ReceptionController::class, 'index'])
+            ->name('receptions.index');
     });
+
+    // Commentaires & discussion (tous rôles authentifiés)
+    Route::post('purchase-orders/{purchase_order}/comments', [OrderCommentController::class, 'store'])
+        ->name('order-comments.store');
+    Route::get('purchase-orders/{purchase_order}/comments/{comment}/download', [OrderCommentController::class, 'download'])
+        ->name('order-comments.download');
+    Route::delete('purchase-orders/{purchase_order}/comments/{comment}', [OrderCommentController::class, 'destroy'])
+        ->name('order-comments.destroy');
+
+    // Onboarding & checklist
+    Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
+    Route::post('/checklist/dismiss',   [ChecklistController::class, 'dismiss'])->name('checklist.dismiss');
 
     // Notifications (tous rôles)
     Route::get('/notifications/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
@@ -47,9 +81,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/validations/{purchase_order}/approve', [ValidationController::class, 'approve'])->name('validations.approve');
         Route::post('/validations/{purchase_order}/reject', [ValidationController::class, 'reject'])->name('validations.reject');
 
+        // Délégations
+        Route::get('/delegations', [DelegationController::class, 'index'])->name('delegations.index');
+        Route::post('/delegations', [DelegationController::class, 'store'])->name('delegations.store');
+        Route::patch('/delegations/{delegation}/toggle', [DelegationController::class, 'toggle'])->name('delegations.toggle');
+        Route::delete('/delegations/{delegation}', [DelegationController::class, 'destroy'])->name('delegations.destroy');
+
         // Audit & historique
         Route::get('/audit', [AuditController::class, 'index'])->name('audit.index');
         Route::get('/audit/export/{format}', [AuditController::class, 'export'])->name('audit.export')->where('format', 'pdf|excel');
+    });
+
+    // Analytique (Admin uniquement)
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
     });
 
     // Administration (Admin uniquement)
@@ -57,6 +102,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('boutiques', BoutiqueController::class)->except(['show']);
         Route::resource('users', AdminUserController::class)->except(['show']);
         Route::resource('validation-levels', ValidationLevelController::class)->except(['show']);
+        Route::resource('categories', CategoryController::class)->except(['show']);
+        Route::resource('fournisseurs', FournisseurController::class);
+        Route::resource('articles', ArticleController::class)->except(['show']);
+        Route::resource('budgets', BudgetController::class)->except(['show']);
+        Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');
+        Route::get('accounting/export/{format}', [AccountingController::class, 'export'])->name('accounting.export')->where('format', 'fec|csv');
     });
 });
 

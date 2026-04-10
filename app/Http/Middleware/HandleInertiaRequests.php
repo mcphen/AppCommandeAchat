@@ -55,6 +55,7 @@ class HandleInertiaRequests extends Middleware
                 'error'   => $request->session()->get('error'),
             ],
             'unread_notifications_count' => $user ? $user->unreadNotifications()->count() : 0,
+            'show_onboarding'            => $user ? $user->needsOnboarding() : false,
         ]);
     }
 }

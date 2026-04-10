@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
+import OrderDiscussion from '@/components/OrderDiscussion.vue';
 import { type BreadcrumbItem, type PurchaseOrder, type ValidationLevel } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { AlertTriangle, ArrowLeft, Building2, Calendar, CheckCircle2, DollarSign, Download, FileDown, FileText, Loader2, Paperclip, User, XCircle } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+
+const page = usePage();
+const authUser = computed(() => (page.props as any).auth?.user);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
@@ -247,6 +251,16 @@ const progressSummary = () => {
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- ─── Discussion ──────────────────────────────────────────────── -->
+        <div class="max-w-4xl px-3 pb-2 sm:px-6">
+            <OrderDiscussion
+                :order="order"
+                :auth-user="authUser"
+                :can-request-revision="order.status === 'pending'"
+                :can-comment="true"
+            />
         </div>
 
         <Transition

@@ -13,6 +13,9 @@ class DatabaseSeeder extends Seeder
             ValidationLevelSeeder::class,
             BoutiqueSeeder::class,
             AdminUserSeeder::class,
+            CategorySeeder::class,
+            FournisseurSeeder::class,
+            ArticleSeeder::class,
             DemoDataSeeder::class,
         ]);
     }

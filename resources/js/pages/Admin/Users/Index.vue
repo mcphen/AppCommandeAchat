@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type PaginatedData, type User } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
@@ -149,13 +150,17 @@ const deleteUser = async (user: User) => {
                     </div>
                 </template>
 
-                <div v-else class="flex flex-col items-center justify-center py-12 sm:py-16">
-                    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                        <Users class="h-7 w-7 text-muted-foreground" />
-                    </div>
-                    <h3 class="mb-2 font-semibold text-foreground">Aucun utilisateur</h3>
-                    <Link :href="route('admin.users.create')" class="text-sm text-primary hover:underline">Creer le premier utilisateur</Link>
-                </div>
+                <EmptyState
+                    v-else
+                    :icon="Users"
+                    icon-bg="bg-indigo-50"
+                    icon-color="text-indigo-500"
+                    title="Aucun utilisateur"
+                    description="Invitez les membres de votre équipe — demandeurs et validateurs — pour qu'ils puissent accéder à l'application."
+                    :action-href="route('admin.users.create')"
+                    action-label="Inviter un utilisateur"
+                    :bordered="false"
+                />
             </div>
         </div>
     </AppLayout>

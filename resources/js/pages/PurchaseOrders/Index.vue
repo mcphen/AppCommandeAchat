@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOrder, type SharedData, type User, type ValidationLevel } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
@@ -533,29 +534,34 @@ const submitOrder = async (order: PurchaseOrder) => {
                     </div>
                 </template>
 
-                <div v-else class="flex flex-col items-center justify-center px-6 py-12 text-center sm:py-16">
-                    <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                        <ShoppingCart class="h-7 w-7 text-muted-foreground" />
-                    </div>
-                    <h3 class="mb-2 font-semibold text-foreground">Aucune commande</h3>
-                    <p class="mb-4 text-sm text-muted-foreground">Aucune commande ne correspond aux filtres appliques.</p>
+                <EmptyState
+                    v-else-if="hasActiveFilters"
+                    :icon="Filter"
+                    icon-bg="bg-slate-100"
+                    icon-color="text-slate-400"
+                    title="Aucun résultat"
+                    description="Aucune commande ne correspond aux filtres appliqués. Modifiez ou réinitialisez les filtres."
+                    :bordered="false"
+                >
                     <button
-                        v-if="hasActiveFilters"
-                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                        class="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
                         @click="resetFilters"
                     >
                         <RotateCcw class="h-4 w-4" />
-                        Reinitialiser les filtres
+                        Réinitialiser les filtres
                     </button>
-                    <Link
-                        v-else
-                        :href="route('purchase-orders.create')"
-                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                    >
-                        <Plus class="h-4 w-4" />
-                        Nouvelle commande
-                    </Link>
-                </div>
+                </EmptyState>
+                <EmptyState
+                    v-else
+                    :icon="ShoppingCart"
+                    icon-bg="bg-primary/10"
+                    icon-color="text-primary"
+                    title="Aucune commande pour l'instant"
+                    description="Créez votre première demande d'achat et suivez son avancement jusqu'à l'approbation et la réception."
+                    :action-href="route('purchase-orders.create')"
+                    action-label="Créer une commande"
+                    :bordered="false"
+                />
             </div>
         </div>
     </AppLayout>

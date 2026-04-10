@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem, type PurchaseOrder, type SharedData, type ValidationLog } from '@/types';
+import { type Boutique, type BreadcrumbItem, type PurchaseOrder, type SharedData, type ValidationLevel } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
     ShoppingCart, Clock, CheckCircle2, XCircle, FileText,
     TrendingUp, Users, Settings, ArrowRight, Eye,
+    Store, Layers, Wallet, Ban, Building2,
 } from 'lucide-vue-next';
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Tooltip } from 'chart.js';
 import { Bar, Doughnut } from 'vue-chartjs';
@@ -17,12 +18,26 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Tableau de bord', href: '/dashb
 const page = usePage<SharedData>();
 const role = computed(() => page.props.auth.user?.role?.slug);
 
+interface BoutiqueStat {
+    id: number;
+    name: string;
+    code: string;
+    city?: string | null;
+    orders_total: number;
+    orders_approved: number;
+    orders_pending: number;
+    budget_approved: number | null;
+}
+
 const props = defineProps<{
     stats: Record<string, number>;
     recentOrders?: PurchaseOrder[];
-    myValidations?: (ValidationLog & { purchase_order: PurchaseOrder })[];
     totalUsers?: number;
     totalLevels?: number;
+    totalBoutiques?: number;
+    boutiqueStats?: BoutiqueStat[];
+    boutique?: Boutique | null;
+    validationLevel?: ValidationLevel | null;
     monthlyData?: {
         labels: string[];
         pending: number[];
@@ -42,10 +57,17 @@ const statusConfig = {
 const formatAmount = (amount: string | number) =>
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', minimumFractionDigits: 0 }).format(Number(amount));
 
+const formatAmountShort = (amount: number) => {
+    if (amount >= 1_000_000_000) return (amount / 1_000_000_000).toFixed(1) + ' Md';
+    if (amount >= 1_000_000)     return (amount / 1_000_000).toFixed(1) + ' M';
+    if (amount >= 1_000)         return (amount / 1_000).toFixed(0) + ' K';
+    return amount.toString();
+};
+
 const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
-// --- Donut chart : répartition des statuts ---
+// --- Donut chart ---
 const donutData = computed(() => {
     const s = props.stats;
     if (role.value === 'validateur') {
@@ -83,7 +105,7 @@ const donutOptions = {
     cutout: '68%',
 };
 
-// --- Bar chart : tendance mensuelle ---
+// --- Bar chart ---
 const barData = computed(() => ({
     labels: props.monthlyData?.labels ?? [],
     datasets: [
@@ -158,7 +180,8 @@ const hasBarData = computed(() =>
 
             <!-- ===== ADMIN ===== -->
             <template v-if="role === 'admin'">
-                <!-- Stat cards -->
+
+                <!-- Stat cards (counts) -->
                 <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -166,6 +189,7 @@ const hasBarData = computed(() =>
                             <div class="rounded-lg bg-blue-50 p-2"><FileText class="h-4 w-4 text-blue-600" /></div>
                         </div>
                         <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.total }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">commandes</p>
                     </div>
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -173,6 +197,7 @@ const hasBarData = computed(() =>
                             <div class="rounded-lg bg-amber-50 p-2"><Clock class="h-4 w-4 text-amber-600" /></div>
                         </div>
                         <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.pending }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">en circuit</p>
                     </div>
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -180,6 +205,7 @@ const hasBarData = computed(() =>
                             <div class="rounded-lg bg-emerald-50 p-2"><CheckCircle2 class="h-4 w-4 text-emerald-600" /></div>
                         </div>
                         <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.approved }}</p>
+                        <p class="text-xs text-emerald-600 font-medium mt-1">{{ formatAmountShort(stats.budget_approved ?? 0) }} FCFA</p>
                     </div>
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -187,12 +213,36 @@ const hasBarData = computed(() =>
                             <div class="rounded-lg bg-red-50 p-2"><XCircle class="h-4 w-4 text-red-600" /></div>
                         </div>
                         <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.rejected }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">commandes</p>
+                    </div>
+                </div>
+
+                <!-- Budget cards -->
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                    <div class="rounded-2xl border bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-medium text-emerald-800">Budget validé</span>
+                            <div class="rounded-xl bg-emerald-100 p-2.5"><Wallet class="h-5 w-5 text-emerald-600" /></div>
+                        </div>
+                        <p class="text-2xl font-bold text-emerald-700 sm:text-3xl">
+                            {{ formatAmount(stats.budget_approved ?? 0) }}
+                        </p>
+                        <p class="text-xs text-emerald-600 mt-1.5">{{ stats.approved }} commandes approuvées</p>
+                    </div>
+                    <div class="rounded-2xl border bg-gradient-to-br from-amber-50 to-amber-100/50 p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-medium text-amber-800">Budget en attente</span>
+                            <div class="rounded-xl bg-amber-100 p-2.5"><Clock class="h-5 w-5 text-amber-600" /></div>
+                        </div>
+                        <p class="text-2xl font-bold text-amber-700 sm:text-3xl">
+                            {{ formatAmount(stats.budget_pending ?? 0) }}
+                        </p>
+                        <p class="text-xs text-amber-600 mt-1.5">{{ stats.pending }} commandes en circuit</p>
                     </div>
                 </div>
 
                 <!-- Graphes -->
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                    <!-- Donut -->
                     <div class="rounded-2xl border bg-card p-5 shadow-sm">
                         <h3 class="font-semibold text-foreground text-sm mb-4">Répartition des statuts</h3>
                         <div v-if="hasDonutData" class="h-56">
@@ -202,7 +252,6 @@ const hasBarData = computed(() =>
                             Aucune donnée
                         </div>
                     </div>
-                    <!-- Bar -->
                     <div class="rounded-2xl border bg-card p-5 shadow-sm lg:col-span-2">
                         <h3 class="font-semibold text-foreground text-sm mb-4">Évolution sur 6 mois</h3>
                         <div v-if="hasBarData" class="h-56">
@@ -214,24 +263,82 @@ const hasBarData = computed(() =>
                     </div>
                 </div>
 
+                <!-- Performance par boutique -->
+                <div v-if="boutiqueStats && boutiqueStats.length > 0" class="rounded-2xl border bg-card shadow-sm">
+                    <div class="flex items-center justify-between border-b px-4 py-4 sm:px-6">
+                        <h2 class="font-semibold text-foreground flex items-center gap-2">
+                            <Store class="h-4 w-4 text-muted-foreground" />
+                            Performance par boutique
+                        </h2>
+                        <Link :href="route('admin.boutiques.index')" class="text-sm text-primary hover:underline flex items-center gap-1">
+                            Gérer <ArrowRight class="h-3.5 w-3.5" />
+                        </Link>
+                    </div>
+                    <div class="divide-y">
+                        <div
+                            v-for="b in boutiqueStats"
+                            :key="b.id"
+                            class="grid grid-cols-12 items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors sm:px-6"
+                        >
+                            <!-- Boutique info -->
+                            <div class="col-span-5 flex items-center gap-3 min-w-0">
+                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                                    <Building2 class="h-4 w-4 text-blue-600" />
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-sm font-medium text-foreground truncate">{{ b.name }}</p>
+                                    <p class="text-xs text-muted-foreground">{{ b.code }}<template v-if="b.city"> · {{ b.city }}</template></p>
+                                </div>
+                            </div>
+                            <!-- Counts -->
+                            <div class="col-span-4 flex items-center gap-2 text-xs">
+                                <span class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+                                    {{ b.orders_total }} total
+                                </span>
+                                <span class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-medium text-amber-700">
+                                    {{ b.orders_pending }} att.
+                                </span>
+                                <span class="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700">
+                                    {{ b.orders_approved }} OK
+                                </span>
+                            </div>
+                            <!-- Budget approuvé -->
+                            <div class="col-span-3 text-right">
+                                <p class="text-sm font-semibold text-emerald-600">{{ formatAmountShort(b.budget_approved ?? 0) }}</p>
+                                <p class="text-xs text-muted-foreground">validé</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Admin info row -->
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                     <Link :href="route('admin.users.index')" class="rounded-2xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group sm:p-5">
-                        <div class="flex items-center gap-3 sm:gap-4">
-                            <div class="rounded-xl bg-violet-50 p-2.5 sm:p-3"><Users class="h-4 w-4 text-violet-600 sm:h-5 sm:w-5" /></div>
+                        <div class="flex items-center gap-3">
+                            <div class="rounded-xl bg-violet-50 p-2.5"><Users class="h-4 w-4 text-violet-600 sm:h-5 sm:w-5" /></div>
                             <div>
                                 <p class="font-semibold text-foreground text-sm sm:text-base">{{ totalUsers }} utilisateurs</p>
-                                <p class="text-xs text-muted-foreground sm:text-sm">Gérer les comptes</p>
+                                <p class="text-xs text-muted-foreground">Gérer les comptes</p>
                             </div>
                         </div>
                         <ArrowRight class="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform shrink-0" />
                     </Link>
                     <Link :href="route('admin.validation-levels.index')" class="rounded-2xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group sm:p-5">
-                        <div class="flex items-center gap-3 sm:gap-4">
-                            <div class="rounded-xl bg-indigo-50 p-2.5 sm:p-3"><Settings class="h-4 w-4 text-indigo-600 sm:h-5 sm:w-5" /></div>
+                        <div class="flex items-center gap-3">
+                            <div class="rounded-xl bg-indigo-50 p-2.5"><Settings class="h-4 w-4 text-indigo-600 sm:h-5 sm:w-5" /></div>
                             <div>
-                                <p class="font-semibold text-foreground text-sm sm:text-base">{{ totalLevels }} niveaux de validation</p>
-                                <p class="text-xs text-muted-foreground sm:text-sm">Configurer le circuit</p>
+                                <p class="font-semibold text-foreground text-sm sm:text-base">{{ totalLevels }} niveaux</p>
+                                <p class="text-xs text-muted-foreground">Circuit de validation</p>
+                            </div>
+                        </div>
+                        <ArrowRight class="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform shrink-0" />
+                    </Link>
+                    <Link :href="route('admin.boutiques.index')" class="rounded-2xl border bg-card p-4 shadow-sm hover:shadow-md transition-shadow flex items-center justify-between group sm:p-5">
+                        <div class="flex items-center gap-3">
+                            <div class="rounded-xl bg-blue-50 p-2.5"><Store class="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" /></div>
+                            <div>
+                                <p class="font-semibold text-foreground text-sm sm:text-base">{{ totalBoutiques }} boutiques</p>
+                                <p class="text-xs text-muted-foreground">Gérer les boutiques</p>
                             </div>
                         </div>
                         <ArrowRight class="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform shrink-0" />
@@ -241,6 +348,24 @@ const hasBarData = computed(() =>
 
             <!-- ===== VALIDATEUR ===== -->
             <template v-else-if="role === 'validateur'">
+
+                <!-- Bandeau niveau -->
+                <div v-if="validationLevel" class="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-indigo-100/50 p-4 flex items-center gap-4 sm:p-5">
+                    <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
+                        <Layers class="h-6 w-6 text-indigo-600" />
+                    </div>
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-0.5">Votre niveau de validation</p>
+                        <p class="text-base font-bold text-indigo-800">
+                            Niveau {{ validationLevel.order }}
+                            <template v-if="totalLevels"> / {{ totalLevels }}</template>
+                            — {{ validationLevel.name }}
+                        </p>
+                        <p v-if="validationLevel.description" class="text-xs text-indigo-600 mt-0.5">{{ validationLevel.description }}</p>
+                    </div>
+                </div>
+
+                <!-- Stat cards -->
                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -248,6 +373,7 @@ const hasBarData = computed(() =>
                             <div class="rounded-lg bg-amber-50 p-2"><Clock class="h-4 w-4 text-amber-600" /></div>
                         </div>
                         <p class="text-3xl font-bold text-foreground">{{ stats.pending }}</p>
+                        <p class="text-xs text-muted-foreground mt-1">à mon niveau</p>
                     </div>
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -299,6 +425,24 @@ const hasBarData = computed(() =>
 
             <!-- ===== DEMANDEUR ===== -->
             <template v-else>
+
+                <!-- Boutique card -->
+                <div v-if="boutique" class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                            <Store class="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Votre boutique</p>
+                            <p class="text-base font-semibold text-foreground">{{ boutique.name }}</p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ boutique.code }}<template v-if="boutique.city"> · {{ boutique.city }}</template>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stat cards -->
                 <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -313,6 +457,7 @@ const hasBarData = computed(() =>
                             <div class="rounded-lg bg-amber-50 p-2"><Clock class="h-4 w-4 text-amber-600" /></div>
                         </div>
                         <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.pending }}</p>
+                        <p class="text-xs text-amber-600 font-medium mt-1">{{ formatAmountShort(stats.budget_pending ?? 0) }} FCFA</p>
                     </div>
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -320,6 +465,7 @@ const hasBarData = computed(() =>
                             <div class="rounded-lg bg-emerald-50 p-2"><CheckCircle2 class="h-4 w-4 text-emerald-600" /></div>
                         </div>
                         <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.approved }}</p>
+                        <p class="text-xs text-emerald-600 font-medium mt-1">{{ formatAmountShort(stats.budget_approved ?? 0) }} FCFA</p>
                     </div>
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
@@ -327,6 +473,26 @@ const hasBarData = computed(() =>
                             <div class="rounded-lg bg-red-50 p-2"><XCircle class="h-4 w-4 text-red-600" /></div>
                         </div>
                         <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.rejected }}</p>
+                    </div>
+                </div>
+
+                <!-- Budget cards -->
+                <div v-if="stats.total > 0" class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                    <div class="rounded-2xl border bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-medium text-emerald-800">Budget validé</span>
+                            <div class="rounded-xl bg-emerald-100 p-2.5"><Wallet class="h-5 w-5 text-emerald-600" /></div>
+                        </div>
+                        <p class="text-2xl font-bold text-emerald-700">{{ formatAmount(stats.budget_approved ?? 0) }}</p>
+                        <p class="text-xs text-emerald-600 mt-1.5">{{ stats.approved }} commandes approuvées</p>
+                    </div>
+                    <div class="rounded-2xl border bg-gradient-to-br from-amber-50 to-amber-100/50 p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-sm font-medium text-amber-800">Budget en circuit</span>
+                            <div class="rounded-xl bg-amber-100 p-2.5"><Clock class="h-5 w-5 text-amber-600" /></div>
+                        </div>
+                        <p class="text-2xl font-bold text-amber-700">{{ formatAmount(stats.budget_pending ?? 0) }}</p>
+                        <p class="text-xs text-amber-600 mt-1.5">{{ stats.pending }} commandes en attente</p>
                     </div>
                 </div>
 
@@ -349,15 +515,16 @@ const hasBarData = computed(() =>
                 </div>
             </template>
 
-            <!-- Commandes récentes -->
+            <!-- ===== Commandes récentes (admin + validateur + demandeur) ===== -->
             <div v-if="recentOrders && recentOrders.length > 0" class="rounded-2xl border bg-card shadow-sm">
                 <div class="flex items-center justify-between border-b px-4 py-4 sm:px-6">
                     <h2 class="font-semibold text-foreground flex items-center gap-2">
                         <TrendingUp class="h-4 w-4 text-muted-foreground" />
-                        Commandes récentes
+                        <template v-if="role === 'validateur'">Commandes à valider</template>
+                        <template v-else>Commandes récentes</template>
                     </h2>
                     <Link
-                        :href="role === 'admin' ? route('validations.index') : route('purchase-orders.index')"
+                        :href="role === 'admin' ? route('validations.index') : role === 'validateur' ? route('validations.index') : route('purchase-orders.index')"
                         class="text-sm text-primary hover:underline flex items-center gap-1"
                     >
                         Voir tout <ArrowRight class="h-3.5 w-3.5" />
@@ -370,26 +537,48 @@ const hasBarData = computed(() =>
                         class="flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors gap-3 sm:px-6 sm:py-4"
                     >
                         <div class="flex items-center gap-3 min-w-0">
-                            <div class="hidden h-8 w-8 items-center justify-center rounded-xl bg-muted shrink-0 sm:flex sm:h-9 sm:w-9">
+                            <div class="hidden h-9 w-9 items-center justify-center rounded-xl bg-muted shrink-0 sm:flex">
                                 <FileText class="h-4 w-4 text-muted-foreground" />
                             </div>
                             <div class="min-w-0">
                                 <p class="font-medium text-sm text-foreground truncate">{{ order.title }}</p>
-                                <p class="text-xs text-muted-foreground mt-0.5">
-                                    <template v-if="role === 'admin'">{{ order.user?.name }} · </template>
-                                    {{ formatDate(order.created_at) }}
+                                <p class="text-xs text-muted-foreground mt-0.5 flex items-center gap-1.5 flex-wrap">
+                                    <template v-if="role === 'admin'">
+                                        <span>{{ order.user?.name }}</span>
+                                        <span class="text-muted-foreground/40">·</span>
+                                    </template>
+                                    <template v-if="order.boutique">
+                                        <span class="inline-flex items-center gap-1">
+                                            <Store class="h-3 w-3" />{{ order.boutique.name }}
+                                        </span>
+                                        <span class="text-muted-foreground/40">·</span>
+                                    </template>
+                                    <span>{{ formatDate(order.created_at) }}</span>
                                 </p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0 sm:gap-4">
+                        <div class="flex items-center gap-2 shrink-0 sm:gap-3">
                             <p class="hidden text-sm font-semibold text-foreground sm:block">{{ formatAmount(order.amount) }}</p>
-                            <span
-                                class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium sm:px-2.5"
-                                :class="[statusConfig[order.status]?.bg, statusConfig[order.status]?.text]"
-                            >
-                                <span class="h-1.5 w-1.5 rounded-full" :class="statusConfig[order.status]?.dot" />
-                                <span class="hidden sm:inline">{{ statusConfig[order.status]?.label }}</span>
-                            </span>
+                            <!-- Badge statut + niveau pour pending -->
+                            <template v-if="order.status === 'pending' && order.current_level_order">
+                                <span class="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                                    <span class="hidden sm:inline">Niv. {{ order.current_level_order }}</span>
+                                    <template v-if="totalLevels">
+                                        <span class="hidden sm:inline text-amber-400">/{{ totalLevels }}</span>
+                                    </template>
+                                    <span class="sm:hidden">Att. {{ order.current_level_order }}<template v-if="totalLevels">/{{ totalLevels }}</template></span>
+                                </span>
+                            </template>
+                            <template v-else>
+                                <span
+                                    class="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium sm:px-2.5"
+                                    :class="[statusConfig[order.status]?.bg, statusConfig[order.status]?.text]"
+                                >
+                                    <span class="h-1.5 w-1.5 rounded-full" :class="statusConfig[order.status]?.dot" />
+                                    <span class="hidden sm:inline">{{ statusConfig[order.status]?.label }}</span>
+                                </span>
+                            </template>
                             <Link
                                 :href="role === 'admin' || role === 'validateur'
                                     ? route('validations.show', order.id)
@@ -403,7 +592,7 @@ const hasBarData = computed(() =>
                 </div>
             </div>
 
-            <!-- CTA vide -->
+            <!-- CTA vide (demandeur) -->
             <div
                 v-else-if="role === 'demandeur' && stats.total === 0"
                 class="rounded-2xl border-2 border-dashed border-border bg-card p-8 text-center sm:p-12"

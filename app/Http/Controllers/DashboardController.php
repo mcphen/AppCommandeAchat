@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Boutique;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Models\ValidationLevel;
@@ -29,28 +30,43 @@ class DashboardController extends Controller
     private function adminDashboard(): Response
     {
         $stats = [
-            'total'    => PurchaseOrder::count(),
-            'pending'  => PurchaseOrder::where('status', 'pending')->count(),
-            'approved' => PurchaseOrder::where('status', 'approved')->count(),
-            'rejected' => PurchaseOrder::where('status', 'rejected')->count(),
+            'total'           => PurchaseOrder::count(),
+            'pending'         => PurchaseOrder::where('status', 'pending')->count(),
+            'approved'        => PurchaseOrder::where('status', 'approved')->count(),
+            'rejected'        => PurchaseOrder::where('status', 'rejected')->count(),
+            'budget_approved' => (int) PurchaseOrder::where('status', 'approved')->sum('amount'),
+            'budget_pending'  => (int) PurchaseOrder::where('status', 'pending')->sum('amount'),
         ];
 
-        $recentOrders = PurchaseOrder::with('user')
+        $recentOrders = PurchaseOrder::with(['user', 'boutique'])
             ->latest()
-            ->limit(5)
+            ->limit(8)
             ->get();
 
-        $totalUsers  = User::count();
-        $totalLevels = ValidationLevel::count();
+        $totalUsers    = User::count();
+        $totalLevels   = ValidationLevel::count();
+        $totalBoutiques = Boutique::where('is_active', true)->count();
+
+        $boutiqueStats = Boutique::withCount([
+                'purchaseOrders as orders_total',
+                'purchaseOrders as orders_approved' => fn ($q) => $q->where('status', 'approved'),
+                'purchaseOrders as orders_pending'  => fn ($q) => $q->where('status', 'pending'),
+            ])
+            ->withSum(['purchaseOrders as budget_approved' => fn ($q) => $q->where('status', 'approved')], 'amount')
+            ->where('is_active', true)
+            ->orderByDesc('orders_total')
+            ->get();
 
         $monthlyData = $this->getMonthlyData();
 
         return Inertia::render('Dashboard', [
-            'stats'        => $stats,
-            'recentOrders' => $recentOrders,
-            'totalUsers'   => $totalUsers,
-            'totalLevels'  => $totalLevels,
-            'monthlyData'  => $monthlyData,
+            'stats'         => $stats,
+            'recentOrders'  => $recentOrders,
+            'totalUsers'    => $totalUsers,
+            'totalLevels'   => $totalLevels,
+            'totalBoutiques' => $totalBoutiques,
+            'boutiqueStats' => $boutiqueStats,
+            'monthlyData'   => $monthlyData,
         ]);
     }
 
@@ -62,45 +78,56 @@ class DashboardController extends Controller
             ? PurchaseOrder::where('status', 'pending')->where('current_level_order', $levelOrder)->count()
             : PurchaseOrder::where('status', 'pending')->count();
 
-        $myValidations = $user->validationLogs()
-            ->with('purchaseOrder')
-            ->latest()
-            ->limit(5)
-            ->get();
-
         $stats = [
             'pending'     => $pendingCount,
             'my_approved' => $user->validationLogs()->where('action', 'approved')->count(),
             'my_rejected' => $user->validationLogs()->where('action', 'rejected')->count(),
         ];
 
+        $recentOrders = PurchaseOrder::with(['user', 'boutique'])
+            ->where('status', 'pending')
+            ->when($levelOrder, fn ($q) => $q->where('current_level_order', $levelOrder))
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        $totalLevels = ValidationLevel::count();
+
         return Inertia::render('Dashboard', [
-            'stats'         => $stats,
-            'myValidations' => $myValidations,
+            'stats'           => $stats,
+            'recentOrders'    => $recentOrders,
+            'validationLevel' => $user->validationLevel,
+            'totalLevels'     => $totalLevels,
         ]);
     }
 
     private function demandeurDashboard(User $user): Response
     {
         $stats = [
-            'total'    => $user->purchaseOrders()->count(),
-            'draft'    => $user->purchaseOrders()->where('status', 'draft')->count(),
-            'pending'  => $user->purchaseOrders()->where('status', 'pending')->count(),
-            'approved' => $user->purchaseOrders()->where('status', 'approved')->count(),
-            'rejected' => $user->purchaseOrders()->where('status', 'rejected')->count(),
+            'total'           => $user->purchaseOrders()->count(),
+            'draft'           => $user->purchaseOrders()->where('status', 'draft')->count(),
+            'pending'         => $user->purchaseOrders()->where('status', 'pending')->count(),
+            'approved'        => $user->purchaseOrders()->where('status', 'approved')->count(),
+            'rejected'        => $user->purchaseOrders()->where('status', 'rejected')->count(),
+            'budget_approved' => (int) $user->purchaseOrders()->where('status', 'approved')->sum('amount'),
+            'budget_pending'  => (int) $user->purchaseOrders()->where('status', 'pending')->sum('amount'),
         ];
 
         $recentOrders = $user->purchaseOrders()
+            ->with('boutique')
             ->latest()
-            ->limit(5)
+            ->limit(8)
             ->get();
 
         $monthlyData = $this->getMonthlyData($user->id);
+        $totalLevels = ValidationLevel::count();
 
         return Inertia::render('Dashboard', [
             'stats'        => $stats,
             'recentOrders' => $recentOrders,
             'monthlyData'  => $monthlyData,
+            'boutique'     => $user->boutique,
+            'totalLevels'  => $totalLevels,
         ]);
     }
 
@@ -125,19 +152,19 @@ class DashboardController extends Controller
 
         $rows = $query->get()->groupBy('month');
 
-        $labels  = [];
+        $labels   = [];
         $pending  = [];
         $approved = [];
         $rejected = [];
         $draft    = [];
 
         foreach ($months as $month) {
-            $labels[]  = \Carbon\Carbon::createFromFormat('Y-m', $month)->translatedFormat('M Y');
-            $group     = $rows->get($month, collect());
-            $pending[]  = (int) $group->firstWhere('status', 'pending')?->count  ?? 0;
-            $approved[] = (int) $group->firstWhere('status', 'approved')?->count ?? 0;
-            $rejected[] = (int) $group->firstWhere('status', 'rejected')?->count ?? 0;
-            $draft[]    = (int) $group->firstWhere('status', 'draft')?->count    ?? 0;
+            $labels[]   = \Carbon\Carbon::createFromFormat('Y-m', $month)->translatedFormat('M Y');
+            $group      = $rows->get($month, collect());
+            $pending[]  = (int) ($group->firstWhere('status', 'pending')?->count  ?? 0);
+            $approved[] = (int) ($group->firstWhere('status', 'approved')?->count ?? 0);
+            $rejected[] = (int) ($group->firstWhere('status', 'rejected')?->count ?? 0);
+            $draft[]    = (int) ($group->firstWhere('status', 'draft')?->count    ?? 0);
         }
 
         return compact('labels', 'pending', 'approved', 'rejected', 'draft');

@@ -8,6 +8,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -18,10 +19,53 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('settings/Profile', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
-            'status' => $request->session()->get('status'),
+            'mustVerifyEmail'  => $user instanceof MustVerifyEmail,
+            'status'           => $request->session()->get('status'),
+            'signatureUrl'     => $user->signature_path
+                ? Storage::disk('public')->url($user->signature_path)
+                : null,
         ]);
+    }
+
+    /**
+     * Upload the user's electronic signature.
+     */
+    public function uploadSignature(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'signature' => ['required', 'image', 'mimes:png,jpg,jpeg,webp', 'max:2048'],
+        ]);
+
+        $user = $request->user();
+
+        // Supprimer l'ancienne signature si elle existe
+        if ($user->signature_path) {
+            Storage::disk('public')->delete($user->signature_path);
+        }
+
+        $path = $request->file('signature')->store("signatures/{$user->id}", 'public');
+
+        $user->update(['signature_path' => $path]);
+
+        return back()->with('status', 'signature-uploaded');
+    }
+
+    /**
+     * Delete the user's electronic signature.
+     */
+    public function deleteSignature(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+
+        if ($user->signature_path) {
+            Storage::disk('public')->delete($user->signature_path);
+            $user->update(['signature_path' => null]);
+        }
+
+        return back()->with('status', 'signature-deleted');
     }
 
     /**

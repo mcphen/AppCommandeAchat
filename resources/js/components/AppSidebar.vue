@@ -12,7 +12,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     LayoutDashboard, ShoppingCart, CheckSquare,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
-    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen,
+    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -27,13 +27,16 @@ const mainNav = computed(() => {
         { title: 'Tableau de bord', href: route('dashboard'), icon: LayoutDashboard, key: 'dashboard' },
     ];
 
-    if (role.value === 'demandeur' || role.value === 'admin') {
+    if (role.value === 'demandeur' || role.value === 'validateur' || role.value === 'admin') {
         items.push({
             title: 'Mes commandes',
             href: route('purchase-orders.index'),
             icon: ShoppingCart,
             key: 'purchase-orders',
         });
+    }
+
+    if (role.value === 'demandeur' || role.value === 'admin') {
         items.push({
             title: 'Réceptions',
             href: route('receptions.index'),
@@ -83,7 +86,8 @@ const adminNav = computed(() => {
         { title: 'Articles',             href: route('admin.articles.index'),          icon: Package,    key: 'admin-articles' },
         { title: 'Fournisseurs',         href: route('admin.fournisseurs.index'),      icon: Truck,      key: 'admin-fournisseurs' },
         { title: 'Budgets',              href: route('admin.budgets.index'),           icon: PiggyBank,  key: 'admin-budgets' },
-        { title: 'Comptabilité',         href: route('admin.accounting.index'),        icon: BookOpen,   key: 'admin-accounting' },
+        { title: 'Comptabilité',         href: route('admin.accounting.index'),        icon: BookOpen,          key: 'admin-accounting' },
+        { title: 'Configuration',        href: route('admin.settings.index'),          icon: SlidersHorizontal, key: 'admin-settings' },
     ];
 });
 </script>

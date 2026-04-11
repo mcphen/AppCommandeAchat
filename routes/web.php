@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountingController;
+use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Admin\ArticleController;
@@ -30,11 +31,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Commandes (Demandeur + Admin)
-    Route::middleware('role:demandeur,admin')->group(function () {
+    // Commandes : création, consultation, édition, soumission (Demandeur + Validateur + Admin)
+    Route::middleware('role:demandeur,validateur,admin')->group(function () {
         Route::resource('purchase-orders', PurchaseOrderController::class);
         Route::post('purchase-orders/{purchase_order}/submit', [PurchaseOrderController::class, 'submit'])
             ->name('purchase-orders.submit');
+    });
+
+    // Commandes : confirmation d'ordre et réceptions (Demandeur + Admin uniquement)
+    Route::middleware('role:demandeur,admin')->group(function () {
         Route::post('purchase-orders/{purchase_order}/mark-ordered', [PurchaseOrderController::class, 'markOrdered'])
             ->name('purchase-orders.mark-ordered');
 
@@ -108,6 +113,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('budgets', BudgetController::class)->except(['show']);
         Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');
         Route::get('accounting/export/{format}', [AccountingController::class, 'export'])->name('accounting.export')->where('format', 'fec|csv');
+
+        // Configuration de l'application
+        Route::get('settings', [AppSettingController::class, 'index'])->name('settings.index');
+        Route::patch('settings/mail', [AppSettingController::class, 'updateMail'])->name('settings.mail');
+        Route::patch('settings/company', [AppSettingController::class, 'updateCompany'])->name('settings.company');
+        Route::delete('settings/logo', [AppSettingController::class, 'deleteLogo'])->name('settings.logo.delete');
+        Route::post('settings/test-mail', [AppSettingController::class, 'testMail'])->name('settings.test-mail');
     });
 });
 

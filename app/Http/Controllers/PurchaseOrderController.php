@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePurchaseOrderRequest;
 use App\Http\Requests\UpdatePurchaseOrderRequest;
+use App\Models\AppSetting;
 use App\Models\Article;
 use App\Models\Boutique;
 use App\Models\Fournisseur;
@@ -449,11 +450,24 @@ class PurchaseOrderController extends Controller
             'validationLogs.user',
         ]);
 
-        $levels = ValidationLevel::orderBy('order')->get();
+        $levels   = ValidationLevel::orderBy('order')->get();
+        $settings = AppSetting::allAsArray();
+
+        // Logo en base64 pour DomPDF
+        $logoBase64 = null;
+        if (! empty($settings['company_logo'])) {
+            $absPath = storage_path('app/public/' . $settings['company_logo']);
+            if (file_exists($absPath)) {
+                $mime       = mime_content_type($absPath);
+                $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absPath));
+            }
+        }
 
         $pdf = Pdf::loadView('pdf.purchase_order', [
-            'order'  => $purchaseOrder,
-            'levels' => $levels,
+            'order'    => $purchaseOrder,
+            'levels'   => $levels,
+            'company'  => $settings,
+            'logoB64'  => $logoBase64,
         ])->setPaper('a4', 'portrait');
 
         $filename = 'commande-' . $purchaseOrder->id . '-' . str($purchaseOrder->title)->slug() . '.pdf';

@@ -21,6 +21,7 @@ class User extends Authenticatable
         'role_id',
         'validation_level_id',
         'boutique_id',
+        'signature_path',
         'onboarding_completed_at',
         'checklist_dismissed_at',
     ];

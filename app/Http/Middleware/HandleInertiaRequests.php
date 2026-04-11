@@ -2,8 +2,11 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\AppSetting;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -22,6 +25,31 @@ class HandleInertiaRequests extends Middleware
      *
      * @see https://inertiajs.com/asset-versioning
      */
+    private function companyProps(): array
+    {
+        try {
+            if (! Schema::hasTable('app_settings')) {
+                return [];
+            }
+
+            $settings = AppSetting::allAsArray();
+            $logoPath = $settings['company_logo'] ?? null;
+
+            return [
+                'name'    => $settings['company_name'] ?? config('app.name'),
+                'address' => $settings['company_address'] ?? null,
+                'phone'   => $settings['company_phone'] ?? null,
+                'email'   => $settings['company_email'] ?? null,
+                'website' => $settings['company_website'] ?? null,
+                'nif'     => $settings['company_nif'] ?? null,
+                'rccm'    => $settings['company_rccm'] ?? null,
+                'logoUrl' => $logoPath ? Storage::disk('public')->url($logoPath) : null,
+            ];
+        } catch (\Exception) {
+            return [];
+        }
+    }
+
     public function version(Request $request): ?string
     {
         return parent::version($request);
@@ -56,6 +84,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'unread_notifications_count' => $user ? $user->unreadNotifications()->count() : 0,
             'show_onboarding'            => $user ? $user->needsOnboarding() : false,
+            'company'                    => $this->companyProps(),
         ]);
     }
 }

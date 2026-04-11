@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
-    <title>Bon de commande {{ $order->order_number ?? '#'.str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</title>
+    <title>Bon de commande {{ $order->order_number ?? '#'.str_pad($order->id, 5, '0', STR_PAD_LEFT) }} — {{ $company['company_name'] ?? config('app.name') }}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1e293b; background: #fff; }
@@ -80,12 +80,14 @@
         .level-comment   { font-size: 9px; color: #64748b; font-style: italic; margin-top: 2px; background: #f1f5f9; padding: 3px 6px; border-radius: 4px; }
 
         /* ── Signatures ───────────────────────────────────────── */
-        .signatures { display: table; width: 100%; border-spacing: 12px 0; margin-top: 24px; }
-        .sig-col    { display: table-cell; width: 33.33%; vertical-align: top; }
-        .sig-box    { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; min-height: 70px; }
-        .sig-label  { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 4px; }
-        .sig-name   { font-size: 10px; font-weight: 600; color: #0f172a; margin-top: 4px; }
-        .sig-date   { font-size: 9px; color: #94a3b8; margin-top: 2px; }
+        .signatures  { display: table; width: 100%; border-spacing: 12px 0; margin-top: 24px; }
+        .sig-col     { display: table-cell; width: 33.33%; vertical-align: top; }
+        .sig-box     { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; min-height: 80px; }
+        .sig-label   { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 4px; }
+        .sig-image   { max-height: 40px; max-width: 120px; object-fit: contain; display: block; margin: 4px 0; }
+        .sig-name    { font-size: 10px; font-weight: 600; color: #0f172a; margin-top: 4px; }
+        .sig-date    { font-size: 9px; color: #94a3b8; margin-top: 2px; }
+        .sig-pending { margin-top: 28px; border-top: 1px solid #e2e8f0; }
 
         /* ── Attachments ──────────────────────────────────────── */
         .att-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f1f5f9; font-size: 10px; }
@@ -100,10 +102,41 @@
 <div class="page">
 
     {{-- ── Header ──────────────────────────────────────────────────────── --}}
+    @php
+        $companyName    = $company['company_name']    ?? config('app.name');
+        $companyAddress = $company['company_address'] ?? null;
+        $companyPhone   = $company['company_phone']   ?? null;
+        $companyEmail   = $company['company_email']   ?? null;
+        $companyNif     = $company['company_nif']     ?? null;
+        $companyRccm    = $company['company_rccm']    ?? null;
+    @endphp
     <div class="header">
         <div class="header-left">
-            <h1>Bon de Commande Officiel</h1>
-            <p>{{ $order->boutique?->name ?? 'Aucune boutique' }}@if($order->boutique) &nbsp;—&nbsp; {{ $order->boutique->code }}@endif</p>
+            {{-- Logo entreprise --}}
+            @if(!empty($logoB64))
+            <img src="{{ $logoB64 }}" alt="{{ $companyName }}" style="max-height:48px; max-width:160px; object-fit:contain; margin-bottom:6px; display:block;" />
+            @endif
+            <h1>{{ $companyName }}</h1>
+            @if($companyAddress)
+            <p style="margin-top:2px;">{{ $companyAddress }}</p>
+            @endif
+            @if($companyPhone || $companyEmail)
+            <p style="margin-top:2px;">
+                @if($companyPhone){{ $companyPhone }}@endif
+                @if($companyPhone && $companyEmail) &nbsp;·&nbsp; @endif
+                @if($companyEmail){{ $companyEmail }}@endif
+            </p>
+            @endif
+            @if($companyNif || $companyRccm)
+            <p style="margin-top:2px; font-size:9px; color:#94a3b8;">
+                @if($companyNif)NIF : {{ $companyNif }}@endif
+                @if($companyNif && $companyRccm) &nbsp;·&nbsp; @endif
+                @if($companyRccm)RCCM : {{ $companyRccm }}@endif
+            </p>
+            @endif
+            <p style="margin-top:6px; font-size:10px; color:#64748b;">
+                {{ $order->boutique?->name ?? 'Aucune boutique' }}@if($order->boutique) &nbsp;—&nbsp; {{ $order->boutique->code }}@endif
+            </p>
             @if($order->fournisseur)
             <p style="margin-top:2px;">Fournisseur : <strong>{{ $order->fournisseur->name }}</strong> ({{ $order->fournisseur->code }})</p>
             @endif
@@ -304,15 +337,28 @@
                 </div>
             </div>
             @foreach($levels as $level)
-                @php $log = $order->validationLogs->where('action', 'approved')->firstWhere('validation_level_id', $level->id); @endphp
+                @php
+                    $log = $order->validationLogs->where('action', 'approved')->firstWhere('validation_level_id', $level->id);
+                    $sigImg = null;
+                    if ($log && $log->user?->signature_path) {
+                        $absPath = storage_path('app/public/' . $log->user->signature_path);
+                        if (file_exists($absPath)) {
+                            $mime   = mime_content_type($absPath);
+                            $sigImg = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absPath));
+                        }
+                    }
+                @endphp
                 <div class="sig-col">
                     <div class="sig-box">
                         <div class="sig-label">{{ $level->name }}</div>
                         @if($log)
+                            @if($sigImg)
+                                <img src="{{ $sigImg }}" class="sig-image" alt="Signature {{ $log->user?->name }}" />
+                            @endif
                             <div class="sig-name">{{ $log->user?->name ?? '—' }}</div>
                             <div class="sig-date">{{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
                         @else
-                            <div style="margin-top:20px;border-top:1px solid #e2e8f0;"></div>
+                            <div class="sig-pending"></div>
                         @endif
                     </div>
                 </div>
@@ -326,7 +372,7 @@
         <div class="footer-txt">Généré le {{ \Carbon\Carbon::now()->locale('fr')->isoFormat('DD MMMM YYYY [à] HH:mm') }}</div>
         <div class="footer-txt">
             {{ $order->order_number ?? ('#'.str_pad($order->id, 5, '0', STR_PAD_LEFT)) }}
-            &mdash; {{ config('app.name') }}
+            &mdash; {{ $company['company_name'] ?? config('app.name') }}
         </div>
     </div>
 

@@ -1,5 +1,9 @@
 {
   "permissions": {
+    "allow": [
+      "Bash(node)",
+      "Bash(node -e ':*)"
+    ],
     "additionalDirectories": [
       "c:\\laragon\\www\\AppCommandeAchat\\resources\\js\\pages\\Validations"
     ]

@@ -237,6 +237,7 @@ class PurchaseOrderController extends Controller
 
         return Inertia::render('PurchaseOrders/Create', [
             'boutique'     => auth()->user()?->boutique,
+            'boutiques'    => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'city']),
             'articles'     => Article::with('category')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'reference', 'unit', 'unit_price', 'category_id']),
             'fournisseurs' => $fournisseurs,
         ]);
@@ -244,11 +245,9 @@ class PurchaseOrderController extends Controller
 
     public function store(StorePurchaseOrderRequest $request): RedirectResponse
     {
-        $boutique = $request->user()?->boutique;
-
-        if (! $boutique) {
-            return back()->with('error', 'Votre compte n\'est rattachÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â  aucune boutique.');
-        }
+        // Boutique de l'utilisateur en priorité, sinon celle choisie dans le formulaire
+        $boutique = $request->user()?->boutique
+            ?? ($request->boutique_id ? Boutique::find($request->boutique_id) : null);
 
         DB::transaction(function () use ($request, $boutique) {
             $lines  = collect($request->input('lines', []));
@@ -258,7 +257,7 @@ class PurchaseOrderController extends Controller
 
             $order = PurchaseOrder::create([
                 'user_id'        => auth()->id(),
-                'boutique_id'    => $boutique->id,
+                'boutique_id'    => $boutique?->id,
                 'fournisseur_id' => $request->fournisseur_id ?: null,
                 'title'          => $request->title,
                 'description'    => $request->description,

@@ -16,7 +16,9 @@ class StorePurchaseOrderRequest extends FormRequest
         return [
             'title'          => ['required', 'string', 'max:255'],
             'description'    => ['required', 'string'],
-            'amount'         => ['required', 'numeric', 'min:0'],
+            'amount'         => ['nullable', 'numeric', 'min:0'],
+            'boutique_id'    => ['nullable', 'integer', 'exists:boutiques,id'],
+            'fournisseur_id' => ['nullable', 'integer', 'exists:fournisseurs,id'],
             'attachments'    => ['nullable', 'array', 'max:10'],
             'attachments.*'  => ['file', 'mimes:pdf', 'max:10240'],
         ];

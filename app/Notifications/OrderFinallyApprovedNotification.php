@@ -36,7 +36,7 @@ class OrderFinallyApprovedNotification extends Notification
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Bonne nouvelle ! Votre commande d'achat a été **entièrement approuvée** par tous les niveaux de validation.")
             ->line("**Commande :** {$this->order->title}")
-            ->line("**Montant :** " . number_format($this->order->amount, 2, ',', ' ') . ' FCFA')
+            ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->action('Voir la commande', route('purchase-orders.show', $this->order))
             ->line('Vous pouvez maintenant procéder à l\'achat.');
     }

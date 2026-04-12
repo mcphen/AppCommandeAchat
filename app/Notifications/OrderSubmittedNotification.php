@@ -40,7 +40,7 @@ class OrderSubmittedNotification extends Notification
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Une nouvelle commande d'achat requiert votre validation au niveau **{$this->level->name}**.")
             ->line("**Commande :** {$this->order->title}")
-            ->line("**Montant :** " . number_format($this->order->amount, 2, ',', ' ') . ' FCFA')
+            ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Demandeur :** {$this->order->user->name}")
             ->action('Voir et valider', route('validations.show', $this->order))
             ->line('Merci de traiter cette demande dans les meilleurs délais.');

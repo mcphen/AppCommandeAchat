@@ -249,11 +249,11 @@ class PurchaseOrderController extends Controller
         $boutique = $request->user()?->boutique
             ?? ($request->boutique_id ? Boutique::find($request->boutique_id) : null);
 
-        DB::transaction(function () use ($request, $boutique) {
+        $order = DB::transaction(function () use ($request, $boutique) {
             $lines  = collect($request->input('lines', []));
             $amount = $lines->isNotEmpty()
                 ? $lines->sum(fn ($l) => (float) ($l['quantity'] ?? 1) * (float) ($l['unit_price'] ?? 0))
-                : (float) $request->amount;
+                : (float) ($request->amount ?? 0);
 
             $order = PurchaseOrder::create([
                 'user_id'        => auth()->id(),
@@ -277,10 +277,32 @@ class PurchaseOrderController extends Controller
             }
 
             $this->storeAttachments($order, $request);
+
+            return $order;
         });
 
-        return redirect()->route('purchase-orders.index')
-            ->with('success', 'Commande créée avec succès.');
+        // Soumettre immédiatement si demandé
+        if ($request->boolean('and_submit')) {
+            $firstLevel = ValidationLevel::first_level();
+
+            if ($firstLevel) {
+                $order->update([
+                    'status'              => 'pending',
+                    'current_level_order' => $firstLevel->order,
+                    'submitted_at'        => now(),
+                ]);
+
+                foreach ($firstLevel->validators as $validator) {
+                    $validator->notify(new OrderSubmittedNotification($order, $firstLevel));
+                }
+
+                return redirect()->route('purchase-orders.show', $order)
+                    ->with('success', 'Commande créée et soumise à validation.');
+            }
+        }
+
+        return redirect()->route('purchase-orders.show', $order)
+            ->with('success', 'Commande enregistrée en brouillon.');
     }
 
     public function show(PurchaseOrder $purchaseOrder): Response

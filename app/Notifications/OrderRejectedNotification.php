@@ -41,7 +41,7 @@ class OrderRejectedNotification extends Notification
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Votre commande d'achat a été **refusée** au niveau **{$this->level->name}**.")
             ->line("**Commande :** {$this->order->title}")
-            ->line("**Montant :** " . number_format($this->order->amount, 2, ',', ' ') . ' FCFA')
+            ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Motif du refus :**")
             ->line($this->reason)
             ->action('Modifier et re-soumettre', route('purchase-orders.edit', $this->order))

@@ -41,7 +41,7 @@ class OrderApprovedAtLevelNotification extends Notification
             ->greeting("Bonjour {$notifiable->name},")
             ->line("La commande suivante a été approuvée au niveau **{$this->approvedLevel->name}** et requiert maintenant votre validation au niveau **{$this->nextLevel->name}**.")
             ->line("**Commande :** {$this->order->title}")
-            ->line("**Montant :** " . number_format($this->order->amount, 2, ',', ' ') . ' FCFA')
+            ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Demandeur :** {$this->order->user->name}")
             ->action('Voir et valider', route('validations.show', $this->order))
             ->line('Merci de traiter cette demande dans les meilleurs délais.');

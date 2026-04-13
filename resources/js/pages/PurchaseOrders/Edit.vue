@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import PriceComparator from '@/components/PriceComparator.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Article, type BreadcrumbItem, type Fournisseur, type PurchaseOrder } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Upload, X, FileText, Loader2, Save, Trash2, Store, Plus, Package, ChevronDown, ShieldAlert } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import axios from 'axios';
+import { AlertTriangle, ArrowLeft, Upload, X, FileText, Loader2, Save, Trash2, Store, Plus, Package, ChevronDown, ShieldAlert } from 'lucide-vue-next';
+import { computed, onMounted, ref } from 'vue';
 
 const props = defineProps<{
     order: PurchaseOrder;
@@ -36,16 +38,63 @@ const lines = ref<LineForm[]>(
     }))
 );
 
-const addLine = () => {
-    lines.value.push({ article_id: '', fournisseur_id: '', quantity: 1, unit_price: 0, note: '' });
+// ---- Alerte prix anormal ----
+type BestPrix = { price: number; supplierName: string };
+const SEUIL_ALERTE_PCT = 20;
+const lineBestPrix = ref<(BestPrix | null)[]>([]);
+
+const fetchBestPrix = async (i: number, articleId: number) => {
+    try {
+        const res = await axios.get<{ fournisseur_name: string; unit_price: number }[]>(
+            `/articles/${articleId}/prix-fournisseurs`
+        );
+        lineBestPrix.value[i] = res.data.length > 0
+            ? { price: res.data[0].unit_price, supplierName: res.data[0].fournisseur_name }
+            : null;
+    } catch {
+        lineBestPrix.value[i] = null;
+    }
 };
 
-const removeLine = (i: number) => { lines.value.splice(i, 1); };
+const lineAnomalies = computed(() =>
+    lines.value.map((line, i) => {
+        const best = lineBestPrix.value[i];
+        const price = line.unit_price;
+        if (!best || price <= 0 || best.price <= 0) return null;
+        const diffPct = ((price - best.price) / best.price) * 100;
+        return diffPct >= SEUIL_ALERTE_PCT
+            ? { diffPct: Math.round(diffPct), bestPrice: best.price, supplierName: best.supplierName }
+            : null;
+    })
+);
+
+onMounted(() => {
+    // Initialise les best prix pour les lignes existantes
+    lines.value.forEach((line, i) => {
+        lineBestPrix.value[i] = null;
+        if (line.article_id) fetchBestPrix(i, Number(line.article_id));
+    });
+});
+
+const addLine = () => {
+    lines.value.push({ article_id: '', fournisseur_id: '', quantity: 1, unit_price: 0, note: '' });
+    lineBestPrix.value.push(null);
+};
+
+const removeLine = (i: number) => {
+    lines.value.splice(i, 1);
+    lineBestPrix.value.splice(i, 1);
+};
 
 const onArticleChange = (i: number) => {
     const line = lines.value[i];
     const article = props.articles.find(a => a.id === Number(line.article_id));
-    if (article) line.unit_price = Number(article.unit_price ?? 0);
+    if (article) {
+        line.unit_price = Number(article.unit_price ?? 0);
+        fetchBestPrix(i, article.id);
+    } else {
+        lineBestPrix.value[i] = null;
+    }
 };
 
 const lineSubtotal = (line: LineForm) => line.quantity * line.unit_price;
@@ -72,6 +121,16 @@ const nonApprovedWarnings = computed(() => {
 const articleUnit = (id: number | '') => {
     if (!id) return '';
     return props.articles.find(a => a.id === Number(id))?.unit ?? '';
+};
+
+const articleById = (id: number | '') => {
+    if (!id) return null;
+    return props.articles.find(a => a.id === Number(id)) ?? null;
+};
+
+const onPriceSelected = (i: number, payload: { fournisseur_id: number; unit_price: number }) => {
+    lines.value[i].fournisseur_id = payload.fournisseur_id;
+    lines.value[i].unit_price = payload.unit_price;
 };
 
 const formatAmount = (v: number) =>
@@ -225,7 +284,16 @@ const submit = () => {
                                     </select>
                                     <ChevronDown class="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                                 </div>
-                                <p v-if="line.article_id" class="text-xs text-muted-foreground mt-0.5 px-1">Unité : {{ articleUnit(line.article_id) }}</p>
+                                <div class="mt-0.5 px-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                                    <p v-if="line.article_id" class="text-xs text-muted-foreground">Unité : {{ articleUnit(line.article_id) }}</p>
+                                    <PriceComparator
+                                        v-if="line.article_id"
+                                        :article="articleById(line.article_id)"
+                                        :current-fournisseur-id="line.fournisseur_id"
+                                        :current-price="line.unit_price"
+                                        @select="onPriceSelected(i, $event)"
+                                    />
+                                </div>
                             </div>
 
                             <div class="sm:col-span-2">
@@ -249,7 +317,16 @@ const submit = () => {
                             <div class="sm:col-span-2">
                                 <label class="text-xs text-muted-foreground sm:hidden mb-1 block">Prix unitaire (FCFA)</label>
                                 <input v-model.number="line.unit_price" type="number" min="0" step="1"
-                                    class="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+                                    class="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-right focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                    :class="{ 'border-amber-400 focus:border-amber-400 focus:ring-amber-200': lineAnomalies[i] }" />
+                                <div v-if="lineAnomalies[i]"
+                                    class="mt-1 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                                    <AlertTriangle class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    <span>
+                                        +{{ lineAnomalies[i]!.diffPct }}% vs meilleur tarif
+                                        ({{ formatAmount(lineAnomalies[i]!.bestPrice) }} — {{ lineAnomalies[i]!.supplierName }})
+                                    </span>
+                                </div>
                             </div>
 
                             <div class="sm:col-span-2 text-right">

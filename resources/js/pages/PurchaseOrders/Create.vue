@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import PriceComparator from '@/components/PriceComparator.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Article, type Boutique, type BreadcrumbItem, type Fournisseur } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import axios from 'axios';
 import { AlertTriangle, ArrowLeft, ChevronDown, Copy, FileText, Loader2, Package, Plus, Send, ShieldAlert, Store, Trash2, Upload, X } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
@@ -27,10 +29,13 @@ type LineForm = {
     note: string;
 };
 
+type BestPrix = { price: number; supplierName: string };
+
 type LineUiState = {
     articleSearch: string;
     articleOpen: boolean;
     touched: boolean;
+    bestCataloguePrix: BestPrix | null;
 };
 
 // ---- Lignes ----
@@ -39,7 +44,7 @@ const lineUiStates = ref<LineUiState[]>([]);
 
 const addLine = () => {
     lines.value.push({ article_id: '', fournisseur_id: '', quantity: 1, unit_price: 0, note: '' });
-    lineUiStates.value.push({ articleSearch: '', articleOpen: false, touched: false });
+    lineUiStates.value.push({ articleSearch: '', articleOpen: false, touched: false, bestCataloguePrix: null });
 };
 
 const removeLine = (i: number) => {
@@ -49,8 +54,41 @@ const removeLine = (i: number) => {
 
 const duplicateLine = (i: number) => {
     lines.value.splice(i + 1, 0, { ...lines.value[i] });
-    lineUiStates.value.splice(i + 1, 0, { articleSearch: '', articleOpen: false, touched: true });
+    lineUiStates.value.splice(i + 1, 0, {
+        articleSearch: '',
+        articleOpen: false,
+        touched: true,
+        bestCataloguePrix: lineUiStates.value[i].bestCataloguePrix,
+    });
 };
+
+// ---- Alerte prix anormal ----
+const SEUIL_ALERTE_PCT = 20;
+
+const fetchBestPrix = async (i: number, articleId: number) => {
+    try {
+        const res = await axios.get<{ fournisseur_name: string; unit_price: number }[]>(
+            `/articles/${articleId}/prix-fournisseurs`
+        );
+        lineUiStates.value[i].bestCataloguePrix = res.data.length > 0
+            ? { price: res.data[0].unit_price, supplierName: res.data[0].fournisseur_name }
+            : null;
+    } catch {
+        lineUiStates.value[i].bestCataloguePrix = null;
+    }
+};
+
+const lineAnomalies = computed(() =>
+    lines.value.map((line, i) => {
+        const best = lineUiStates.value[i]?.bestCataloguePrix;
+        const price = line.unit_price;
+        if (!best || price <= 0 || best.price <= 0) return null;
+        const diffPct = ((price - best.price) / best.price) * 100;
+        return diffPct >= SEUIL_ALERTE_PCT
+            ? { diffPct: Math.round(diffPct), bestPrice: best.price, supplierName: best.supplierName }
+            : null;
+    })
+);
 
 // ---- Combobox article ----
 const filteredArticles = (i: number) => {
@@ -91,12 +129,14 @@ const selectArticle = (i: number, article: Article) => {
     lineUiStates.value[i].articleSearch = '';
     lineUiStates.value[i].articleOpen = false;
     lineUiStates.value[i].touched = true;
+    fetchBestPrix(i, article.id);
 };
 
 const clearArticle = (i: number) => {
     lines.value[i].article_id = '';
     lines.value[i].unit_price = 0;
     lineUiStates.value[i].touched = true;
+    lineUiStates.value[i].bestCataloguePrix = null;
 };
 
 // ---- Computed ----
@@ -123,6 +163,21 @@ const articleUnit = (id: number | '') => {
 const articleLabel = (id: number | '') => {
     if (!id) return '';
     return props.articles.find(a => a.id === Number(id))?.name ?? '';
+};
+
+const articleById = (id: number | '') => {
+    if (!id) return null;
+    return props.articles.find(a => a.id === Number(id)) ?? null;
+};
+
+const onPriceSelected = (i: number, payload: { fournisseur_id: number; unit_price: number }) => {
+    lines.value[i].fournisseur_id = payload.fournisseur_id;
+    lines.value[i].unit_price = payload.unit_price;
+    lineUiStates.value[i].touched = true;
+    // Passe automatiquement en mode "par ligne" si pas déjà le cas
+    if (fournisseurScope.value === 'none') {
+        fournisseurScope.value = 'ligne';
+    }
 };
 
 // ---- Mode fournisseur ----
@@ -451,8 +506,8 @@ const submit = (andSend = false) => {
                                         </div>
                                     </div>
                                 </div>
-                                <!-- Unité + warnings -->
-                                <div class="mt-0.5 px-1 flex flex-col gap-0.5">
+                                <!-- Unité + warnings + comparateur -->
+                                <div class="mt-0.5 px-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
                                     <p v-if="line.article_id && articleUnit(line.article_id)"
                                         class="text-xs text-muted-foreground">
                                         Unité : {{ articleUnit(line.article_id) }}
@@ -465,6 +520,14 @@ const submit = (andSend = false) => {
                                         class="text-xs text-amber-600">
                                         Prix unitaire à 0 — pensez à le renseigner
                                     </p>
+                                    <!-- Comparateur de prix fournisseurs -->
+                                    <PriceComparator
+                                        v-if="line.article_id"
+                                        :article="articleById(line.article_id)"
+                                        :current-fournisseur-id="line.fournisseur_id"
+                                        :current-price="line.unit_price"
+                                        @select="onPriceSelected(i, $event)"
+                                    />
                                 </div>
                             </div>
 
@@ -494,7 +557,16 @@ const submit = (andSend = false) => {
                                 <label class="text-xs text-muted-foreground sm:hidden mb-1 block">Prix unit. (FCFA)</label>
                                 <input v-model.number="line.unit_price" type="number" min="0" step="1"
                                     @change="lineUiStates[i].touched = true"
-                                    class="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-right text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors" />
+                                    class="h-9 w-full rounded-lg border border-input bg-background px-3 text-sm text-right text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                    :class="{ 'border-amber-400 focus:border-amber-400 focus:ring-amber-200': lineAnomalies[i] }" />
+                                <div v-if="lineAnomalies[i]"
+                                    class="mt-1 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+                                    <AlertTriangle class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                    <span>
+                                        +{{ lineAnomalies[i]!.diffPct }}% vs meilleur tarif
+                                        ({{ formatAmount(lineAnomalies[i]!.bestPrice) }} — {{ lineAnomalies[i]!.supplierName }})
+                                    </span>
+                                </div>
                             </div>
 
                             <!-- Sous-total -->

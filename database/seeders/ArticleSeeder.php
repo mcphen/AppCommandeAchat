@@ -10,98 +10,116 @@ class ArticleSeeder extends Seeder
 {
     public function run(): void
     {
-        // Map: category name → articles
+        // Catalogue calé sur les produits visibles sur scndienne.sn
         $articlesByCategory = [
-            'Ordinateurs & Accessoires' => [
-                ['name' => 'PC Portable Dell Latitude 5540',   'reference' => 'DELL-LAT5540',  'unit' => 'pièce',  'unit_price' => 950000],
-                ['name' => 'PC Portable HP ProBook 450',       'reference' => 'HP-PB450',       'unit' => 'pièce',  'unit_price' => 780000],
-                ['name' => 'Écran LCD 24" Dell',               'reference' => 'DELL-MON24',     'unit' => 'pièce',  'unit_price' => 185000],
-                ['name' => 'Clavier + Souris sans fil',        'reference' => 'KBM-WL-SET',     'unit' => 'lot',    'unit_price' => 35000],
-                ['name' => 'Webcam HD 1080p',                  'reference' => 'CAM-HD1080',     'unit' => 'pièce',  'unit_price' => 45000],
+
+            // ── Huiles Alimentaires ───────────────────────────────────────────
+            'Huiles Alimentaires' => [
+                ['name' => 'Bidon d\'huile végétale 50 L',           'reference' => 'HUI-ALI-50L',   'unit' => 'bidon',    'unit_price' => 45000],
+                ['name' => 'Bouteille d\'huile végétale 10 L',       'reference' => 'HUI-ALI-10L',   'unit' => 'bouteille','unit_price' => 9500],
+                ['name' => 'Bouteille d\'huile végétale 5 L',        'reference' => 'HUI-ALI-05L',   'unit' => 'bouteille','unit_price' => 5500],
+                ['name' => 'Huile végétale – lot 260 sachets',       'reference' => 'HUI-SAC-260',   'unit' => 'lot',      'unit_price' => 28000],
+                ['name' => 'Carton d\'huile 1 L (12 bouteilles)',    'reference' => 'HUI-ALI-1L-12', 'unit' => 'carton',   'unit_price' => 18000],
             ],
-            'Imprimantes & Consommables' => [
-                ['name' => 'Imprimante Laser HP LaserJet M404', 'reference' => 'HP-LJ-M404',   'unit' => 'pièce',  'unit_price' => 295000],
-                ['name' => 'Toner HP LaserJet CF259A',          'reference' => 'HP-TONER-59A', 'unit' => 'pièce',  'unit_price' => 38000],
-                ['name' => 'Ramette papier A4 80g (500 feuilles)', 'reference' => 'PPR-A4-80G','unit' => 'carton', 'unit_price' => 8500],
-                ['name' => 'Cartouche encre Canon PG-540',      'reference' => 'CAN-PG540',    'unit' => 'pièce',  'unit_price' => 12000],
-                ['name' => 'Photocopieur Ricoh MP 2014',        'reference' => 'RICOH-MP2014', 'unit' => 'pièce',  'unit_price' => 1250000],
+
+            // ── Farines & Céréales ────────────────────────────────────────────
+            'Farines & Céréales' => [
+                ['name' => 'Sac de farine de blé 50 kg',             'reference' => 'FAR-BLE-50KG',  'unit' => 'sac',      'unit_price' => 19500],
+                ['name' => 'Sac de farine de blé 25 kg',             'reference' => 'FAR-BLE-25KG',  'unit' => 'sac',      'unit_price' => 10500],
+                ['name' => 'Sac de maïs local 50 kg',                'reference' => 'MAIS-LOC-50KG', 'unit' => 'sac',      'unit_price' => 14000],
+                ['name' => 'Sac de mil 50 kg',                       'reference' => 'MIL-50KG',      'unit' => 'sac',      'unit_price' => 13000],
+                ['name' => 'Sac de riz brisé importé 50 kg',         'reference' => 'RIZ-BRI-50KG',  'unit' => 'sac',      'unit_price' => 24000],
             ],
-            'Réseaux & Téléphonie' => [
-                ['name' => 'Switch HP Aruba 24 ports',         'reference' => 'HP-SW-24P',     'unit' => 'pièce',  'unit_price' => 380000],
-                ['name' => 'Routeur Cisco RV340',               'reference' => 'CISCO-RV340',  'unit' => 'pièce',  'unit_price' => 290000],
-                ['name' => 'Téléphone IP Cisco CP-7821',        'reference' => 'CISCO-7821',   'unit' => 'pièce',  'unit_price' => 145000],
-                ['name' => 'Point d\'accès WiFi Ubiquiti UAP', 'reference' => 'UBNT-UAP-AC',  'unit' => 'pièce',  'unit_price' => 95000],
+
+            // ── Conditionnements & Sachets ────────────────────────────────────
+            'Conditionnements & Sachets' => [
+                ['name' => 'Pack sachets alimentaires 100 ml (carton 10 000)', 'reference' => 'PACK-SAC-100ML', 'unit' => 'carton', 'unit_price' => 12000],
+                ['name' => 'Pack sachets alimentaires 200 ml (carton 5 000)',  'reference' => 'PACK-SAC-200ML', 'unit' => 'carton', 'unit_price' => 11500],
+                ['name' => 'Rouleaux film étirable alimentaire 500 m',         'reference' => 'FILM-ETI-500',   'unit' => 'rouleau','unit_price' => 8500],
+                ['name' => 'Sacs polypropylène tissé 50 kg (lot 500)',          'reference' => 'SAC-PP-50KG500', 'unit' => 'lot',    'unit_price' => 32000],
             ],
-            'Stockage & Serveurs' => [
-                ['name' => 'Disque dur externe 2 To USB 3.0',  'reference' => 'HDD-EXT-2TB',  'unit' => 'pièce',  'unit_price' => 78000],
-                ['name' => 'Clé USB 64 Go',                    'reference' => 'USB-64G',       'unit' => 'pièce',  'unit_price' => 8000],
-                ['name' => 'Serveur Dell PowerEdge T150',      'reference' => 'DELL-PE-T150',  'unit' => 'pièce',  'unit_price' => 2800000],
-                ['name' => 'NAS Synology DS923+',               'reference' => 'SYN-DS923',    'unit' => 'pièce',  'unit_price' => 1450000],
+
+            // ── Pompes & Vannes ───────────────────────────────────────────────
+            'Pompes & Vannes' => [
+                ['name' => 'Pompe hydraulique industrielle 380V',     'reference' => 'POMPE-HYD-380V','unit' => 'pièce',    'unit_price' => 285000],
+                ['name' => 'Pompe centrifuge eau 1,5 kW',             'reference' => 'POMPE-CEN-15KW','unit' => 'pièce',    'unit_price' => 125000],
+                ['name' => 'Pompe à carburant manuelle',              'reference' => 'POMPE-CARB-MAN','unit' => 'pièce',    'unit_price' => 45000],
+                ['name' => 'Vanne à boisseau sphérique DN50',         'reference' => 'VAN-BSP-DN50',  'unit' => 'pièce',    'unit_price' => 35000],
+                ['name' => 'Vanne de régulation industrielle DN100',  'reference' => 'VAN-REG-DN100', 'unit' => 'pièce',    'unit_price' => 85000],
+                ['name' => 'Clapet anti-retour inox DN40',            'reference' => 'CLAP-AR-DN40',  'unit' => 'pièce',    'unit_price' => 28000],
+                ['name' => 'Tuyau flexible hydraulique HT 2 m',      'reference' => 'TUY-HYD-HT2M',  'unit' => 'pièce',    'unit_price' => 18500],
             ],
-            'Logiciels & Licences' => [
-                ['name' => 'Microsoft 365 Business Basic (1 an)', 'reference' => 'MS365-BB-1Y', 'unit' => 'pièce',  'unit_price' => 55000],
-                ['name' => 'Antivirus Kaspersky Endpoint 1 an',   'reference' => 'KAS-END-1Y',  'unit' => 'pièce',  'unit_price' => 42000],
-                ['name' => 'Abonnement Sage Comptabilité 1 an',   'reference' => 'SAGE-COMPTA', 'unit' => 'forfait','unit_price' => 480000],
-                ['name' => 'Adobe Acrobat Pro 1 an',              'reference' => 'ADOBE-AC-1Y', 'unit' => 'pièce',  'unit_price' => 95000],
+
+            // ── Pièces Détachées Mécaniques ───────────────────────────────────
+            'Pièces Détachées Mécaniques' => [
+                ['name' => 'Courroie trapézoïdale A-60',              'reference' => 'COUR-TRP-A60',  'unit' => 'pièce',    'unit_price' => 8500],
+                ['name' => 'Courroie trapézoïdale B-75',              'reference' => 'COUR-TRP-B75',  'unit' => 'pièce',    'unit_price' => 11000],
+                ['name' => 'Roulement à billes 6205',                 'reference' => 'ROUL-BB-6205',  'unit' => 'pièce',    'unit_price' => 6500],
+                ['name' => 'Roulement à billes 6305',                 'reference' => 'ROUL-BB-6305',  'unit' => 'pièce',    'unit_price' => 8000],
+                ['name' => 'Kit joints toriques assortis (lot 50)',   'reference' => 'JOINT-TOR-50',  'unit' => 'lot',      'unit_price' => 9500],
+                ['name' => 'Vis & boulons inox M12 (boîte 50)',       'reference' => 'VIS-INX-M12-50','unit' => 'boîte',    'unit_price' => 7000],
             ],
-            'Bureaux & Tables' => [
-                ['name' => 'Bureau direction 160x80 cm',        'reference' => 'BUR-DIR-160',  'unit' => 'pièce',  'unit_price' => 280000],
-                ['name' => 'Table de réunion 8 personnes',      'reference' => 'TBL-REU-8P',   'unit' => 'pièce',  'unit_price' => 550000],
-                ['name' => 'Bureau open space 120x60 cm',       'reference' => 'BUR-OPS-120',  'unit' => 'pièce',  'unit_price' => 145000],
+
+            // ── Peintures & Revêtements ───────────────────────────────────────
+            'Peintures & Revêtements' => [
+                ['name' => 'Peinture acrylique intérieure 20 L',      'reference' => 'PEIN-ACR-INT-20','unit' => 'bidon',   'unit_price' => 38000],
+                ['name' => 'Peinture glycérophtalique extérieure 20 L','reference' => 'PEIN-GLY-EXT-20','unit' => 'bidon',  'unit_price' => 45000],
+                ['name' => 'Laque brillante blanche 5 L',             'reference' => 'LAQU-BLN-5L',   'unit' => 'bidon',   'unit_price' => 14500],
+                ['name' => 'Sous-couche universelle 5 L',             'reference' => 'SOUC-UNI-5L',   'unit' => 'bidon',   'unit_price' => 12000],
+                ['name' => 'Enduit de rebouchage 25 kg',              'reference' => 'ENDU-REB-25KG', 'unit' => 'sac',     'unit_price' => 9500],
             ],
-            'Chaises & Sièges' => [
-                ['name' => 'Fauteuil direction ergonomique',    'reference' => 'FAU-DIR-ERG',  'unit' => 'pièce',  'unit_price' => 185000],
-                ['name' => 'Chaise de bureau opérateur',        'reference' => 'CHS-OPE-STD',  'unit' => 'pièce',  'unit_price' => 75000],
-                ['name' => 'Chaise visiteur empilable',         'reference' => 'CHS-VIS-EMP',  'unit' => 'pièce',  'unit_price' => 35000],
+
+            // ── Huiles Moteur ─────────────────────────────────────────────────
+            'Huiles Moteur' => [
+                ['name' => 'Huile moteur 15W40 – bidon 20 L',         'reference' => 'HUI-MOT-15W40-20L', 'unit' => 'bidon', 'unit_price' => 30000],
+                ['name' => 'Huile moteur 5W30 – bidon 5 L',           'reference' => 'HUI-MOT-5W30-5L',   'unit' => 'bidon', 'unit_price' => 8500],
+                ['name' => 'Huile moteur 20W50 – bidon 20 L',         'reference' => 'HUI-MOT-20W50-20L', 'unit' => 'bidon', 'unit_price' => 28000],
+                ['name' => 'Graisse multi-usage – carton 24 x 400 g', 'reference' => 'GRAI-MUL-24',       'unit' => 'carton','unit_price' => 48000],
+                ['name' => 'Huile de transmission SAE 80W90 – 5 L',   'reference' => 'HUI-TRM-80W90-5L',  'unit' => 'bidon', 'unit_price' => 9500],
             ],
-            'Rangement & Classement' => [
-                ['name' => 'Armoire métallique 2 portes',       'reference' => 'ARM-MET-2P',   'unit' => 'pièce',  'unit_price' => 195000],
-                ['name' => 'Caisson à roulettes 3 tiroirs',     'reference' => 'CAI-ROU-3T',   'unit' => 'pièce',  'unit_price' => 95000],
-                ['name' => 'Étagère bibliothèque bois',         'reference' => 'ETG-BIB-BOI',  'unit' => 'pièce',  'unit_price' => 85000],
+
+            // ── Huiles Hydrauliques & Industrielles ───────────────────────────
+            'Huiles Hydrauliques & Industrielles' => [
+                ['name' => 'Huile hydraulique ISO 46 – bidon 20 L',   'reference' => 'HUI-HYD-ISO46-20L', 'unit' => 'bidon', 'unit_price' => 35000],
+                ['name' => 'Huile boîte de vitesses ATF – 5 L',       'reference' => 'HUI-ATF-5L',         'unit' => 'bidon', 'unit_price' => 12500],
+                ['name' => 'Huile compresseur ISO 100 – 20 L',        'reference' => 'HUI-COMP-ISO100-20L','unit' => 'bidon', 'unit_price' => 38000],
+                ['name' => 'Vaseline technique – pot 1 kg',           'reference' => 'VASEL-TECH-1KG',     'unit' => 'pot',   'unit_price' => 5500],
             ],
-            'Papeterie & Reliure' => [
-                ['name' => 'Classeur à levier A4 (boîte 10)',   'reference' => 'CLS-A4-LV10',  'unit' => 'boîte',  'unit_price' => 18500],
-                ['name' => 'Stylos bille Bic (lot 50)',         'reference' => 'STYLO-BIC-50', 'unit' => 'lot',    'unit_price' => 7500],
-                ['name' => 'Cahier grand format 200 pages',     'reference' => 'CAH-GF-200',   'unit' => 'pièce',  'unit_price' => 2500],
-                ['name' => 'Post-it repositionnables (lot 6)',  'reference' => 'PSTIT-LOT6',   'unit' => 'lot',    'unit_price' => 6500],
+
+            // ── Ciments & Liants ──────────────────────────────────────────────
+            'Ciments & Liants' => [
+                ['name' => 'Ciment Portland CPA 200 – sac 50 kg',     'reference' => 'CIM-CPA-200-50KG',  'unit' => 'sac',   'unit_price' => 6500],
+                ['name' => 'Ciment Portland CPJ 250 – sac 50 kg',     'reference' => 'CIM-CPJ-250-50KG',  'unit' => 'sac',   'unit_price' => 7000],
+                ['name' => 'Ciment Portland CPA 285 – sac 50 kg',     'reference' => 'CIM-CPA-285-50KG',  'unit' => 'sac',   'unit_price' => 7500],
+                ['name' => 'Chaux hydraulique – sac 25 kg',           'reference' => 'CHAUX-HYD-25KG',    'unit' => 'sac',   'unit_price' => 4800],
+                ['name' => 'Mortier colle C2 – sac 25 kg',            'reference' => 'MORT-C2-25KG',      'unit' => 'sac',   'unit_price' => 8000],
             ],
-            'Produits d\'hygiène' => [
-                ['name' => 'Savon liquide mains 5L',            'reference' => 'SAV-LIQ-5L',   'unit' => 'litre',  'unit_price' => 4500],
-                ['name' => 'Papier hygiénique (carton 96 rouleaux)', 'reference' => 'PPH-CRT96', 'unit' => 'carton', 'unit_price' => 32000],
-                ['name' => 'Gel hydroalcoolique 1L',            'reference' => 'GEL-HYD-1L',   'unit' => 'litre',  'unit_price' => 5500],
-                ['name' => 'Sacs poubelle 100L (carton 100)',   'reference' => 'SAC-PBL-100',  'unit' => 'carton', 'unit_price' => 18000],
+
+            // ── Bitume & Étanchéité ───────────────────────────────────────────
+            'Bitume & Étanchéité' => [
+                ['name' => 'Bitume routier 60/70 – fût 200 L',        'reference' => 'BIT-6070-200L',     'unit' => 'fût',   'unit_price' => 98000],
+                ['name' => 'Émulsion bitumineuse – bidon 30 L',       'reference' => 'EMUL-BIT-30L',      'unit' => 'bidon', 'unit_price' => 22000],
+                ['name' => 'Membrane d\'étanchéité bitumée 4 mm',     'reference' => 'MEMB-ETN-4MM',      'unit' => 'rouleau','unit_price' => 35000],
+                ['name' => 'Bitume émulsifié cut-back – bidon 20 L',  'reference' => 'BIT-CUT-20L',       'unit' => 'bidon', 'unit_price' => 18500],
             ],
-            'Climatiseurs & Ventilateurs' => [
-                ['name' => 'Climatiseur split 12000 BTU LG',    'reference' => 'LG-SPLIT-12K', 'unit' => 'pièce',  'unit_price' => 380000],
-                ['name' => 'Climatiseur split 18000 BTU LG',    'reference' => 'LG-SPLIT-18K', 'unit' => 'pièce',  'unit_price' => 520000],
-                ['name' => 'Ventilateur industriel sur pied',   'reference' => 'VENT-IND-STD', 'unit' => 'pièce',  'unit_price' => 45000],
-            ],
-            'Groupe électrogène & UPS' => [
-                ['name' => 'Onduleur APC 1500VA',               'reference' => 'APC-UPS-1500', 'unit' => 'pièce',  'unit_price' => 195000],
-                ['name' => 'Onduleur APC 3000VA',               'reference' => 'APC-UPS-3000', 'unit' => 'pièce',  'unit_price' => 380000],
-                ['name' => 'Groupe électrogène 10 kVA diesel',  'reference' => 'GRP-ELEC-10K', 'unit' => 'pièce',  'unit_price' => 2500000],
-            ],
-            'Incendie & Évacuation' => [
-                ['name' => 'Extincteur CO2 5 kg',               'reference' => 'EXT-CO2-5K',   'unit' => 'pièce',  'unit_price' => 45000],
-                ['name' => 'Détecteur de fumée optique',        'reference' => 'DET-FUM-OPT',  'unit' => 'pièce',  'unit_price' => 18000],
-                ['name' => 'Panneau sortie de secours LED',     'reference' => 'PAN-SEC-LED',  'unit' => 'pièce',  'unit_price' => 25000],
-            ],
-            'Vidéoprojecteurs & Écrans' => [
-                ['name' => 'Vidéoprojecteur Epson EB-E20',      'reference' => 'EPS-EB-E20',   'unit' => 'pièce',  'unit_price' => 450000],
-                ['name' => 'Téléviseur 55" Samsung Smart TV',   'reference' => 'SAM-TV-55',    'unit' => 'pièce',  'unit_price' => 680000],
-                ['name' => 'Écran de projection 200x150 cm',    'reference' => 'ECR-PROJ-200', 'unit' => 'pièce',  'unit_price' => 85000],
-            ],
-            'Uniformes & EPI' => [
-                ['name' => 'Polo personnalisé entreprise',      'reference' => 'POLO-ENT-STD', 'unit' => 'pièce',  'unit_price' => 12000],
-                ['name' => 'Chaussures de sécurité S3',         'reference' => 'CHS-SEC-S3',   'unit' => 'pièce',  'unit_price' => 38000],
-                ['name' => 'Gilet de protection haute visibilité', 'reference' => 'GIL-HV-STD','unit' => 'pièce',  'unit_price' => 8500],
+
+            // ── Béton & Coffrages ─────────────────────────────────────────────
+            'Béton & Coffrages' => [
+                ['name' => 'Pot à béton 50 L',                        'reference' => 'POT-BET-50L',       'unit' => 'pièce', 'unit_price' => 12000],
+                ['name' => 'Panneau coffreur bois 250 x 50 cm',       'reference' => 'PAN-COF-250X50',    'unit' => 'pièce', 'unit_price' => 9500],
+                ['name' => 'Treillis soudé 200 x 300 cm (ST 25)',     'reference' => 'TRE-SOU-TS25',      'unit' => 'panneau','unit_price' => 24000],
+                ['name' => 'Béton prêt à l\'emploi – sac 30 kg',      'reference' => 'BET-PAE-30KG',      'unit' => 'sac',   'unit_price' => 5500],
+                ['name' => 'Étais métalliques réglables 1,5–3 m',     'reference' => 'ETAI-MET-15-3',     'unit' => 'pièce', 'unit_price' => 18000],
             ],
         ];
 
         $created = 0;
         foreach ($articlesByCategory as $categoryName => $articles) {
             $category = Category::where('name', $categoryName)->first();
-            if (!$category) continue;
+            if (! $category) {
+                $this->command->warn("⚠ Catégorie introuvable : {$categoryName}");
+                continue;
+            }
 
             foreach ($articles as $data) {
                 Article::firstOrCreate(

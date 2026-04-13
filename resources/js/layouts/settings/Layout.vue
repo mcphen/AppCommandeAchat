@@ -1,22 +1,32 @@
 <script setup lang="ts">
-import Heading from '@/components/Heading.vue';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/vue3';
+import { KeyRound, Palette, Settings2, UserRound } from 'lucide-vue-next';
 
-const sidebarNavItems: NavItem[] = [
+type SettingsNavItem = {
+    title: string;
+    description: string;
+    href: string;
+    icon: typeof UserRound;
+};
+
+const sidebarNavItems: SettingsNavItem[] = [
     {
-        title: 'Profile',
+        title: 'Profil',
+        description: 'Informations personnelles',
         href: '/settings/profile',
+        icon: UserRound,
     },
     {
-        title: 'Password',
+        title: 'Mot de passe',
+        description: 'Securite du compte',
         href: '/settings/password',
+        icon: KeyRound,
     },
     {
-        title: 'Appearance',
+        title: 'Apparence',
+        description: 'Theme et preferences',
         href: '/settings/appearance',
+        icon: Palette,
     },
 ];
 
@@ -24,30 +34,55 @@ const currentPath = window.location.pathname;
 </script>
 
 <template>
-    <div class="px-4 py-6">
-        <Heading title="Settings" description="Manage your profile and account settings" />
+    <div class="flex w-full flex-col gap-5 p-3 sm:gap-6 sm:p-6">
+        <div class="flex items-start gap-4">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Settings2 class="h-5 w-5" />
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-foreground">Parametres du compte</h1>
+                <p class="text-sm text-muted-foreground">Gerez votre profil, votre securite et vos preferences d'utilisation.</p>
+            </div>
+        </div>
 
-        <div class="flex flex-col space-y-8 md:space-y-0 lg:flex-row lg:space-x-12 lg:space-y-0">
-            <aside class="w-full max-w-xl lg:w-48">
-                <nav class="flex flex-col space-x-0 space-y-1">
-                    <Button
-                        v-for="item in sidebarNavItems"
-                        :key="item.href"
-                        variant="ghost"
-                        :class="['w-full justify-start', { 'bg-muted': currentPath === item.href }]"
-                        as-child
-                    >
-                        <Link :href="item.href">
-                            {{ item.title }}
+        <div class="flex w-full flex-col gap-5 xl:flex-row xl:items-start">
+            <aside class="w-full xl:sticky xl:top-6 xl:w-80">
+                <div class="rounded-2xl border bg-card p-2 shadow-sm">
+                    <nav class="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
+                        <Link
+                            v-for="item in sidebarNavItems"
+                            :key="item.href"
+                            :href="item.href"
+                            class="flex items-start gap-3 rounded-xl border px-4 py-3 text-left transition-all"
+                            :class="
+                                currentPath === item.href
+                                    ? 'border-primary/30 bg-primary text-primary-foreground shadow-sm'
+                                    : 'border-transparent bg-background text-muted-foreground hover:border-primary/20 hover:bg-primary/5 hover:text-foreground'
+                            "
+                        >
+                            <div
+                                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                :class="currentPath === item.href ? 'bg-white/15 text-primary-foreground' : 'bg-primary/10 text-primary'"
+                            >
+                                <component :is="item.icon" class="h-4 w-4" />
+                            </div>
+
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold leading-tight">{{ item.title }}</p>
+                                <p
+                                    class="mt-1 text-xs leading-relaxed"
+                                    :class="currentPath === item.href ? 'text-primary-foreground/80' : 'text-muted-foreground'"
+                                >
+                                    {{ item.description }}
+                                </p>
+                            </div>
                         </Link>
-                    </Button>
-                </nav>
+                    </nav>
+                </div>
             </aside>
 
-            <Separator class="my-6 md:hidden" />
-
-            <div class="flex-1 md:max-w-2xl">
-                <section class="max-w-xl space-y-12">
+            <div class="min-w-0 flex-1">
+                <section class="flex w-full flex-col gap-6">
                     <slot />
                 </section>
             </div>

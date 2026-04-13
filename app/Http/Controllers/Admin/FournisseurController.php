@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Article;
 use App\Models\Fournisseur;
 use App\Models\PurchaseOrder;
 use Illuminate\Http\RedirectResponse;
@@ -55,10 +56,16 @@ class FournisseurController extends Controller
             'budget_pending'  => (int) $orders->where('status', 'pending')->sum('amount'),
         ];
 
+        $articles = Article::with('category')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
         return Inertia::render('Admin/Fournisseurs/Show', [
             'fournisseur' => $fournisseur,
             'orders'      => $orders,
             'stats'       => $stats,
+            'articles'    => $articles,
         ]);
     }
 

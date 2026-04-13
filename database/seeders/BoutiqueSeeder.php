@@ -11,45 +11,31 @@ class BoutiqueSeeder extends Seeder
     {
         $boutiques = [
             [
-                'code' => 'DKR-PLT',
-                'name' => 'Boutique Plateau',
-                'address' => 'Avenue Léopold Sédar Senghor',
-                'city' => 'Dakar',
+                'code'      => 'SCN-DKR',
+                'name'      => 'Siège Dalifort – Dakar',
+                'address'   => 'Parc Mbaye Touré, Dalifort',
+                'city'      => 'Dakar',
                 'is_active' => true,
             ],
             [
-                'code' => 'DKR-MED',
-                'name' => 'Boutique Médina',
-                'address' => 'Rue 19 x Rue 10, Médina',
-                'city' => 'Dakar',
+                'code'      => 'SCN-TBA',
+                'name'      => 'Dépôt Touba',
+                'address'   => 'Route de Mbacké, Touba',
+                'city'      => 'Touba',
                 'is_active' => true,
             ],
             [
-                'code' => 'DKR-ALM',
-                'name' => 'Boutique Almadies',
-                'address' => 'Route des Almadies, Ngor',
-                'city' => 'Dakar',
+                'code'      => 'SCN-PLT',
+                'name'      => 'Agence Plateau – Dakar',
+                'address'   => 'Avenue Léopold Sédar Senghor, Plateau',
+                'city'      => 'Dakar',
                 'is_active' => true,
             ],
             [
-                'code' => 'DKR-GRD',
-                'name' => 'Boutique Grand Dakar',
-                'address' => 'Avenue Cheikh Anta Diop, Grand Dakar',
-                'city' => 'Dakar',
-                'is_active' => true,
-            ],
-            [
-                'code' => 'DKR-GUL',
-                'name' => 'Boutique Guédiawaye',
-                'address' => 'Avenue Bourguiba, Guédiawaye',
-                'city' => 'Dakar',
-                'is_active' => true,
-            ],
-            [
-                'code' => 'DKR-PIK',
-                'name' => 'Boutique Pikine',
-                'address' => 'Marché de Pikine, Rue Lamine Guèye',
-                'city' => 'Dakar',
+                'code'      => 'SCN-MED',
+                'name'      => 'Dépôt Médina',
+                'address'   => 'Rue 19 x Rue 10, Médina',
+                'city'      => 'Dakar',
                 'is_active' => true,
             ],
         ];
@@ -60,5 +46,7 @@ class BoutiqueSeeder extends Seeder
                 $boutique,
             );
         }
+
+        $this->command->info('✓ ' . Boutique::count() . ' dépôts / agences créés.');
     }
 }

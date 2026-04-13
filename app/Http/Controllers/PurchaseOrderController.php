@@ -8,6 +8,7 @@ use App\Models\AppSetting;
 use App\Models\Article;
 use App\Models\Boutique;
 use App\Models\Fournisseur;
+use App\Models\FournisseurArticle;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderAttachment;
 use App\Models\PurchaseOrderLine;
@@ -310,6 +311,7 @@ class PurchaseOrderController extends Controller
         $this->authorizeView($purchaseOrder);
 
         $purchaseOrder->load([
+            'user',
             'boutique',
             'fournisseur',
             'attachments',
@@ -326,9 +328,50 @@ class PurchaseOrderController extends Controller
 
         $levels = ValidationLevel::orderBy('order')->get();
 
+        // ─── Calcul des économies pour les commandes approuvées avec lignes ──
+        $savings = null;
+        $linesWithArticle = $purchaseOrder->lines->whereNotNull('article_id');
+
+        if ($purchaseOrder->status === 'approved' && $linesWithArticle->isNotEmpty()) {
+            $articleIds = $linesWithArticle->pluck('article_id')->unique();
+
+            $catalogStats = FournisseurArticle::whereIn('article_id', $articleIds)
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->whereNull('valide_jusqu_au')->orWhere('valide_jusqu_au', '>=', now()))
+                ->selectRaw('article_id, MIN(unit_price) as best_price, AVG(unit_price) as avg_price, COUNT(*) as suppliers_count')
+                ->groupBy('article_id')
+                ->get()
+                ->keyBy('article_id');
+
+            $vsAverage   = 0;
+            $vsBest      = 0;
+            $linesWithData = 0;
+
+            foreach ($linesWithArticle as $line) {
+                if (! isset($catalogStats[$line->article_id])) continue;
+                $stat  = $catalogStats[$line->article_id];
+                $qty   = (float) $line->quantity;
+                $actual = (float) $line->unit_price;
+
+                $vsAverage += ($stat->avg_price - $actual) * $qty;
+                $vsBest    += max(0, $actual - $stat->best_price) * $qty;
+                $linesWithData++;
+            }
+
+            if ($linesWithData > 0) {
+                $savings = [
+                    'vs_average'         => (int) round($vsAverage),
+                    'vs_best'            => (int) round($vsBest),
+                    'lines_with_catalog' => $linesWithData,
+                    'lines_total'        => $purchaseOrder->lines->count(),
+                ];
+            }
+        }
+
         return Inertia::render('PurchaseOrders/Show', [
-            'order'  => $purchaseOrder,
-            'levels' => $levels,
+            'order'   => $purchaseOrder,
+            'levels'  => $levels,
+            'savings' => $savings,
         ]);
     }
 

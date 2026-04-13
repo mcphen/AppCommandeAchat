@@ -5,7 +5,7 @@ import {
     Sidebar, SidebarContent, SidebarFooter, SidebarHeader,
     SidebarMenu, SidebarMenuButton, SidebarMenuItem,
     SidebarGroup, SidebarGroupLabel, SidebarGroupContent,
-    SidebarSeparator,
+    SidebarSeparator, SidebarRail,
 } from '@/components/ui/sidebar';
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
@@ -95,17 +95,19 @@ const adminNav = computed(() => {
 <template>
     <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader class="border-b border-sidebar-border/40 pb-3">
-            <div class="flex items-center justify-between gap-2 px-1 py-1">
+            <div class="flex items-center justify-between gap-2 px-1 py-1 group-data-[collapsible=icon]:justify-center">
                 <Link :href="route('dashboard')" class="flex min-w-0 items-center gap-3">
                     <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary/20 text-sidebar-primary shadow-inner border border-sidebar-primary/30">
                         <ShoppingCart class="h-4 w-4" />
                     </div>
-                    <div class="flex min-w-0 flex-col leading-tight">
+                    <div class="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
                         <span class="font-bold text-sm text-sidebar-foreground tracking-wide">AchatPro</span>
                         <span class="text-[11px] text-sidebar-foreground/40 font-medium">Gestion des commandes</span>
                     </div>
                 </Link>
-                <NotificationPanel />
+                <div class="group-data-[collapsible=icon]:hidden">
+                    <NotificationPanel />
+                </div>
             </div>
         </SidebarHeader>
 
@@ -120,6 +122,7 @@ const adminNav = computed(() => {
                             <SidebarMenuButton
                                 as-child
                                 :is-active="isActive(item.href)"
+                                :tooltip="item.title"
                                 class="group relative h-9 rounded-lg transition-all"
                             >
                                 <Link :href="item.href" class="flex items-center gap-3">
@@ -145,6 +148,7 @@ const adminNav = computed(() => {
                                 <SidebarMenuButton
                                     as-child
                                     :is-active="isActive(item.href)"
+                                    :tooltip="item.title"
                                     class="group relative h-9 rounded-lg transition-all"
                                 >
                                     <Link :href="item.href" class="flex items-center gap-3">
@@ -171,6 +175,7 @@ const adminNav = computed(() => {
                                 <SidebarMenuButton
                                     as-child
                                     :is-active="isActive(item.href)"
+                                    :tooltip="item.title"
                                     class="h-9 rounded-lg transition-all"
                                 >
                                     <Link :href="item.href" class="flex items-center gap-3">
@@ -186,7 +191,7 @@ const adminNav = computed(() => {
         </SidebarContent>
 
         <SidebarFooter class="border-t border-sidebar-border/40 pt-2">
-            <div class="px-3 pb-1">
+            <div class="px-3 pb-1 group-data-[collapsible=icon]:hidden">
                 <div class="flex items-center gap-2 rounded-lg bg-sidebar-accent px-3 py-2">
                     <div
                         class="h-2 w-2 rounded-full shrink-0 shadow-sm"
@@ -207,6 +212,7 @@ const adminNav = computed(() => {
             </div>
             <NavUser />
         </SidebarFooter>
+        <SidebarRail />
     </Sidebar>
     <slot />
 </template>

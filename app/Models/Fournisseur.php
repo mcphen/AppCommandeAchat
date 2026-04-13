@@ -18,4 +18,9 @@ class Fournisseur extends Model
     {
         return $this->hasMany(PurchaseOrderLine::class);
     }
+
+    public function catalogueArticles(): HasMany
+    {
+        return $this->hasMany(FournisseurArticle::class);
+    }
 }

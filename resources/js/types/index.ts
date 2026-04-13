@@ -281,3 +281,29 @@ export interface PaginatedData<T> {
 }
 
 export type BreadcrumbItemType = BreadcrumbItem;
+
+export interface FournisseurPrix {
+    fournisseur_article_id: number;
+    fournisseur_id: number;
+    fournisseur_name: string;
+    fournisseur_is_approved: boolean;
+    unit_price: number;
+    reference_fournisseur: string | null;
+    delai_livraison_jours: number | null;
+    valide_jusqu_au: string | null;
+}
+
+export interface CatalogueTarif {
+    id: number;
+    article_id: number;
+    article_name: string;
+    article_reference: string | null;
+    article_unit: string;
+    category_name: string | null;
+    unit_price: number;
+    reference_fournisseur: string | null;
+    delai_livraison_jours: number | null;
+    valide_jusqu_au: string | null;
+    notes: string | null;
+    is_active: boolean;
+}

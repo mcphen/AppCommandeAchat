@@ -10,9 +10,9 @@ class ValidationLevelSeeder extends Seeder
     public function run(): void
     {
         $levels = [
-            ['name' => 'Chef de service', 'order' => 1, 'description' => 'Première validation par le chef de service'],
-            ['name' => 'DAF',             'order' => 2, 'description' => 'Validation financière par le DAF'],
-            ['name' => 'Direction',       'order' => 3, 'description' => 'Validation finale par la Direction Générale'],
+            ['name' => 'Responsable Approvisionnement', 'order' => 1, 'description' => 'Première validation par le responsable approvisionnement du dépôt'],
+            ['name' => 'Directeur Administratif et Financier', 'order' => 2, 'description' => 'Validation financière et budgétaire par le DAF'],
+            ['name' => 'Direction Générale',            'order' => 3, 'description' => 'Validation finale par la Direction Générale (commandes > seuil ou stratégiques)'],
         ];
 
         foreach ($levels as $level) {

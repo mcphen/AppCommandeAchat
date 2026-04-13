@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ArticleController;
 use App\Http\Controllers\Admin\BoutiqueController;
 use App\Http\Controllers\Admin\BudgetController;
 use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\FournisseurArticleController;
 use App\Http\Controllers\Admin\FournisseurController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ValidationLevelController;
@@ -65,6 +66,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/onboarding/complete', [OnboardingController::class, 'complete'])->name('onboarding.complete');
     Route::post('/checklist/dismiss',   [ChecklistController::class, 'dismiss'])->name('checklist.dismiss');
 
+    // Comparaison de prix fournisseurs pour un article (tous rôles)
+    Route::get('/articles/{article}/prix-fournisseurs', [FournisseurArticleController::class, 'compareByArticle'])->name('articles.prix-fournisseurs');
+
     // Notifications (tous rôles)
     Route::get('/notifications/poll', [NotificationController::class, 'poll'])->name('notifications.poll');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
@@ -109,6 +113,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('validation-levels', ValidationLevelController::class)->except(['show']);
         Route::resource('categories', CategoryController::class)->except(['show']);
         Route::resource('fournisseurs', FournisseurController::class);
+        // Catalogue de prix par fournisseur
+        Route::get('fournisseurs/{fournisseur}/catalogue', [FournisseurArticleController::class, 'index'])->name('fournisseurs.catalogue.index');
+        Route::post('fournisseurs/{fournisseur}/catalogue', [FournisseurArticleController::class, 'store'])->name('fournisseurs.catalogue.store');
+        Route::put('fournisseurs/{fournisseur}/catalogue/{tarif}', [FournisseurArticleController::class, 'update'])->name('fournisseurs.catalogue.update');
+        Route::delete('fournisseurs/{fournisseur}/catalogue/{tarif}', [FournisseurArticleController::class, 'destroy'])->name('fournisseurs.catalogue.destroy');
+        // Import CSV/Excel du catalogue
+        Route::get('fournisseurs/{fournisseur}/catalogue/template', [FournisseurArticleController::class, 'downloadTemplate'])->name('fournisseurs.catalogue.template');
+        Route::post('fournisseurs/{fournisseur}/catalogue/import/parse', [FournisseurArticleController::class, 'importParse'])->name('fournisseurs.catalogue.import.parse');
+        Route::post('fournisseurs/{fournisseur}/catalogue/import/confirm', [FournisseurArticleController::class, 'importConfirm'])->name('fournisseurs.catalogue.import.confirm');
+
         Route::resource('articles', ArticleController::class)->except(['show']);
         Route::resource('budgets', BudgetController::class)->except(['show']);
         Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');

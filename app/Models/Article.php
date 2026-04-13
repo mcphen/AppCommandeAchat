@@ -27,4 +27,9 @@ class Article extends Model
     {
         return $this->hasMany(PurchaseOrderLine::class);
     }
+
+    public function prixFournisseurs(): HasMany
+    {
+        return $this->hasMany(FournisseurArticle::class);
+    }
 }

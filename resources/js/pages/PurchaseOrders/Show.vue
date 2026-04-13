@@ -7,6 +7,7 @@ import {
     ArrowLeft, Building2, Calendar, CheckCircle2, Clock, DollarSign,
     Download, FileDown, FileText, Paperclip, Pencil, Send, Truck,
     User, XCircle, Package, ShoppingCart, ClipboardCheck, X, AlertCircle, Receipt,
+    TrendingDown, TrendingUp, Tag,
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, reactive, ref } from 'vue';
@@ -17,9 +18,17 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Detail', href: '#' },
 ];
 
+type SavingsData = {
+    vs_average: number;
+    vs_best: number;
+    lines_with_catalog: number;
+    lines_total: number;
+} | null;
+
 const props = defineProps<{
     order: PurchaseOrder;
     levels: ValidationLevel[];
+    savings: SavingsData;
 }>();
 
 const page = usePage();
@@ -318,6 +327,14 @@ const submitReception = () => {
                                     <p class="text-sm font-medium text-foreground">{{ formatDate(order.created_at) }}</p>
                                 </div>
                             </div>
+                            <div class="flex items-center gap-3">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-50"><User class="h-4 w-4 text-violet-600" /></div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Demandeur</p>
+                                    <p class="text-sm font-medium text-foreground">{{ order.user?.name ?? '—' }}</p>
+                                    <p v-if="order.user?.email" class="text-xs text-muted-foreground">{{ order.user.email }}</p>
+                                </div>
+                            </div>
                             <div v-if="order.boutique" class="flex items-center gap-3">
                                 <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50"><Building2 class="h-4 w-4 text-cyan-600" /></div>
                                 <div>
@@ -350,6 +367,83 @@ const submitReception = () => {
                         <div>
                             <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</p>
                             <p class="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{{ order.description }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Analyse économies vs catalogue (commandes approuvées) -->
+                    <div v-if="savings" class="rounded-2xl border shadow-sm overflow-hidden"
+                        :class="savings.vs_average >= 0
+                            ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/20'
+                            : 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20'">
+                        <div class="flex items-center gap-3 border-b px-5 py-3.5"
+                            :class="savings.vs_average >= 0 ? 'border-emerald-100 dark:border-emerald-900' : 'border-amber-100 dark:border-amber-900'">
+                            <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl"
+                                :class="savings.vs_average >= 0 ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300' : 'bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-300'">
+                                <Tag class="h-4 w-4" />
+                            </div>
+                            <div>
+                                <p class="text-sm font-semibold"
+                                    :class="savings.vs_average >= 0 ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-800 dark:text-amber-200'">
+                                    Analyse des prix vs catalogue fournisseurs
+                                </p>
+                                <p class="text-xs"
+                                    :class="savings.vs_average >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'">
+                                    Basé sur {{ savings.lines_with_catalog }} ligne(s) référencée(s) sur {{ savings.lines_total }}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="grid gap-0 divide-y sm:grid-cols-2 sm:divide-x sm:divide-y-0"
+                            :class="savings.vs_average >= 0 ? 'divide-emerald-100 dark:divide-emerald-900' : 'divide-amber-100 dark:divide-amber-900'">
+
+                            <!-- Vs prix moyen du marché -->
+                            <div class="flex items-center gap-4 px-5 py-4">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                    :class="savings.vs_average >= 0 ? 'bg-emerald-100 dark:bg-emerald-950/50' : 'bg-amber-100 dark:bg-amber-950/50'">
+                                    <TrendingDown v-if="savings.vs_average >= 0"
+                                        class="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+                                    <TrendingUp v-else
+                                        class="h-5 w-5 text-amber-600 dark:text-amber-300" />
+                                </div>
+                                <div>
+                                    <p class="text-xs font-medium uppercase tracking-wide"
+                                        :class="savings.vs_average >= 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'">
+                                        {{ savings.vs_average >= 0 ? 'Économie réalisée' : 'Surcoût constaté' }}
+                                    </p>
+                                    <p class="mt-0.5 text-xl font-bold"
+                                        :class="savings.vs_average >= 0 ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-800 dark:text-amber-200'">
+                                        {{ formatAmount(Math.abs(savings.vs_average)) }}
+                                    </p>
+                                    <p class="mt-0.5 text-xs"
+                                        :class="savings.vs_average >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
+                                        vs prix moyens du catalogue
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Vs meilleur prix disponible -->
+                            <div class="flex items-center gap-4 px-5 py-4">
+                                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                    :class="savings.vs_best === 0 ? 'bg-emerald-100 dark:bg-emerald-950/50' : 'bg-slate-100 dark:bg-slate-800'">
+                                    <CheckCircle2 v-if="savings.vs_best === 0"
+                                        class="h-5 w-5 text-emerald-600 dark:text-emerald-300" />
+                                    <DollarSign v-else
+                                        class="h-5 w-5 text-slate-500 dark:text-slate-400" />
+                                </div>
+                                <div>
+                                    <p class="text-xs font-medium uppercase tracking-wide"
+                                        :class="savings.vs_best === 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-muted-foreground'">
+                                        {{ savings.vs_best === 0 ? 'Meilleurs prix obtenus' : 'Écart vs prix plancher' }}
+                                    </p>
+                                    <p class="mt-0.5 text-xl font-bold"
+                                        :class="savings.vs_best === 0 ? 'text-emerald-800 dark:text-emerald-200' : 'text-foreground'">
+                                        {{ savings.vs_best === 0 ? '—' : formatAmount(savings.vs_best) }}
+                                    </p>
+                                    <p class="mt-0.5 text-xs text-muted-foreground">
+                                        {{ savings.vs_best === 0 ? 'Tous les prix au niveau le plus bas' : 'au-dessus des prix les plus bas' }}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

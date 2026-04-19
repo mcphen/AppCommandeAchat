@@ -3,13 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\StoreUserRequest;
-use App\Http\Requests\UpdateUserRequest;
-use App\Models\Boutique;
+use App\Models\Entreprise;
 use App\Models\Role;
 use App\Models\User;
-use App\Models\ValidationLevel;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -18,82 +16,73 @@ class UserController extends Controller
 {
     public function index(): Response
     {
-        $users = User::with(['role', 'validationLevel', 'boutique'])
-            ->latest()
-            ->paginate(15);
-
         return Inertia::render('Admin/Users/Index', [
-            'users' => $users,
+            'users' => User::with(['role', 'entreprise'])->latest()->paginate(15),
         ]);
     }
 
     public function create(): Response
     {
         return Inertia::render('Admin/Users/Form', [
-            'roles'     => Role::all(),
-            'levels'    => ValidationLevel::orderBy('order')->get(),
-            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
+            'roles'       => Role::all(),
+            'entreprises' => Entreprise::where('is_active', true)->get(),
         ]);
     }
 
-    public function store(StoreUserRequest $request): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
-        User::create([
-            'name'                => $request->name,
-            'email'               => $request->email,
-            'password'            => Hash::make($request->password),
-            'role_id'             => $request->role_id,
-            'validation_level_id' => $request->validation_level_id,
-            'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
+        $validated = $request->validate([
+            'name'          => 'required|string|max:255',
+            'email'         => 'required|email|unique:users',
+            'password'      => 'required|string|min:8|confirmed',
+            'role_id'       => 'required|exists:roles,id',
+            'entreprise_id' => 'nullable|exists:entreprises,id',
+            'fonction'      => 'nullable|string|max:255',
         ]);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'Utilisateur créé avec succès.');
+        $validated['password'] = Hash::make($validated['password']);
+        User::create($validated);
+
+        return redirect()->route('admin.users.index')->with('success', 'Utilisateur créé.');
     }
 
     public function edit(User $user): Response
     {
         return Inertia::render('Admin/Users/Form', [
-            'user'      => $user->load(['role', 'validationLevel', 'boutique']),
-            'roles'     => Role::all(),
-            'levels'    => ValidationLevel::orderBy('order')->get(),
-            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
+            'user'        => $user,
+            'roles'       => Role::all(),
+            'entreprises' => Entreprise::where('is_active', true)->get(),
         ]);
     }
 
-    public function update(UpdateUserRequest $request, User $user): RedirectResponse
+    public function update(Request $request, User $user): RedirectResponse
     {
-        $data = [
-            'name'                => $request->name,
-            'email'               => $request->email,
-            'role_id'             => $request->role_id,
-            'validation_level_id' => $request->validation_level_id,
-            'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
-        ];
+        $validated = $request->validate([
+            'name'          => 'required|string|max:255',
+            'email'         => 'required|email|unique:users,email,' . $user->id,
+            'password'      => 'nullable|string|min:8|confirmed',
+            'role_id'       => 'required|exists:roles,id',
+            'entreprise_id' => 'nullable|exists:entreprises,id',
+            'fonction'      => 'nullable|string|max:255',
+        ]);
 
-        if ($request->filled('password')) {
-            $data['password'] = Hash::make($request->password);
+        if (empty($validated['password'])) {
+            unset($validated['password']);
+        } else {
+            $validated['password'] = Hash::make($validated['password']);
         }
 
-        $user->update($data);
+        $user->update($validated);
 
-        return redirect()->route('admin.users.index')
-            ->with('success', 'Utilisateur mis à jour.');
+        return redirect()->route('admin.users.index')->with('success', 'Utilisateur mis à jour.');
     }
 
     public function destroy(User $user): RedirectResponse
     {
-        abort_if($user->id === auth()->id(), 403, 'Vous ne pouvez pas supprimer votre propre compte.');
-
+        if ($user->id === auth()->id()) {
+            return back()->with('error', 'Vous ne pouvez pas supprimer votre propre compte.');
+        }
         $user->delete();
-
-        return redirect()->route('admin.users.index')
-            ->with('success', 'Utilisateur supprimé.');
-    }
-    private function resolveBoutiqueId(?string $roleId, ?string $boutiqueId): ?string
-    {
-        $role = Role::find($roleId);
-
-        return $role?->slug === 'demandeur' ? $boutiqueId : null;
+        return redirect()->route('admin.users.index')->with('success', 'Utilisateur supprimé.');
     }
 }

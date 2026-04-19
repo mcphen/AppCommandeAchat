@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Article;
-use App\Models\Boutique;
-use App\Models\Budget;
-use App\Models\Category;
-use App\Models\Fournisseur;
-use App\Models\PurchaseOrder;
-use App\Models\User;
-use App\Models\ValidationLevel;
-use App\Services\BudgetService;
+use App\Exports\DfPendingDapsExport;
+use App\Models\BudgetAnnuel;
+use App\Models\DemandeAutorisationPaiement;
+use App\Models\Entreprise;
+use App\Models\ExpressionBesoin;
+use App\Models\NiveauValidation;
+use App\Models\Paiement;
+use App\Models\SeuilValidation;
+use App\Models\Validateur;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -25,240 +29,337 @@ class DashboardController extends Controller
             return $this->adminDashboard();
         }
 
-        if ($user->canValidate()) {
-            return $this->validatorDashboard($user);
+        if ($user->isCompta()) {
+            return $this->comptaDashboard();
         }
 
-        return $this->demandeurDashboard($user);
+        if ($user->isDf()) {
+            return $this->dfDashboard($user);
+        }
+
+        if ($user->isValidateur()) {
+            return $this->validateurDashboard($user);
+        }
+
+        return $this->employeDashboard($user);
     }
 
     private function adminDashboard(): Response
     {
-        $budgetService = app(BudgetService::class);
-        $stats = [
-            'total'           => PurchaseOrder::count(),
-            'pending'         => PurchaseOrder::where('status', 'pending')->count(),
-            'approved'        => PurchaseOrder::where('status', 'approved')->count(),
-            'rejected'        => PurchaseOrder::where('status', 'rejected')->count(),
-            'budget_approved' => (int) PurchaseOrder::where('status', 'approved')->sum('amount'),
-            'budget_pending'  => (int) PurchaseOrder::where('status', 'pending')->sum('amount'),
-        ];
+        $annee = now()->year;
+        $periode = request('periode', 'this_month');
+        $entrepriseId = request('entreprise_id');
+        $dateDebutInput = request('date_debut');
+        $dateFinInput = request('date_fin');
 
-        $recentOrders = PurchaseOrder::with(['user', 'boutique'])
-            ->latest()
-            ->limit(8)
-            ->get();
+        $dateFrom = match ($periode) {
+            'last_30_days' => now()->subDays(30)->startOfDay(),
+            'year_to_date' => now()->startOfYear(),
+            'custom' => $dateDebutInput ? Carbon::parse($dateDebutInput)->startOfDay() : now()->startOfMonth(),
+            default => now()->startOfMonth(),
+        };
 
-        $totalUsers    = User::count();
-        $totalLevels   = ValidationLevel::count();
-        $totalBoutiques = Boutique::where('is_active', true)->count();
+        $dateTo = match ($periode) {
+            'custom' => $dateFinInput ? Carbon::parse($dateFinInput)->endOfDay() : now()->endOfDay(),
+            default => now()->endOfDay(),
+        };
 
-        $boutiqueStats = Boutique::withCount([
-                'purchaseOrders as orders_total',
-                'purchaseOrders as orders_approved' => fn ($q) => $q->where('status', 'approved'),
-                'purchaseOrders as orders_pending'  => fn ($q) => $q->where('status', 'pending'),
-            ])
-            ->withSum(['purchaseOrders as budget_approved' => fn ($q) => $q->where('status', 'approved')], 'amount')
-            ->where('is_active', true)
-            ->orderByDesc('orders_total')
-            ->get();
-
-        $monthlyData = $this->getMonthlyData();
-
-        $alertBudgets = $budgetService->getAlertBudgets(now()->year, 5);
-
-        return Inertia::render('Dashboard', [
-            'stats'          => $stats,
-            'recentOrders'   => $recentOrders,
-            'totalUsers'     => $totalUsers,
-            'totalLevels'    => $totalLevels,
-            'totalBoutiques' => $totalBoutiques,
-            'boutiqueStats'  => $boutiqueStats,
-            'monthlyData'    => $monthlyData,
-            'alertBudgets'   => $alertBudgets,
-            'checklist'      => $this->buildChecklist(auth()->user()),
-        ]);
-    }
-
-    private function validatorDashboard(User $user): Response
-    {
-        $levelOrder = $user->validationLevel?->order;
-
-        $pendingCount = $levelOrder
-            ? PurchaseOrder::where('status', 'pending')->where('current_level_order', $levelOrder)->count()
-            : PurchaseOrder::where('status', 'pending')->count();
-
-        $stats = [
-            'pending'     => $pendingCount,
-            'my_approved' => $user->validationLogs()->where('action', 'approved')->count(),
-            'my_rejected' => $user->validationLogs()->where('action', 'rejected')->count(),
-        ];
-
-        $recentOrders = PurchaseOrder::with(['user', 'boutique'])
-            ->where('status', 'pending')
-            ->when($levelOrder, fn ($q) => $q->where('current_level_order', $levelOrder))
-            ->latest()
-            ->limit(8)
-            ->get();
-
-        $totalLevels = ValidationLevel::count();
-
-        $activeDelegations = $user->activeDelegationsReceived()
-            ->with(['delegator', 'validationLevel'])
-            ->get();
-
-        return Inertia::render('Dashboard', [
-            'stats'             => $stats,
-            'recentOrders'      => $recentOrders,
-            'validationLevel'   => $user->validationLevel,
-            'totalLevels'       => $totalLevels,
-            'activeDelegations' => $activeDelegations,
-        ]);
-    }
-
-    private function demandeurDashboard(User $user): Response
-    {
-        $stats = [
-            'total'           => $user->purchaseOrders()->count(),
-            'draft'           => $user->purchaseOrders()->where('status', 'draft')->count(),
-            'pending'         => $user->purchaseOrders()->where('status', 'pending')->count(),
-            'approved'        => $user->purchaseOrders()->where('status', 'approved')->count(),
-            'rejected'        => $user->purchaseOrders()->where('status', 'rejected')->count(),
-            'budget_approved' => (int) $user->purchaseOrders()->where('status', 'approved')->sum('amount'),
-            'budget_pending'  => (int) $user->purchaseOrders()->where('status', 'pending')->sum('amount'),
-        ];
-
-        $recentOrders = $user->purchaseOrders()
-            ->with('boutique')
-            ->latest()
-            ->limit(8)
-            ->get();
-
-        $monthlyData = $this->getMonthlyData($user->id);
-        $totalLevels = ValidationLevel::count();
-
-        return Inertia::render('Dashboard', [
-            'stats'        => $stats,
-            'recentOrders' => $recentOrders,
-            'monthlyData'  => $monthlyData,
-            'boutique'     => $user->boutique,
-            'totalLevels'  => $totalLevels,
-        ]);
-    }
-
-    private function buildChecklist(User $user): ?array
-    {
-        // Ne pas afficher si l'admin a fermé définitivement la checklist
-        if ($user->checklist_dismissed_at !== null) {
-            return null;
+        if ($dateFrom->gt($dateTo)) {
+            [$dateFrom, $dateTo] = [$dateTo->copy()->startOfDay(), $dateFrom->copy()->endOfDay()];
         }
 
-        $hasBoutique        = Boutique::where('is_active', true)->exists();
-        $hasValidationLevel = ValidationLevel::exists();
-        $hasOtherUser       = User::where('id', '!=', $user->id)->exists();
-        $hasBudget          = class_exists(Budget::class) && Budget::exists();
-        $hasArticle         = Article::where('is_active', true)->exists();
-        $hasFournisseur     = Fournisseur::where('is_approved', true)->exists();
+        $ebBase = ExpressionBesoin::query()
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->when($entrepriseId, fn ($q) => $q->where('entreprise_id', $entrepriseId));
 
-        $steps = [
-            [
-                'key'       => 'boutique',
-                'label'     => 'Créer une boutique',
-                'detail'    => 'Définissez votre premier point de vente ou département.',
-                'done'      => $hasBoutique,
-                'href'      => '/admin/boutiques/create',
-                'cta'       => 'Créer une boutique',
-            ],
-            [
-                'key'       => 'validation_level',
-                'label'     => 'Configurer le circuit de validation',
-                'detail'    => 'Définissez au moins un niveau d\'approbation pour les commandes.',
-                'done'      => $hasValidationLevel,
-                'href'      => '/admin/validation-levels/create',
-                'cta'       => 'Ajouter un niveau',
-            ],
-            [
-                'key'       => 'invite_user',
-                'label'     => 'Inviter un utilisateur',
-                'detail'    => 'Ajoutez un demandeur ou un validateur à votre équipe.',
-                'done'      => $hasOtherUser,
-                'href'      => '/admin/users/create',
-                'cta'       => 'Ajouter un utilisateur',
-            ],
-            [
-                'key'       => 'fournisseur',
-                'label'     => 'Approuver un fournisseur',
-                'detail'    => 'Ajoutez et approuvez au moins un fournisseur dans le référentiel.',
-                'done'      => $hasFournisseur,
-                'href'      => '/admin/fournisseurs/create',
-                'cta'       => 'Ajouter un fournisseur',
-            ],
-            [
-                'key'       => 'article',
-                'label'     => 'Créer un article dans le catalogue',
-                'detail'    => 'Les demandeurs sélectionneront leurs articles depuis ce catalogue.',
-                'done'      => $hasArticle,
-                'href'      => '/admin/articles/create',
-                'cta'       => 'Ajouter un article',
-            ],
-            [
-                'key'       => 'budget',
-                'label'     => 'Définir un budget',
-                'detail'    => 'Configurez une enveloppe budgétaire pour contrôler les dépenses.',
-                'done'      => $hasBudget,
-                'href'      => '/admin/budgets/create',
-                'cta'       => 'Créer un budget',
-            ],
-        ];
+        $dapBase = DemandeAutorisationPaiement::query()
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->when($entrepriseId, fn ($q) =>
+                $q->whereHas('expressionBesoin', fn ($sq) => $sq->where('entreprise_id', $entrepriseId))
+            );
 
-        $completed = collect($steps)->where('done', true)->count();
-        $total     = count($steps);
-        $allDone   = $completed === $total;
+        $paiementBase = Paiement::query()
+            ->whereBetween('date_paiement', [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->when($entrepriseId, fn ($q) =>
+                $q->whereHas('dap.expressionBesoin', fn ($sq) => $sq->where('entreprise_id', $entrepriseId))
+            );
 
-        return [
-            'steps'     => $steps,
-            'completed' => $completed,
-            'total'     => $total,
-            'all_done'  => $allDone,
-        ];
+        $ebTotal = (clone $ebBase)->count();
+        $ebValidees = (clone $ebBase)->where('statut', ExpressionBesoin::STATUT_VALIDEE)->count();
+        $dapPayees = (clone $dapBase)->where('statut', DemandeAutorisationPaiement::STATUT_PAYEE)->count();
+        $tauxTransformation = $ebTotal > 0 ? round(($dapPayees / $ebTotal) * 100, 1) : 0;
+
+        $ebRejetees30j = (clone $ebBase)
+            ->where('statut', ExpressionBesoin::STATUT_REJETEE)
+            ->count();
+
+        $montantEngageMois = (clone $dapBase)
+            ->with('expressionBesoin:id,montant')
+            ->get()
+            ->sum(fn ($dap) => (float) ($dap->expressionBesoin?->montant ?? 0));
+
+        $montantPayeMois = (clone $paiementBase)->sum('montant');
+
+        $dapsBloquees = (clone $dapBase)
+            ->with(['expressionBesoin.user', 'expressionBesoin.entreprise'])
+            ->where('statut', DemandeAutorisationPaiement::STATUT_EN_COURS)
+            ->where('created_at', '<=', now()->subDays(3))
+            ->orderBy('created_at')
+            ->limit(6)
+            ->get()
+            ->map(function ($dap) {
+                return [
+                    'id' => $dap->id,
+                    'reference' => $dap->reference,
+                    'objet' => $dap->expressionBesoin?->objet,
+                    'demandeur' => $dap->expressionBesoin?->user?->name,
+                    'entreprise' => $dap->expressionBesoin?->entreprise?->nom,
+                    'jours_retard' => (int) max(1, $dap->created_at->diffInDays(now())),
+                ];
+            });
+
+        $budgetsAlerte = BudgetAnnuel::where('annee', $annee)
+            ->where('montant_total', '>', 0)
+            ->when($entrepriseId, fn ($q) => $q->where('entreprise_id', $entrepriseId))
+            ->whereRaw('(montant_consomme / montant_total) >= 0.8')
+            ->count();
+
+        $budgetsSocietes = Entreprise::query()
+            ->when($entrepriseId, fn ($q) => $q->where('id', $entrepriseId))
+            ->with(['budgetsAnnuels' => fn ($q) => $q->where('annee', $annee)])
+            ->get()
+            ->map(function ($e) {
+                $b = $e->budgetsAnnuels->first();
+
+                return [
+                    'id' => $e->id,
+                    'nom' => $e->nom,
+                    'code' => $e->code,
+                    'budget_id' => $b?->id,
+                    'montant_total' => (float) ($b?->montant_total ?? 0),
+                    'montant_consomme' => (float) ($b?->montant_consomme ?? 0),
+                    'montant_disponible' => (float) (($b?->montant_total ?? 0) - ($b?->montant_consomme ?? 0)),
+                    'pourcentage' => $b && $b->montant_total > 0
+                        ? round($b->montant_consomme / $b->montant_total * 100, 1)
+                        : 0,
+                ];
+            });
+
+        return Inertia::render('Dashboard', [
+            'stats' => [
+                'eb_en_attente' => (clone $ebBase)->where('statut', ExpressionBesoin::STATUT_EN_ATTENTE)->count(),
+                'dap_en_cours'  => (clone $dapBase)->where('statut', DemandeAutorisationPaiement::STATUT_EN_COURS)->count(),
+                'dap_validees'  => (clone $dapBase)->where('statut', DemandeAutorisationPaiement::STATUT_VALIDEE)->count(),
+                'dap_payees'    => (clone $dapBase)->where('statut', DemandeAutorisationPaiement::STATUT_PAYEE)->count(),
+                'eb_rejetees_30j' => $ebRejetees30j,
+                'montant_engage_mois' => (float) $montantEngageMois,
+                'montant_paye_mois' => (float) $montantPayeMois,
+                'taux_transformation' => $tauxTransformation,
+                'daps_bloquees' => $dapsBloquees->count(),
+                'budgets_alertes' => $budgetsAlerte,
+            ],
+            'recentDaps' => (clone $dapBase)->with(['expressionBesoin.user', 'expressionBesoin.entreprise'])
+                ->latest()->limit(8)->get(),
+            'recentEb' => (clone $ebBase)->with(['user', 'entreprise'])
+                ->latest()->limit(8)->get(),
+            'dapsBloquees' => $dapsBloquees,
+            'budgetsSocietes' => $budgetsSocietes,
+            'entreprises' => Entreprise::query()->select('id', 'nom')->orderBy('nom')->get(),
+            'filters' => [
+                'periode' => $periode,
+                'entreprise_id' => $entrepriseId ? (string) $entrepriseId : '',
+                'date_debut' => $dateDebutInput,
+                'date_fin' => $dateFinInput,
+            ],
+        ]);
     }
 
-    private function getMonthlyData(?int $userId = null): array
+    private function comptaDashboard(): Response
     {
-        $months = [];
-        for ($i = 5; $i >= 0; $i--) {
-            $months[] = now()->subMonths($i)->format('Y-m');
+        return Inertia::render('Dashboard', [
+            'stats' => [
+                'eb_en_attente' => ExpressionBesoin::where('statut', ExpressionBesoin::STATUT_EN_ATTENTE)->count(),
+                'dap_en_cours'  => DemandeAutorisationPaiement::where('statut', DemandeAutorisationPaiement::STATUT_EN_COURS)->count(),
+                'dap_validees'  => DemandeAutorisationPaiement::where('statut', DemandeAutorisationPaiement::STATUT_VALIDEE)->count(),
+            ],
+            'recentEb' => ExpressionBesoin::with(['user', 'entreprise'])
+                ->where('statut', ExpressionBesoin::STATUT_EN_ATTENTE)
+                ->latest()->limit(8)->get(),
+        ]);
+    }
+
+    private function dfDashboard($user): Response
+    {
+        $annee       = now()->year;
+        $niveauDf    = $user->niveauValidation;
+        $validateur  = $user->validateur;
+        $seuilDf     = SeuilValidation::where('niveau_validation_id', $niveauDf->id)->value('montant_seuil') ?? 0;
+        $periode = request('periode', 'this_month');
+        $entrepriseId = request('entreprise_id');
+        $dateDebutInput = request('date_debut');
+        $dateFinInput = request('date_fin');
+
+        $dateFrom = match ($periode) {
+            'last_30_days' => now()->subDays(30)->startOfDay(),
+            'year_to_date' => now()->startOfYear(),
+            'custom' => $dateDebutInput ? Carbon::parse($dateDebutInput)->startOfDay() : now()->startOfMonth(),
+            default => now()->startOfMonth(),
+        };
+
+        $dateTo = match ($periode) {
+            'custom' => $dateFinInput ? Carbon::parse($dateFinInput)->endOfDay() : now()->endOfDay(),
+            default => now()->endOfDay(),
+        };
+
+        if ($dateFrom->gt($dateTo)) {
+            [$dateFrom, $dateTo] = [$dateTo->copy()->startOfDay(), $dateFrom->copy()->endOfDay()];
         }
 
-        $query = PurchaseOrder::select(
-                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month"),
-                'status',
-                DB::raw('COUNT(*) as count')
+        // Budget par société — année courante
+        $societes = Entreprise::query()
+            ->when($entrepriseId, fn ($q) => $q->where('id', $entrepriseId))
+            ->with(['budgetsAnnuels' => fn ($q) => $q->where('annee', $annee)])
+            ->get();
+        $budgetsSocietes = $societes->map(function ($e) use ($annee) {
+            $b = $e->budgetsAnnuels->first();
+            return [
+                'id'                => $e->id,
+                'nom'               => $e->nom,
+                'code'              => $e->code,
+                'budget_id'         => $b?->id,
+                'montant_total'     => (float) ($b?->montant_total ?? 0),
+                'montant_consomme'  => (float) ($b?->montant_consomme ?? 0),
+                'montant_disponible'=> (float) (($b?->montant_total ?? 0) - ($b?->montant_consomme ?? 0)),
+                'pourcentage'       => $b && $b->montant_total > 0
+                    ? round($b->montant_consomme / $b->montant_total * 100, 1)
+                    : 0,
+            ];
+        });
+
+        // DAPs en attente de signature DF
+        $dapsEnAttente = DemandeAutorisationPaiement::with(['expressionBesoin.entreprise'])
+            ->where('statut', DemandeAutorisationPaiement::STATUT_EN_COURS)
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->whereHas('expressionBesoin', fn ($q) => $q->where('montant', '>=', $seuilDf))
+            ->when($entrepriseId, fn ($q) => $q->whereHas('expressionBesoin', fn ($sq) => $sq->where('entreprise_id', $entrepriseId)))
+            ->whereDoesntHave('validations', fn ($q) => $q->where('niveau_validation_id', $niveauDf->id))
+            ->orderBy('created_at')
+            ->get(['id', 'reference', 'expression_besoin_id', 'created_at']);
+
+        // Dépenses mensuelles groupe — 12 derniers mois
+        $depensesMensuelles = Paiement::select(
+                DB::raw("DATE_FORMAT(date_paiement, '%Y-%m') as mois"),
+                DB::raw('SUM(montant) as total')
             )
-            ->whereIn(DB::raw("DATE_FORMAT(created_at, '%Y-%m')"), $months)
-            ->groupBy('month', 'status');
+            ->where('date_paiement', '>=', now()->subMonths(11)->startOfMonth())
+            ->when($entrepriseId, fn ($q) =>
+                $q->whereHas('dap.expressionBesoin', fn ($sq) => $sq->where('entreprise_id', $entrepriseId))
+            )
+            ->groupBy('mois')
+            ->orderBy('mois')
+            ->get()
+            ->mapWithKeys(fn ($r) => [$r->mois => (float) $r->total]);
 
-        if ($userId) {
-            $query->where('user_id', $userId);
+        // Totaux groupe année courante
+        $totalPaye = Paiement::query()
+            ->whereBetween('date_paiement', [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->when($entrepriseId, fn ($q) =>
+                $q->whereHas('dap.expressionBesoin', fn ($sq) => $sq->where('entreprise_id', $entrepriseId))
+            )
+            ->sum('montant');
+
+        $totalEnCours = DemandeAutorisationPaiement::query()
+            ->where('statut', DemandeAutorisationPaiement::STATUT_EN_COURS)
+            ->whereBetween('created_at', [$dateFrom, $dateTo])
+            ->when($entrepriseId, fn ($q) => $q->whereHas('expressionBesoin', fn ($sq) => $sq->where('entreprise_id', $entrepriseId)))
+            ->sum(DB::raw('(SELECT montant FROM expressions_besoin WHERE expressions_besoin.id = demandes_autorisation_paiement.expression_besoin_id)'));
+
+        return Inertia::render('Dashboard/DF', [
+            'niveau'            => $niveauDf,
+            'budgetsSocietes'   => $budgetsSocietes,
+            'dapsEnAttente'     => $dapsEnAttente,
+            'depensesMensuelles'=> $depensesMensuelles,
+            'entreprises'       => Entreprise::query()->select('id', 'nom')->orderBy('nom')->get(),
+            'filters' => [
+                'periode' => $periode,
+                'entreprise_id' => $entrepriseId ? (string) $entrepriseId : '',
+                'date_debut' => $dateDebutInput,
+                'date_fin' => $dateFinInput,
+            ],
+            'stats' => [
+                'en_attente'      => $dapsEnAttente->count(),
+                'mes_validees'    => \App\Models\ValidationDap::where('validateur_id', $validateur->id)
+                    ->whereBetween('validated_at', [$dateFrom, $dateTo])
+                    ->where('statut', \App\Models\ValidationDap::STATUT_APPROUVE)->count(),
+                'mes_rejetees'    => \App\Models\ValidationDap::where('validateur_id', $validateur->id)
+                    ->whereBetween('validated_at', [$dateFrom, $dateTo])
+                    ->where('statut', \App\Models\ValidationDap::STATUT_REJETE)->count(),
+                'total_paye'      => (float) $totalPaye,
+                'total_en_cours'  => (float) $totalEnCours,
+            ],
+        ]);
+    }
+
+    public function exportDfDashboard(Request $request): BinaryFileResponse
+    {
+        $user = auth()->user();
+
+        if (!$user || !$user->isDf()) {
+            abort(403);
         }
 
-        $rows = $query->get()->groupBy('month');
+        $niveauDf = $user->niveauValidation;
+        $seuilDf = SeuilValidation::where('niveau_validation_id', $niveauDf->id)->value('montant_seuil') ?? 0;
 
-        $labels   = [];
-        $pending  = [];
-        $approved = [];
-        $rejected = [];
-        $draft    = [];
+        $filters = [
+            'periode' => $request->string('periode')->toString() ?: 'this_month',
+            'entreprise_id' => $request->string('entreprise_id')->toString(),
+            'date_debut' => $request->string('date_debut')->toString(),
+            'date_fin' => $request->string('date_fin')->toString(),
+        ];
 
-        foreach ($months as $month) {
-            $labels[]   = \Carbon\Carbon::createFromFormat('Y-m', $month)->translatedFormat('M Y');
-            $group      = $rows->get($month, collect());
-            $pending[]  = (int) ($group->firstWhere('status', 'pending')?->count  ?? 0);
-            $approved[] = (int) ($group->firstWhere('status', 'approved')?->count ?? 0);
-            $rejected[] = (int) ($group->firstWhere('status', 'rejected')?->count ?? 0);
-            $draft[]    = (int) ($group->firstWhere('status', 'draft')?->count    ?? 0);
-        }
+        return Excel::download(
+            new DfPendingDapsExport((int) $niveauDf->id, (float) $seuilDf, $filters),
+            'df-daps-en-attente-' . now()->format('Y-m-d') . '.xlsx'
+        );
+    }
 
-        return compact('labels', 'pending', 'approved', 'rejected', 'draft');
+    private function validateurDashboard($user): Response
+    {
+        $niveau = $user->niveauValidation;
+        $seuil  = $niveau
+            ? (SeuilValidation::where('niveau_validation_id', $niveau->id)->value('montant_seuil') ?? 0)
+            : 0;
+
+        $enAttente = DemandeAutorisationPaiement::where('statut', DemandeAutorisationPaiement::STATUT_EN_COURS)
+            ->when($niveau, fn ($q) =>
+                $q->whereHas('expressionBesoin', fn ($sq) => $sq->where('montant', '>=', $seuil))
+                  ->whereDoesntHave('validations', fn ($sq) => $sq->where('niveau_validation_id', $niveau->id))
+            )
+            ->count();
+
+        return Inertia::render('Dashboard', [
+            'stats' => [
+                'en_attente'   => $enAttente,
+                'mes_validees' => \App\Models\ValidationDap::where('validateur_id', $user->id)
+                    ->where('statut', \App\Models\ValidationDap::STATUT_APPROUVE)->count(),
+                'mes_rejetees' => \App\Models\ValidationDap::where('validateur_id', $user->id)
+                    ->where('statut', \App\Models\ValidationDap::STATUT_REJETE)->count(),
+            ],
+            'niveau' => $niveau,
+        ]);
+    }
+
+    private function employeDashboard($user): Response
+    {
+        return Inertia::render('Dashboard', [
+            'stats' => [
+                'total'      => $user->expressionsBesoin()->count(),
+                'en_attente' => $user->expressionsBesoin()->where('statut', ExpressionBesoin::STATUT_EN_ATTENTE)->count(),
+                'validees'   => $user->expressionsBesoin()->where('statut', ExpressionBesoin::STATUT_VALIDEE)->count(),
+                'rejetees'   => $user->expressionsBesoin()->where('statut', ExpressionBesoin::STATUT_REJETEE)->count(),
+            ],
+            'recentEb' => $user->expressionsBesoin()->with('entreprise')->latest()->limit(8)->get(),
+        ]);
     }
 }

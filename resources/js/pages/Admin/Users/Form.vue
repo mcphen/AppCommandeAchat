@@ -1,23 +1,22 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type Boutique, type BreadcrumbItem, type Role, type User, type ValidationLevel } from '@/types';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Loader2, Save } from 'lucide-vue-next';
-import { computed, watch } from 'vue';
+import PageHeader from '@/components/PageHeader.vue';
+import { type BreadcrumbItem, type Entreprise, type Role, type User } from '@/types';
+import { Head, useForm } from '@inertiajs/vue3';
+import { ArrowLeft, Loader2 } from 'lucide-vue-next';
 
 const props = defineProps<{
     user?: User;
     roles: Role[];
-    levels: ValidationLevel[];
-    boutiques: Boutique[];
+    entreprises: Entreprise[];
 }>();
 
-const isEdit = computed(() => !!props.user);
+const isEdit = !!props.user;
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
     { title: 'Utilisateurs', href: '/admin/users' },
-    { title: isEdit.value ? 'Modifier' : 'Nouvel utilisateur', href: '#' },
+    { title: isEdit ? 'Modifier' : 'Créer', href: '#' },
 ];
 
 const form = useForm({
@@ -25,190 +24,93 @@ const form = useForm({
     email: props.user?.email ?? '',
     password: '',
     password_confirmation: '',
-    role_id: props.user?.role_id?.toString() ?? '',
-    validation_level_id: props.user?.validation_level_id?.toString() ?? '',
-    boutique_id: props.user?.boutique_id?.toString() ?? '',
+    role_id: props.user?.role_id ?? '',
+    entreprise_id: props.user?.entreprise_id ?? '',
+    fonction: props.user?.fonction ?? '',
 });
 
-const submit = () => {
-    if (isEdit.value) {
+function submit() {
+    if (isEdit) {
         form.put(route('admin.users.update', props.user!.id));
     } else {
         form.post(route('admin.users.store'));
     }
-};
-
-const selectedRole = computed(() => props.roles.find(r => r.id === Number(form.role_id)));
-const needsLevel = computed(() => selectedRole.value?.slug === 'validateur' || selectedRole.value?.slug === 'admin');
-const needsBoutique = computed(() => selectedRole.value?.slug === 'demandeur');
-
-watch(needsBoutique, (value) => {
-    if (value) {
-        form.validation_level_id = '';
-        return;
-    }
-
-    form.boutique_id = '';
-}, { immediate: true });
+}
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'" />
     <AppLayout :breadcrumbs="breadcrumbs">
+        <Head :title="isEdit ? 'Modifier l\'utilisateur' : 'Créer un utilisateur'" />
+
         <div class="flex w-full flex-col gap-6 p-6">
+            <PageHeader
+                :title="`${isEdit ? 'Modifier' : 'Créer'} un utilisateur`"
+                eyebrow="Administration"
+            >
+                <template #actions>
+                    <a :href="route('admin.users.index')"
+                        class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
+                        <ArrowLeft class="h-4 w-4" />
+                        Retour
+                    </a>
+                </template>
+            </PageHeader>
 
-            <div class="flex items-center gap-4">
-                <Link :href="route('admin.users.index')" class="rounded-xl p-2 hover:bg-muted transition-colors text-muted-foreground">
-                    <ArrowLeft class="h-5 w-5" />
-                </Link>
-                <div>
-                    <h1 class="text-2xl font-bold text-foreground">
-                        {{ isEdit ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur' }}
-                    </h1>
-                    <p class="text-sm text-muted-foreground">{{ isEdit ? user?.email : 'Créer un nouveau compte' }}</p>
+            <form @submit.prevent="submit" class="rounded-xl border bg-card p-6 shadow-sm flex flex-col gap-5">
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-sm font-medium">Nom complet <span class="text-red-500">*</span></label>
+                    <input v-model="form.name" type="text" class="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
+                    <p v-if="form.errors.name" class="text-xs text-red-500">{{ form.errors.name }}</p>
                 </div>
-            </div>
 
-            <form @submit.prevent="submit" class="flex w-full flex-col gap-5">
-                <div class="rounded-2xl border bg-card p-6 shadow-sm flex flex-col gap-4">
-                    <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Informations du compte</h2>
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-sm font-medium">Email <span class="text-red-500">*</span></label>
+                    <input v-model="form.email" type="email" class="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
+                    <p v-if="form.errors.email" class="text-xs text-red-500">{{ form.errors.email }}</p>
+                </div>
 
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div class="flex flex-col gap-1.5">
-                            <label class="text-sm font-medium text-foreground">Nom complet <span class="text-red-500">*</span></label>
-                            <input
-                                v-model="form.name"
-                                type="text"
-                                placeholder="Jean Dupont"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                                :class="{ 'border-red-400': form.errors.name }"
-                            />
-                            <p v-if="form.errors.name" class="text-xs text-red-500">{{ form.errors.name }}</p>
-                        </div>
-                        <div class="flex flex-col gap-1.5">
-                            <label class="text-sm font-medium text-foreground">Adresse email <span class="text-red-500">*</span></label>
-                            <input
-                                v-model="form.email"
-                                type="email"
-                                placeholder="jean@example.com"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                                :class="{ 'border-red-400': form.errors.email }"
-                            />
-                            <p v-if="form.errors.email" class="text-xs text-red-500">{{ form.errors.email }}</p>
-                        </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium">{{ isEdit ? 'Nouveau mot de passe' : 'Mot de passe *' }}</label>
+                        <input v-model="form.password" type="password" class="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
+                        <p v-if="form.errors.password" class="text-xs text-red-500">{{ form.errors.password }}</p>
                     </div>
-
-                    <div class="grid gap-4 md:grid-cols-2">
-                        <div class="flex flex-col gap-1.5">
-                            <label class="text-sm font-medium text-foreground">
-                                Mot de passe <span v-if="!isEdit" class="text-red-500">*</span>
-                                <span v-else class="text-xs font-normal text-muted-foreground">(laisser vide = inchangé)</span>
-                            </label>
-                            <input
-                                v-model="form.password"
-                                type="password"
-                                placeholder="••••••••"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                                :class="{ 'border-red-400': form.errors.password }"
-                            />
-                            <p v-if="form.errors.password" class="text-xs text-red-500">{{ form.errors.password }}</p>
-                        </div>
-                        <div class="flex flex-col gap-1.5">
-                            <label class="text-sm font-medium text-foreground">Confirmation</label>
-                            <input
-                                v-model="form.password_confirmation"
-                                type="password"
-                                placeholder="••••••••"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                            />
-                        </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium">Confirmer</label>
+                        <input v-model="form.password_confirmation" type="password" class="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
                     </div>
                 </div>
 
-                <div class="rounded-2xl border bg-card p-6 shadow-sm flex flex-col gap-4">
-                    <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Rôle et niveau</h2>
-
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-sm font-medium text-foreground">Rôle <span class="text-red-500">*</span></label>
-                        <select
-                            v-model="form.role_id"
-                            class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors"
-                            :class="{ 'border-red-400': form.errors.role_id }"
-                        >
-                            <option value="">-- Sélectionner un rôle --</option>
-                            <option v-for="role in roles" :key="role.id" :value="role.id">{{ role.name }}</option>
-                        </select>
-                        <p v-if="form.errors.role_id" class="text-xs text-red-500">{{ form.errors.role_id }}</p>
-                    </div>
-
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-sm font-medium text-foreground">
-                            Boutique
-                            <span v-if="needsBoutique" class="text-red-500">*</span>
-                        </label>
-                        <select
-                            v-model="form.boutique_id"
-                            :disabled="!needsBoutique"
-                            class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:cursor-not-allowed disabled:text-black/60 disabled:opacity-50"
-                            :class="{ 'border-red-400': form.errors.boutique_id }"
-                        >
-                            <option value="">-- SÃƒÂ©lectionner une boutique --</option>
-                            <option v-for="boutique in boutiques" :key="boutique.id" :value="boutique.id">
-                                {{ boutique.name }} <template v-if="boutique.city">({{ boutique.city }})</template>
-                            </option>
-                        </select>
-                        <p v-if="form.errors.boutique_id" class="text-xs text-red-500">{{ form.errors.boutique_id }}</p>
-                        <p class="text-xs text-muted-foreground">
-                            <template v-if="needsBoutique">Obligatoire pour rattacher ce demandeur ÃƒÂ  une boutique.</template>
-                            <template v-else>Les validateurs et admins restent rattachÃƒÂ©s au groupe.</template>
-                        </p>
-                    </div>
-
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-sm font-medium text-foreground">
-                            Niveau de validation
-                            <span v-if="needsLevel" class="text-xs font-normal text-muted-foreground">(optionnel pour admin)</span>
-                        </label>
-                        <select
-                            v-model="form.validation_level_id"
-                            :disabled="!form.role_id || needsBoutique"
-                            class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:cursor-not-allowed disabled:text-black/60 disabled:opacity-50"
-                        >
-                            <option value="">-- Aucun niveau --</option>
-                            <option v-for="level in levels" :key="level.id" :value="level.id">
-                                Niveau {{ level.order }} — {{ level.name }}
-                            </option>
-                        </select>
-                        <p class="text-xs text-muted-foreground">
-                            <template v-if="selectedRole?.slug === 'validateur'">Requis pour un validateur — définit à quel niveau il peut valider.</template>
-                            <template v-else-if="selectedRole?.slug === 'admin'">L'admin peut être assigné à un niveau pour participer au circuit.</template>
-                            <template v-else>Non applicable pour le rôle Demandeur.</template>
-                        </p>
-                    </div>
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-sm font-medium">Rôle <span class="text-red-500">*</span></label>
+                    <select v-model="form.role_id" class="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40">
+                        <option value="">— Sélectionner —</option>
+                        <option v-for="r in roles" :key="r.id" :value="r.id">{{ r.name }}</option>
+                    </select>
                 </div>
 
-                <div class="flex items-center justify-end gap-3">
-                    <Link :href="route('admin.users.index')" class="rounded-xl border px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors">
-                        Annuler
-                    </Link>
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-70"
-                    >
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-sm font-medium">Entreprise</label>
+                    <select v-model="form.entreprise_id" class="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40">
+                        <option value="">— Aucune —</option>
+                        <option v-for="e in entreprises" :key="e.id" :value="e.id">{{ e.nom }}</option>
+                    </select>
+                </div>
+
+                <div class="flex flex-col gap-1.5">
+                    <label class="text-sm font-medium">Fonction / Poste</label>
+                    <input v-model="form.fonction" type="text" placeholder="Ex: Responsable achats" class="rounded-lg border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40" />
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <a :href="route('admin.users.index')" class="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">Annuler</a>
+                    <button type="submit" :disabled="form.processing"
+                        class="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-colors">
                         <Loader2 v-if="form.processing" class="h-4 w-4 animate-spin" />
-                        <Save v-else class="h-4 w-4" />
-                        {{ isEdit ? 'Enregistrer' : 'Créer l\'utilisateur' }}
+                        {{ isEdit ? 'Enregistrer' : 'Créer' }}
                     </button>
                 </div>
             </form>
         </div>
     </AppLayout>
 </template>
-
-<style scoped>
-select,
-select option {
-    color: #000;
-}
-</style>

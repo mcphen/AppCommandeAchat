@@ -10,15 +10,11 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RoleSeeder::class,
-            ValidationLevelSeeder::class,
-            BoutiqueSeeder::class,
+            NiveauValidationSeeder::class,
+            GroupeSeeder::class,
             AdminUserSeeder::class,
-            AppSettingSeeder::class,
-            CategorySeeder::class,
-            FournisseurSeeder::class,
-            ArticleSeeder::class,
-            FournisseurArticleSeeder::class,
-            BudgetSeeder::class,
+            UserSeeder::class,
+            BudgetAnnuelSeeder::class,
             DemoDataSeeder::class,
         ]);
     }

@@ -1,47 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body,
 html {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Manrope', 'Sora', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 }
 
 @layer base {
     :root {
-        --background: 214 18% 96%;
-        --foreground: 218 18% 8%;
+        --background: 38 33% 97%;
+        --foreground: 220 33% 12%;
         --card: 0 0% 100%;
-        --card-foreground: 218 18% 8%;
+        --card-foreground: 220 33% 12%;
         --popover: 0 0% 100%;
-        --popover-foreground: 218 18% 8%;
-        --primary: 214 84% 45%;
+        --popover-foreground: 220 33% 12%;
+        --primary: 196 88% 42%;
         --primary-foreground: 0 0% 100%;
-        --secondary: 214 40% 92%;
-        --secondary-foreground: 214 60% 30%;
-        --muted: 214 16% 93%;
-        --muted-foreground: 214 10% 46%;
-        --accent: 214 45% 91%;
-        --accent-foreground: 214 60% 30%;
+        --secondary: 201 40% 93%;
+        --secondary-foreground: 202 62% 24%;
+        --muted: 205 26% 93%;
+        --muted-foreground: 214 17% 35%;
+        --accent: 188 58% 91%;
+        --accent-foreground: 200 62% 22%;
         --destructive: 0 84.2% 60.2%;
         --destructive-foreground: 0 0% 98%;
-        --border: 214 14% 88%;
-        --input: 214 14% 88%;
-        --ring: 214 84% 45%;
-        --chart-1: 214 84% 45%;
-        --chart-2: 168 72% 40%;
-        --chart-3: 43 96% 56%;
-        --chart-4: 280 65% 60%;
-        --chart-5: 14 90% 58%;
-        --radius: 0.625rem;
-        --sidebar-background: 214 48% 15%;
-        --sidebar-foreground: 214 25% 88%;
-        --sidebar-primary: 214 75% 62%;
+        --border: 205 23% 82%;
+        --input: 205 23% 82%;
+        --ring: 196 88% 42%;
+        --chart-1: 196 88% 42%;
+        --chart-2: 158 68% 38%;
+        --chart-3: 35 94% 52%;
+        --chart-4: 262 65% 58%;
+        --chart-5: 8 88% 55%;
+        --radius: 0.95rem;
+        --sidebar-background: 208 58% 14%;
+        --sidebar-foreground: 208 35% 90%;
+        --sidebar-primary: 194 85% 58%;
         --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 214 40% 22%;
-        --sidebar-accent-foreground: 214 25% 88%;
-        --sidebar-border: 214 35% 24%;
-        --sidebar-ring: 214 75% 62%;
+        --sidebar-accent: 203 36% 21%;
+        --sidebar-accent-foreground: 208 35% 90%;
+        --sidebar-border: 205 35% 24%;
+        --sidebar-ring: 194 85% 58%;
     }
 
     .dark {
@@ -87,7 +89,74 @@ html {
 
     body {
         @apply bg-background text-foreground;
+        background-image:
+            radial-gradient(1000px circle at -10% -15%, hsl(192 90% 88% / 0.38), transparent 58%),
+            radial-gradient(850px circle at 110% -5%, hsl(38 96% 83% / 0.26), transparent 54%),
+            linear-gradient(180deg, hsl(var(--background)) 0%, hsl(210 32% 98%) 100%);
+        background-attachment: fixed;
         overflow-x: hidden;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        letter-spacing: -0.02em;
+    }
+
+    input,
+    select,
+    textarea {
+        color: hsl(var(--foreground));
+        background-color: hsl(0 0% 100% / 0.94);
+    }
+
+    input::placeholder,
+    textarea::placeholder {
+        color: hsl(var(--muted-foreground));
+        opacity: 0.9;
+    }
+}
+
+@layer components {
+    .bg-card {
+        background-color: hsl(0 0% 100% / 0.86);
+        backdrop-filter: blur(12px);
+    }
+
+    .border {
+        border-color: hsl(var(--border) / 0.9);
+    }
+
+    .rounded-xl,
+    .rounded-2xl {
+        box-shadow: 0 1px 1px hsl(220 35% 12% / 0.02), 0 14px 28px hsl(208 42% 18% / 0.06);
+    }
+
+    table thead {
+        background-image: linear-gradient(180deg, hsl(205 55% 97%), hsl(205 45% 95%));
+    }
+
+    table thead th {
+        color: hsl(212 28% 30%);
+        font-weight: 700;
+        letter-spacing: 0.01em;
+    }
+
+    input,
+    select,
+    textarea {
+        border-radius: 0.8rem;
+        border-color: hsl(var(--input));
+        box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.7);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+        border-color: hsl(var(--ring));
+        box-shadow: 0 0 0 3px hsl(var(--ring) / 0.16);
     }
 }
 

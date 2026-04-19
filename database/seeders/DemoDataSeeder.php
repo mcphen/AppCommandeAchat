@@ -2,275 +2,314 @@
 
 namespace Database\Seeders;
 
-use App\Models\Article;
-use App\Models\Boutique;
-use App\Models\Fournisseur;
-use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderLine;
-use App\Models\Role;
+use App\Models\BudgetAnnuel;
+use App\Models\DemandeAutorisationPaiement;
+use App\Models\Entreprise;
+use App\Models\ExpressionBesoin;
+use App\Models\NiveauValidation;
+use App\Models\Paiement;
 use App\Models\User;
-use App\Models\ValidationLevel;
-use App\Models\ValidationLog;
-use Carbon\Carbon;
+use App\Models\Validateur;
+use App\Models\ValidationDap;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 class DemoDataSeeder extends Seeder
 {
-    public function run(): void
+    private int $ebSeq2025  = 0;
+    private int $ebSeq2026  = 0;
+    private int $dapSeq2025 = 0;
+    private int $dapSeq2026 = 0;
+
+    private function ebRef(int $year): string
     {
-        $roles      = Role::pluck('id', 'slug');
-        $levels     = ValidationLevel::orderBy('order')->get();
-        $boutiques  = Boutique::orderBy('name')->get()->values();
-        $fournisseurs = Fournisseur::where('is_active', true)->get();
-        $articles     = Article::where('is_active', true)->get();
-
-        // ── Validateurs ───────────────────────────────────────────────────────
-        $validateurs = [
-            [
-                'name'                => 'Pape Ibrahima Ndiaye',
-                'email'               => 'p.ndiaye@scndienne.sn',
-                'validation_level_id' => $levels->firstWhere('order', 1)?->id,
-            ],
-            [
-                'name'                => 'Aminata Diop',
-                'email'               => 'a.diop@scndienne.sn',
-                'validation_level_id' => $levels->firstWhere('order', 2)?->id,
-            ],
-            [
-                'name'                => 'Moussa Sall',
-                'email'               => 'm.sall@scndienne.sn',
-                'validation_level_id' => $levels->firstWhere('order', 3)?->id,
-            ],
-        ];
-
-        $validateurUsers = [];
-        foreach ($validateurs as $data) {
-            $validateurUsers[] = User::firstOrCreate(
-                ['email' => $data['email']],
-                array_merge($data, [
-                    'password' => Hash::make('password'),
-                    'role_id'  => $roles['validateur'],
-                ])
-            );
-        }
-
-        // ── Demandeurs ─────────────────────────────────────────────────────────
-        $demandeurs = [
-            ['name' => 'Seydou Diallo',       'email' => 's.diallo@scndienne.sn',    'boutique_idx' => 0], // Siège Dalifort
-            ['name' => 'Fatou Mbaye',         'email' => 'f.mbaye@scndienne.sn',     'boutique_idx' => 0], // Siège Dalifort
-            ['name' => 'Oumar Ba',            'email' => 'o.ba@scndienne.sn',        'boutique_idx' => 1], // Dépôt Touba
-            ['name' => 'Rokhaya Touré',       'email' => 'r.toure@scndienne.sn',     'boutique_idx' => 2], // Agence Plateau
-            ['name' => 'Ibrahima Ly',         'email' => 'i.ly@scndienne.sn',        'boutique_idx' => 3], // Dépôt Médina
-        ];
-
-        $demandeurUsers = [];
-        foreach ($demandeurs as $data) {
-            $boutique = $boutiques[$data['boutique_idx']] ?? $boutiques->first();
-            $demandeurUsers[] = User::firstOrCreate(
-                ['email' => $data['email']],
-                [
-                    'name'        => $data['name'],
-                    'email'       => $data['email'],
-                    'password'    => Hash::make('password'),
-                    'role_id'     => $roles['demandeur'],
-                    'boutique_id' => $boutique?->id,
-                ]
-            );
-        }
-
-        // ── Templates de commandes SCN-SUARL ────────────────────────────────
-        $orderTemplates = [
-            // Alimentaire
-            ['title' => 'Réapprovisionnement huile végétale 50L',         'amount_min' =>  450000,  'amount_max' =>  2500000],
-            ['title' => 'Achat huile en sachets – lot 260 unités',         'amount_min' =>  280000,  'amount_max' =>   840000],
-            ['title' => 'Commande farine de blé 50 kg – lot mensuel',     'amount_min' =>  390000,  'amount_max' =>  1560000],
-            ['title' => 'Approvisionnement riz brisé importé',            'amount_min' =>  480000,  'amount_max' =>  2400000],
-            ['title' => 'Achat sachets alimentaires 100 ml',              'amount_min' =>  120000,  'amount_max' =>   480000],
-            ['title' => 'Réapprovisionnement mil et maïs local',          'amount_min' =>  260000,  'amount_max' =>  1040000],
-            // Quincaillerie / pompes
-            ['title' => 'Achat pompe centrifuge eau pour dépôt Touba',    'amount_min' =>  125000,  'amount_max' =>   500000],
-            ['title' => 'Remplacement pompe hydraulique atelier',         'amount_min' =>  285000,  'amount_max' =>   855000],
-            ['title' => 'Commande vannes et clapets DN50',                'amount_min' =>   85000,  'amount_max' =>   340000],
-            ['title' => 'Achat pièces détachées mécaniques stock',        'amount_min' =>   95000,  'amount_max' =>   380000],
-            ['title' => 'Réapprovisionnement peinture acrylique locaux',  'amount_min' =>  160000,  'amount_max' =>   640000],
-            // Lubrifiants
-            ['title' => 'Achat huile moteur 15W40 flotte véhicules',      'amount_min' =>  180000,  'amount_max' =>   720000],
-            ['title' => 'Commande huile hydraulique ISO 46 – stock',      'amount_min' =>  140000,  'amount_max' =>   560000],
-            ['title' => 'Réapprovisionnement graisse multi-usage',        'amount_min' =>   96000,  'amount_max' =>   288000],
-            // Construction
-            ['title' => 'Commande ciment CPA 285 – chantier Dalifort',    'amount_min' =>  225000,  'amount_max' =>  1800000],
-            ['title' => 'Achat bitume 60/70 pour route dépôt Touba',      'amount_min' =>  490000,  'amount_max' =>  1960000],
-            ['title' => 'Réapprovisionnement ciment CPJ 250 – agence',    'amount_min' =>  350000,  'amount_max' =>  1400000],
-            ['title' => 'Achat pots à béton et panneaux coffreurs',       'amount_min' =>  120000,  'amount_max' =>   480000],
-            ['title' => 'Commande treillis soudés extension entrepôt',    'amount_min' =>  240000,  'amount_max' =>   720000],
-        ];
-
-        $descriptions = [
-            'Stock critique atteint — réapprovisionnement urgent validé par le responsable dépôt.',
-            'Commande mensuelle selon le plan d\'approvisionnement annuel approuvé.',
-            'Besoin identifié lors de l\'inventaire hebdomadaire du dépôt.',
-            'Conformément au budget d\'exploitation de l\'exercice en cours.',
-            'Demande émise suite aux recommandations de l\'audit stock de la semaine.',
-            'Réapprovisionnement planifié — rupture prévisible sous 7 jours.',
-            'Commande liée à l\'activité saisonnière et à l\'augmentation des ventes.',
-            'Achat nécessaire pour assurer la continuité des livraisons clients.',
-            'Conformément à la politique d\'achat validée par la direction générale.',
-            'Commande de remplacement suite à la détérioration constatée du matériel.',
-        ];
-
-        // Période : juin 2025 → 7 avril 2026
-        $start = Carbon::create(2025, 6, 1);
-        $end   = Carbon::create(2026, 4, 7);
-
-        $scenarii = [
-            ['approved', true,  true,  3],
-            ['approved', true,  true,  3],
-            ['approved', true,  true,  3],
-            ['rejected', true,  true,  1],
-            ['rejected', true,  true,  2],
-            ['pending',  true,  false, 1],
-            ['pending',  true,  false, 0],
-            ['draft',    false, false, 0],
-        ];
-
-        $approvedFournisseurs = $fournisseurs->where('is_approved', true)->values();
-        $allFournisseurs      = $fournisseurs->values();
-        $orderCount = 0;
-        $lineCount  = 0;
-
-        foreach ($demandeurUsers as $demandeur) {
-            $nbOrders = rand(6, 10);
-
-            for ($i = 0; $i < $nbOrders; $i++) {
-                $template  = $orderTemplates[array_rand($orderTemplates)];
-                $scenario  = $scenarii[array_rand($scenarii)];
-                $createdAt = Carbon::createFromTimestamp(rand($start->timestamp, $end->timestamp));
-
-                [$status, $submitted, $fullyValidated, $nbLevelsValidated] = $scenario;
-
-                $submittedAt = $submitted
-                    ? $createdAt->copy()->addDays(rand(1, 5))
-                    : null;
-
-                if ($submittedAt && $submittedAt->greaterThan($end)) {
-                    $submittedAt = null;
-                    $status      = 'draft';
-                    $submitted   = false;
-                }
-
-                $currentLevelOrder = match ($status) {
-                    'pending' => $nbLevelsValidated + 1,
-                    default   => null,
-                };
-
-                // 2 commandes sur 3 ont des lignes d'articles
-                $useLines        = ($i % 3 !== 0) && $articles->isNotEmpty() && $fournisseurs->isNotEmpty();
-                $orderFournisseur = null;
-
-                if (! $useLines && $allFournisseurs->isNotEmpty()) {
-                    $orderFournisseur = $allFournisseurs->random();
-                }
-
-                $amount = rand($template['amount_min'], $template['amount_max']);
-                $amount = round($amount / 1000) * 1000;
-
-                $order = PurchaseOrder::create([
-                    'user_id'             => $demandeur->id,
-                    'boutique_id'         => $demandeur->boutique_id,
-                    'fournisseur_id'      => $orderFournisseur?->id,
-                    'title'               => $template['title'],
-                    'description'         => $descriptions[array_rand($descriptions)],
-                    'amount'              => $amount,
-                    'status'              => $status,
-                    'current_level_order' => $currentLevelOrder,
-                    'submitted_at'        => $submittedAt,
-                    'created_at'          => $createdAt,
-                    'updated_at'          => $submittedAt ?? $createdAt,
-                ]);
-
-                // Lignes de commande
-                if ($useLines) {
-                    $nbLines     = rand(2, 5);
-                    $sampledItems = $articles->random(min($nbLines, $articles->count()));
-                    $totalAmount = 0;
-
-                    foreach ($sampledItems as $article) {
-                        $qty             = rand(10, 200);
-                        $unitPrice       = $article->unit_price ?? rand(5000, 100000);
-                        $unitPrice       = round($unitPrice * (0.85 + lcg_value() * 0.3) / 500) * 500;
-                        $lineFournisseur = $approvedFournisseurs->isNotEmpty()
-                            ? $approvedFournisseurs->random()
-                            : null;
-
-                        if (rand(1, 5) === 1 && $allFournisseurs->isNotEmpty()) {
-                            $lineFournisseur = $allFournisseurs->random();
-                        }
-
-                        PurchaseOrderLine::create([
-                            'purchase_order_id' => $order->id,
-                            'article_id'        => $article->id,
-                            'fournisseur_id'    => $lineFournisseur?->id,
-                            'quantity'          => $qty,
-                            'unit_price'        => $unitPrice,
-                            'note'              => null,
-                        ]);
-
-                        $totalAmount += $qty * $unitPrice;
-                        $lineCount++;
-                    }
-
-                    $order->updateQuietly(['amount' => $totalAmount]);
-                }
-
-                // Logs de validation
-                if ($submitted && $nbLevelsValidated > 0) {
-                    $validationDate = $submittedAt->copy();
-
-                    for ($lvl = 1; $lvl <= $nbLevelsValidated; $lvl++) {
-                        $validationDate = $validationDate->copy()->addDays(rand(1, 3));
-                        $level          = $levels->firstWhere('order', $lvl);
-                        $validateur     = $validateurUsers[$lvl - 1] ?? $validateurUsers[0];
-
-                        $isLastLevel = ($lvl === $nbLevelsValidated);
-                        $action      = match ($status) {
-                            'rejected' => $isLastLevel ? 'rejected' : 'approved',
-                            default    => 'approved',
-                        };
-
-                        ValidationLog::create([
-                            'purchase_order_id'   => $order->id,
-                            'validation_level_id' => $level?->id,
-                            'user_id'             => $validateur->id,
-                            'action'              => $action,
-                            'comment'             => $action === 'rejected'
-                                ? $this->rejectionComment()
-                                : null,
-                            'created_at'          => $validationDate,
-                            'updated_at'          => $validationDate,
-                        ]);
-                    }
-                }
-
-                $orderCount++;
-            }
-        }
-
-        $this->command->info("✓ {$orderCount} commandes créées pour " . count($demandeurUsers) . " demandeurs SCN.");
-        $this->command->info("✓ {$lineCount} lignes de commande créées.");
-        $this->command->info("✓ " . count($validateurUsers) . " validateurs créés.");
+        $seq = $year === 2025 ? ++$this->ebSeq2025 : ++$this->ebSeq2026;
+        return sprintf('EB-%d-%04d', $year, $seq);
     }
 
-    private function rejectionComment(): string
+    private function dapRef(int $year): string
     {
-        $comments = [
-            'Montant dépassant le seuil budgétaire du trimestre. Revoir la quantité.',
-            'Justification insuffisante. Merci de joindre un devis fournisseur comparatif.',
-            'Fournisseur non homologué pour ce type de produit — sélectionner un partenaire agréé.',
-            'Budget du département épuisé pour cet exercice. Reporter au prochain trimestre.',
-            'Doublon de commande détecté. Vérifier le stock disponible avant de renouveler.',
+        $seq = $year === 2025 ? ++$this->dapSeq2025 : ++$this->dapSeq2026;
+        return sprintf('DAP-%d-%04d', $year, $seq);
+    }
+
+    public function run(): void
+    {
+        $compta = NiveauValidation::where('slug', 'compta')->first();
+        $df     = NiveauValidation::where('slug', 'df')->first();
+        $dg     = NiveauValidation::where('slug', 'dg')->first();
+        $pdg    = NiveauValidation::where('slug', 'pdg')->first();
+
+        $vCompta = Validateur::whereHas('niveauValidation', fn($q) => $q->where('slug', 'compta'))->first();
+        $vDf     = Validateur::whereHas('niveauValidation', fn($q) => $q->where('slug', 'df'))->first();
+        $vDg     = Validateur::whereHas('niveauValidation', fn($q) => $q->where('slug', 'dg'))->first();
+        $vPdg    = Validateur::whereHas('niveauValidation', fn($q) => $q->where('slug', 'pdg'))->first();
+
+        $uCompta = $vCompta->user;
+        $uDf     = $vDf->user;
+        $uDg     = $vDg->user;
+        $uPdg    = $vPdg->user;
+
+        $admin = User::whereHas('role', fn($q) => $q->where('slug', 'admin'))->first();
+
+        // Transactions per company: [objet, montant, date_eb, statut_final, date_validation, motif_rejet?]
+        // statut_final: 'payee', 'validee', 'rejetee_compta', 'rejetee_dap', 'en_cours'
+        $transactions = [
+            'FIM' => [
+                // 2025 — bouclé
+                ['Achat fournitures bureau',             180_000,   '2025-01-10', 'payee',         '2025-01-20'],
+                ['Maintenance climatiseurs',              350_000,   '2025-01-28', 'payee',         '2025-02-07'],
+                ['Abonnement logiciel comptabilité',     750_000,   '2025-02-12', 'payee',         '2025-02-24'],
+                ['Formation Excel avancé personnel',     420_000,   '2025-03-05', 'payee',         '2025-03-18'],
+                ['Renouvellement contrat gardiennage',   1_200_000, '2025-03-20', 'payee',         '2025-04-02'],
+                ['Achat imprimante multifonction',       280_000,   '2025-04-08', 'rejetee_compta','2025-04-10', 'Justificatif insuffisant'],
+                ['Mobilier bureau direction',            2_800_000, '2025-04-15', 'payee',         '2025-05-02'],
+                ['Carburant véhicules de service',       195_000,   '2025-05-03', 'payee',         '2025-05-12'],
+                ['Audit système informatique',           650_000,   '2025-06-02', 'payee',         '2025-06-18'],
+                ['Achat matériel électrique',            310_000,   '2025-07-07', 'payee',         '2025-07-17'],
+                ['Réparation groupe électrogène',        580_000,   '2025-08-12', 'payee',         '2025-08-25'],
+                ['Communication campagne Q3',            980_000,   '2025-09-01', 'rejetee_dap',   '2025-09-15', 'Budget insuffisant ce trimestre'],
+                ['Achat consommables imprimantes',       145_000,   '2025-09-20', 'payee',         '2025-09-30'],
+                ['Entretien locaux siège',               430_000,   '2025-10-10', 'payee',         '2025-10-22'],
+                ['Licence antivirus annuelle',           320_000,   '2025-11-03', 'payee',         '2025-11-14'],
+                ['Frais déplacement équipe commerciale', 260_000,   '2025-12-01', 'payee',         '2025-12-12'],
+                // 2026
+                ['Achat chaises ergonomiques',           890_000,   '2026-01-08', 'payee',         '2026-01-20'],
+                ['Abonnement cloud stockage',            240_000,   '2026-01-22', 'payee',         '2026-02-01'],
+                ['Formation sécurité incendie',          370_000,   '2026-02-10', 'payee',         '2026-02-22'],
+                ['Équipement salle de réunion',          1_650_000, '2026-03-03', 'en_cours',      null],
+                ['Achat photocopieuse couleur',          480_000,   '2026-03-18', 'en_cours',      null],
+            ],
+            'ATR' => [
+                // 2025
+                ['Renouvellement flotte véhicules (acompte)', 3_500_000, '2025-01-15', 'payee',    '2025-02-05'],
+                ['Achat GPS trackers véhicules',          620_000,   '2025-02-03', 'payee',         '2025-02-18'],
+                ['Maintenance préventive camions',        890_000,   '2025-02-25', 'payee',         '2025-03-10'],
+                ['Pneus de rechange stock',               750_000,   '2025-03-18', 'payee',         '2025-03-28'],
+                ['Carburant Q2 2025',                     540_000,   '2025-04-02', 'payee',         '2025-04-14'],
+                ['Formation conduite sécuritaire',        310_000,   '2025-04-28', 'rejetee_compta','2025-05-02', 'Doublon avec formation précédente'],
+                ['Réparation camion ATR-12',              420_000,   '2025-05-15', 'payee',         '2025-05-26'],
+                ['Achat outils atelier mécanique',        285_000,   '2025-06-10', 'payee',         '2025-06-20'],
+                ['Assurance flotte annuelle',             1_800_000, '2025-07-01', 'payee',         '2025-07-18'],
+                ['Équipement sécurité chauffeurs',        390_000,   '2025-08-05', 'payee',         '2025-08-16'],
+                ['Carburant Q3 2025',                     510_000,   '2025-09-02', 'payee',         '2025-09-13'],
+                ['Renouvellement vignettes véhicules',    175_000,   '2025-10-01', 'payee',         '2025-10-09'],
+                ['Achat pièces détachées urgentes',       340_000,   '2025-11-12', 'payee',         '2025-11-22'],
+                ['Carburant Q4 2025',                     490_000,   '2025-12-02', 'payee',         '2025-12-13'],
+                // 2026
+                ['Rénovation atelier maintenance',        2_200_000, '2026-01-10', 'payee',         '2026-01-28'],
+                ['Achat outillage diagnostic électronique', 680_000, '2026-02-03', 'payee',         '2026-02-14'],
+                ['Formation techniciens moteurs diesel',  450_000,   '2026-02-20', 'en_cours',      null],
+                ['Carburant Q1 2026',                     520_000,   '2026-03-01', 'en_cours',      null],
+            ],
+            'ELY' => [
+                // 2025
+                ['Achat palettes stockage entrepôt',     480_000,   '2025-01-08', 'payee',         '2025-01-19'],
+                ['Maintenance chariots élévateurs',      1_100_000, '2025-01-22', 'payee',         '2025-02-04'],
+                ['Achat scanners code-barres',           950_000,   '2025-02-10', 'payee',         '2025-02-24'],
+                ['Formation logistique entrepôt',         420_000,   '2025-03-03', 'payee',         '2025-03-14'],
+                ['Réparation toiture entrepôt A',        2_500_000, '2025-03-20', 'payee',         '2025-04-08'],
+                ['Achat étiqueteuses automatiques',      1_350_000, '2025-04-10', 'rejetee_dap',   '2025-04-22', 'Devis non conforme aux normes groupe'],
+                ['Système de vidéosurveillance',         3_800_000, '2025-05-05', 'payee',         '2025-05-28'],
+                ['Consommables emballage Q2',             380_000,   '2025-06-02', 'payee',         '2025-06-12'],
+                ['Logiciel WMS (gestion entrepôt)',      5_200_000, '2025-06-20', 'payee',         '2025-07-15'],
+                ['Entretien climatisation entrepôts',     620_000,   '2025-07-08', 'payee',         '2025-07-19'],
+                ['Achat mobilier espace bureau entrepôt', 780_000,  '2025-08-04', 'payee',         '2025-08-16'],
+                ['Consommables emballage Q3',             410_000,   '2025-09-01', 'payee',         '2025-09-11'],
+                ['Formation pompiers volontaires',        290_000,   '2025-10-06', 'payee',         '2025-10-16'],
+                ['Réparation chariot élévateur #3',       560_000,   '2025-11-03', 'payee',         '2025-11-14'],
+                ['Consommables emballage Q4',             430_000,   '2025-12-01', 'payee',         '2025-12-11'],
+                ['Extension entrepôt B (acompte)',       8_500_000, '2025-12-15', 'payee',         '2025-12-30'],
+                // 2026
+                ['Achat transpalettes électriques',      2_900_000, '2026-01-07', 'payee',         '2026-01-22'],
+                ['Maintenance annuelle chariots',         740_000,   '2026-01-28', 'payee',         '2026-02-08'],
+                ['Consommables emballage Q1 2026',        460_000,   '2026-02-10', 'payee',         '2026-02-20'],
+                ['Système anti-incendie entrepôt C',     4_100_000, '2026-03-02', 'en_cours',      null],
+                ['Formation nouveaux manutentionnaires',  350_000,   '2026-03-20', 'en_cours',      null],
+            ],
+            'SNG' => [
+                // 2025
+                ['Fournitures bureau & papeterie',        120_000,   '2025-01-12', 'payee',         '2025-01-22'],
+                ['Abonnement téléphonie entreprise',      280_000,   '2025-01-30', 'payee',         '2025-02-10'],
+                ['Réparation véhicule direction',         450_000,   '2025-02-18', 'payee',         '2025-03-01'],
+                ['Achat ordinateurs portables (3)',       1_050_000, '2025-03-10', 'payee',         '2025-03-24'],
+                ['Maintenance réseau informatique',       380_000,   '2025-04-07', 'payee',         '2025-04-18'],
+                ['Frais notaire cession local',          2_400_000, '2025-04-22', 'rejetee_compta','2025-04-25', 'Manque approbation DG préalable'],
+                ['Formation comptabilité SYSCOHADA',      560_000,   '2025-05-12', 'payee',         '2025-05-24'],
+                ['Achat mobilier réception',              690_000,   '2025-06-03', 'payee',         '2025-06-16'],
+                ['Carburant véhicules H1 2025',           310_000,   '2025-07-01', 'payee',         '2025-07-11'],
+                ['Renouvellement bail local commercial',  1_500_000, '2025-08-10', 'payee',         '2025-08-26'],
+                ['Achat tableau interactif salle conf.',  880_000,   '2025-09-08', 'payee',         '2025-09-20'],
+                ['Entretien locaux & nettoyage Q3',       195_000,   '2025-10-02', 'payee',         '2025-10-12'],
+                ['Abonnement logiciel RH',                420_000,   '2025-11-05', 'payee',         '2025-11-17'],
+                ['Carburant véhicules H2 2025',           295_000,   '2025-12-03', 'payee',         '2025-12-13'],
+                // 2026
+                ['Rénovation bureau direction',           1_800_000, '2026-01-09', 'payee',         '2026-01-23'],
+                ['Achat climatiseurs (2 unités)',          640_000,   '2026-02-04', 'payee',         '2026-02-15'],
+                ['Formation management équipes',          510_000,   '2026-02-25', 'en_cours',      null],
+                ['Achat serveur NAS sauvegarde',          960_000,   '2026-03-12', 'en_cours',      null],
+            ],
         ];
 
-        return $comments[array_rand($comments)];
+        foreach ($transactions as $code => $items) {
+            $entreprise = Entreprise::where('code', $code)->first();
+            // Pick first employee of this company as the requester
+            $employe = User::where('entreprise_id', $entreprise->id)->first();
+
+            foreach ($items as $item) {
+                [$objet, $montant, $dateEb, $statutFinal, $dateValidation, $motifRejet] = array_pad($item, 6, null);
+
+                $anneeEb  = (int) substr($dateEb, 0, 4);
+                $budget   = BudgetAnnuel::where('entreprise_id', $entreprise->id)
+                                        ->where('annee', $anneeEb)
+                                        ->first();
+
+                // Create EB
+                $ebStatut = match($statutFinal) {
+                    'rejetee_compta' => 'rejetee',
+                    default          => 'validee',
+                };
+                // EBs still en_cours => still en_attente at EB level
+                if ($statutFinal === 'en_cours') $ebStatut = 'validee';
+
+                $eb = ExpressionBesoin::create([
+                    'reference'    => $this->ebRef($anneeEb),
+                    'user_id'      => $employe->id,
+                    'entreprise_id'=> $entreprise->id,
+                    'objet'        => $objet,
+                    'description'  => 'Demande relative à : ' . lcfirst($objet) . '.',
+                    'montant'      => $montant,
+                    'beneficiaire' => $entreprise->nom,
+                    'justification'=> 'Nécessaire pour le bon fonctionnement des activités de ' . $entreprise->nom . '.',
+                    'statut'       => $ebStatut,
+                    'motif_rejet'  => $statutFinal === 'rejetee_compta' ? $motifRejet : null,
+                    'rejected_at'  => $statutFinal === 'rejetee_compta' && $dateValidation ? $dateValidation : null,
+                    'created_at'   => $dateEb,
+                    'updated_at'   => $dateValidation ?? $dateEb,
+                ]);
+
+                if ($statutFinal === 'rejetee_compta') {
+                    continue; // No DAP created
+                }
+
+                // Determine DAP statut
+                $dapStatut = match($statutFinal) {
+                    'payee'    => 'payee',
+                    'validee'  => 'validee',
+                    'rejetee_dap' => 'rejetee',
+                    'en_cours' => 'en_cours',
+                    default    => 'en_cours',
+                };
+
+                $anneeCreation = $anneeEb;
+                $dap = DemandeAutorisationPaiement::create([
+                    'reference'          => $this->dapRef($anneeCreation),
+                    'expression_besoin_id' => $eb->id,
+                    'budget_annuel_id'   => $budget?->id,
+                    'created_by'         => $uCompta->id,
+                    'statut'             => $dapStatut,
+                    'notes'              => null,
+                    'created_at'         => $dateValidation ?? $dateEb,
+                    'updated_at'         => $dateValidation ?? $dateEb,
+                ]);
+
+                // ValidationDap for Compta (always)
+                ValidationDap::create([
+                    'dap_id'               => $dap->id,
+                    'niveau_validation_id' => $compta->id,
+                    'validateur_id'        => $vCompta->id,
+                    'statut'               => 'approuve',
+                    'commentaire'          => 'EB conforme, DAP créée.',
+                    'validated_at'         => $dateValidation ?? $dateEb,
+                    'created_at'           => $dateValidation ?? $dateEb,
+                    'updated_at'           => $dateValidation ?? $dateEb,
+                ]);
+
+                if ($statutFinal === 'rejetee_dap') {
+                    // DF rejects
+                    ValidationDap::create([
+                        'dap_id'               => $dap->id,
+                        'niveau_validation_id' => $df->id,
+                        'validateur_id'        => $vDf->id,
+                        'statut'               => 'rejete',
+                        'commentaire'          => $motifRejet,
+                        'validated_at'         => $dateValidation,
+                        'created_at'           => $dateValidation,
+                        'updated_at'           => $dateValidation,
+                    ]);
+
+                    // Mark EB as rejected too
+                    $eb->update(['statut' => 'rejetee', 'motif_rejet' => $motifRejet, 'rejected_at' => $dateValidation]);
+                    continue;
+                }
+
+                if ($statutFinal === 'en_cours') {
+                    // No further validations yet
+                    continue;
+                }
+
+                // Full approval chain based on montant
+                $needsDg  = $montant >= 500_000;
+                $needsPdg = $montant >= 2_000_000;
+
+                // DF validation (always required for DAP)
+                $dfDate = $dateValidation;
+                ValidationDap::create([
+                    'dap_id'               => $dap->id,
+                    'niveau_validation_id' => $df->id,
+                    'validateur_id'        => $vDf->id,
+                    'statut'               => 'approuve',
+                    'commentaire'          => 'Approuvé par la Direction Financière.',
+                    'validated_at'         => $dfDate,
+                    'created_at'           => $dfDate,
+                    'updated_at'           => $dfDate,
+                ]);
+
+                if ($needsDg) {
+                    ValidationDap::create([
+                        'dap_id'               => $dap->id,
+                        'niveau_validation_id' => $dg->id,
+                        'validateur_id'        => $vDg->id,
+                        'statut'               => 'approuve',
+                        'commentaire'          => 'Approuvé par la Direction Générale.',
+                        'validated_at'         => $dfDate,
+                        'created_at'           => $dfDate,
+                        'updated_at'           => $dfDate,
+                    ]);
+                }
+
+                if ($needsPdg) {
+                    ValidationDap::create([
+                        'dap_id'               => $dap->id,
+                        'niveau_validation_id' => $pdg->id,
+                        'validateur_id'        => $vPdg->id,
+                        'statut'               => 'approuve',
+                        'commentaire'          => 'Approuvé par la Présidence.',
+                        'validated_at'         => $dfDate,
+                        'created_at'           => $dfDate,
+                        'updated_at'           => $dfDate,
+                    ]);
+                }
+
+                // Paiement if statut = payee
+                if ($statutFinal === 'payee' && $budget) {
+                    Paiement::create([
+                        'dap_id'          => $dap->id,
+                        'created_by'      => $admin ? $admin->id : $uDf->id,
+                        'montant'         => $montant,
+                        'date_paiement'   => $dateValidation,
+                        'reference'       => 'PAY-' . strtoupper(substr(md5($dap->reference), 0, 8)),
+                        'mode_paiement'   => $montant >= 1_000_000 ? 'virement' : 'cheque',
+                        'banque'          => 'SGBS',
+                        'notes'           => null,
+                        'created_at'      => $dateValidation,
+                        'updated_at'      => $dateValidation,
+                    ]);
+
+                    // Update budget montant_consomme
+                    $budget->increment('montant_consomme', $montant);
+                }
+            }
+        }
     }
 }

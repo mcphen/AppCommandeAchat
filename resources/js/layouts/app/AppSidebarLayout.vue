@@ -3,7 +3,6 @@ import AppContent from '@/components/AppContent.vue';
 import AppShell from '@/components/AppShell.vue';
 import AppSidebar from '@/components/AppSidebar.vue';
 import AppSidebarHeader from '@/components/AppSidebarHeader.vue';
-import OnboardingGuide from '@/components/OnboardingGuide.vue';
 import type { BreadcrumbItemType, SharedData } from '@/types';
 import { usePage } from '@inertiajs/vue3';
 import { computed, ref, watch } from 'vue';
@@ -69,6 +68,4 @@ watch(
         </AppContent>
     </AppShell>
 
-    <!-- Guide premier login — monté globalement, géré par OnboardingGuide -->
-    <OnboardingGuide />
 </template>

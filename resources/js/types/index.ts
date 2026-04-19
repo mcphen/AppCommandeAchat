@@ -33,7 +33,6 @@ export interface SharedData {
     auth: Auth;
     flash: { success?: string; error?: string };
     unread_notifications_count: number;
-    show_onboarding: boolean;
     ziggy: {
         location: string;
         url: string;
@@ -46,24 +45,54 @@ export interface SharedData {
 export interface Role {
     id: number;
     name: string;
-    slug: 'admin' | 'demandeur' | 'validateur';
+    slug: 'admin' | 'employe' | 'validateur';
 }
 
-export interface ValidationLevel {
+export interface Groupe {
     id: number;
-    name: string;
-    order: number;
-    description?: string;
-    validators_count?: number;
-}
-
-export interface Boutique {
-    id: number;
+    nom: string;
     code: string;
-    name: string;
-    address?: string | null;
-    city?: string | null;
+    logo_path?: string | null;
     is_active: boolean;
+    entreprises_count?: number;
+}
+
+export interface Entreprise {
+    id: number;
+    groupe_id: number;
+    groupe?: Groupe;
+    nom: string;
+    code: string;
+    adresse?: string | null;
+    ville?: string | null;
+    is_active: boolean;
+    users_count?: number;
+}
+
+export interface NiveauValidation {
+    id: number;
+    nom: string;
+    slug: 'compta' | 'df' | 'dg' | 'pdg';
+    ordre: number;
+    description?: string | null;
+    is_active: boolean;
+    seuil?: SeuilValidation;
+    validateurs_count?: number;
+}
+
+export interface SeuilValidation {
+    id: number;
+    niveau_validation_id: number;
+    montant_seuil: number;
+}
+
+export interface Validateur {
+    id: number;
+    user_id: number;
+    niveau_validation_id: number;
+    is_active: boolean;
+    user?: User;
+    niveau_validation?: NiveauValidation;
 }
 
 export interface User {
@@ -72,201 +101,104 @@ export interface User {
     email: string;
     avatar?: string;
     role_id?: number;
-    validation_level_id?: number;
-    boutique_id?: number | null;
+    entreprise_id?: number | null;
+    fonction?: string | null;
     role?: Role;
-    validation_level?: ValidationLevel;
-    boutique?: Boutique | null;
+    entreprise?: Entreprise | null;
+    niveau_validation?: NiveauValidation | null;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
 }
 
-export interface PurchaseOrderAttachment {
+export interface BudgetAnnuel {
     id: number;
-    purchase_order_id: number;
-    file_path: string;
-    file_name: string;
-    file_size: number;
+    entreprise_id: number;
+    entreprise?: Entreprise;
+    annee: number;
+    libelle: string;
+    montant_total: number;
+    montant_consomme: number;
+    is_active: boolean;
+    montant_disponible?: number;
+}
+
+export type EbStatut = 'en_attente' | 'validee' | 'rejetee';
+export type DapStatut = 'en_cours' | 'validee' | 'rejetee' | 'payee';
+export type ValidationStatut = 'approuve' | 'rejete';
+
+export interface ExpressionBesoinAttachment {
+    id: number;
+    expression_besoin_id: number;
+    nom_fichier: string;
+    chemin: string;
+    type_mime?: string | null;
+    taille?: number | null;
     created_at: string;
 }
 
-export type OrderStatus = 'draft' | 'pending' | 'needs_revision' | 'approved' | 'rejected';
-export type DeliveryStatus = 'ordered' | 'partially_received' | 'received';
-
-export interface PurchaseOrderReceptionLine {
+export interface ExpressionBesoin {
     id: number;
-    reception_id: number;
-    purchase_order_line_id: number;
-    quantity_received: string;
-}
-
-export interface PurchaseOrderReception {
-    id: number;
-    purchase_order_id: number;
-    received_by: number;
-    received_at: string;
-    type: 'partial' | 'complete';
-    notes?: string | null;
-    invoice_number?: string | null;
-    invoice_date?: string | null;
-    invoice_amount?: string | number | null;
-    receiver?: User;
-    lines?: PurchaseOrderReceptionLine[];
-    created_at: string;
-}
-
-export interface PurchaseOrder {
-    id: number;
+    reference: string;
     user_id: number;
-    boutique_id?: number | null;
-    fournisseur_id?: number | null;
+    entreprise_id: number;
     user?: User;
-    boutique?: Boutique | null;
-    fournisseur?: Fournisseur | null;
-    title: string;
+    entreprise?: Entreprise;
+    objet: string;
     description: string;
-    amount: string;
-    status: OrderStatus;
-    order_number?: string | null;
-    delivery_status?: DeliveryStatus | null;
-    ordered_at?: string | null;
-    fully_received_at?: string | null;
-    current_level_order?: number;
-    submitted_at?: string;
-    attachments?: PurchaseOrderAttachment[];
-    lines?: PurchaseOrderLine[];
-    receptions?: PurchaseOrderReception[];
-    validation_logs?: ValidationLog[];
-    comments?: OrderComment[];
+    montant: number;
+    beneficiaire?: string | null;
+    justification?: string | null;
+    statut: EbStatut;
+    motif_rejet?: string | null;
+    rejected_at?: string | null;
+    attachments?: ExpressionBesoinAttachment[];
+    dap?: DemandeAutorisationPaiement | null;
     created_at: string;
     updated_at: string;
 }
 
-export interface ValidationLog {
+export interface ValidationDap {
     id: number;
-    purchase_order_id: number;
-    validation_level_id: number;
-    user_id: number;
-    action: 'approved' | 'rejected';
-    comment?: string;
-    delegated_by_id?: number | null;
-    delegated_by?: User | null;
-    validation_level?: ValidationLevel;
-    user?: User;
-    purchase_order?: PurchaseOrder;
-    created_at: string;
+    dap_id: number;
+    niveau_validation_id: number;
+    validateur_id: number;
+    statut: ValidationStatut;
+    commentaire?: string | null;
+    validated_at: string;
+    niveau_validation?: NiveauValidation;
+    validateur?: User;
 }
 
-export interface OrderComment {
+export interface Paiement {
     id: number;
-    purchase_order_id: number;
-    user_id: number;
-    type: 'comment' | 'revision_request';
-    content: string;
-    attachment_path?: string | null;
-    attachment_name?: string | null;
-    attachment_size?: number | null;
-    user?: User;
-    created_at: string;
-    updated_at: string;
-}
-
-export interface Category {
-    id: number;
-    name: string;
-    full_name?: string;
-    parent_id?: number | null;
-    parent?: { id: number; name: string } | null;
-    description?: string | null;
-    is_active: boolean;
-    articles_count?: number;
-    account_code?: string | null;
-    account_label?: string | null;
-}
-
-export interface AccountingEntry {
-    id: number;
-    purchase_order_id: number;
-    entry_date: string;
-    journal_code: string;
-    piece_ref: string;
-    account_code: string;
-    account_label: string;
-    aux_code?: string | null;
-    aux_label?: string | null;
-    entry_label: string;
-    debit: string;
-    credit: string;
-    purchase_order?: PurchaseOrder;
-    created_at: string;
-}
-
-export interface Fournisseur {
-    id: number;
-    name: string;
-    code: string;
-    email?: string | null;
-    phone?: string | null;
-    address?: string | null;
-    city?: string | null;
-    is_active: boolean;
-    is_approved: boolean;
-    order_lines_count?: number;
-}
-
-export interface Article {
-    id: number;
-    category_id?: number | null;
-    category?: Category | null;
-    name: string;
+    dap_id: number;
+    created_by: number;
+    montant: number;
+    date_paiement: string;
     reference?: string | null;
-    description?: string | null;
-    unit: string;
-    unit_price?: string | number | null;
-    is_active: boolean;
-    order_lines_count?: number;
-}
-
-export interface PurchaseOrderLine {
-    id?: number;
-    purchase_order_id?: number;
-    article_id?: number | null;
-    fournisseur_id?: number | null;
-    article?: Article | null;
-    fournisseur?: Fournisseur | null;
-    quantity: number;
-    unit_price: number;
-    note?: string | null;
-    subtotal?: number;
-    quantity_received_total?: number;
-    reception_lines?: PurchaseOrderReceptionLine[];
-}
-
-export interface BudgetConsumption {
-    amount: number;
-    consumed: number;
-    in_validation: number;
-    engaged: number;
-    available: number;
-    percent_consumed: number;
-    percent_engaged: number;
-    is_exceeded: boolean;
-    is_warning: boolean;
-}
-
-export interface Budget {
-    id: number;
-    boutique_id?: number | null;
-    category_id?: number | null;
-    boutique?: { id: number; name: string; code: string } | null;
-    category?: { id: number; name: string } | null;
-    year: number;
-    month?: number | null;
-    period?: string;
-    amount: number;
+    mode_paiement: 'virement' | 'cheque' | 'espece' | 'mobile_money';
+    banque?: string | null;
     notes?: string | null;
-    consumption?: BudgetConsumption;
+    saisie_par?: User | null;
+    created_at: string;
+}
+
+export interface DemandeAutorisationPaiement {
+    id: number;
+    reference: string;
+    expression_besoin_id: number;
+    budget_annuel_id?: number | null;
+    created_by: number;
+    statut: DapStatut;
+    notes?: string | null;
+    expression_besoin?: ExpressionBesoin;
+    budget_annuel?: BudgetAnnuel | null;
+    created_by_user?: User;
+    validations?: ValidationDap[];
+    paiement?: Paiement | null;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface PaginatedData<T> {
@@ -281,29 +213,3 @@ export interface PaginatedData<T> {
 }
 
 export type BreadcrumbItemType = BreadcrumbItem;
-
-export interface FournisseurPrix {
-    fournisseur_article_id: number;
-    fournisseur_id: number;
-    fournisseur_name: string;
-    fournisseur_is_approved: boolean;
-    unit_price: number;
-    reference_fournisseur: string | null;
-    delai_livraison_jours: number | null;
-    valide_jusqu_au: string | null;
-}
-
-export interface CatalogueTarif {
-    id: number;
-    article_id: number;
-    article_name: string;
-    article_reference: string | null;
-    article_unit: string;
-    category_name: string | null;
-    unit_price: number;
-    reference_fournisseur: string | null;
-    delai_livraison_jours: number | null;
-    valide_jusqu_au: string | null;
-    notes: string | null;
-    is_active: boolean;
-}

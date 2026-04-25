@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { type BreadcrumbItem, type DemandeAutorisationPaiement, type Entreprise, type ExpressionBesoin, type NiveauValidation, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { FileText, Clock, CheckCircle2, XCircle, ArrowRight, ShieldAlert, Gauge, Users } from 'lucide-vue-next';
+import { FileText, Clock, CheckCircle2, XCircle, ArrowRight, TrendingUp, AlertTriangle, ShieldAlert, Gauge, Users, BookOpen } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Tableau de bord', href: '/dashboard' }];

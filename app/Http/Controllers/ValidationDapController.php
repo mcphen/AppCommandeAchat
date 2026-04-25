@@ -100,6 +100,13 @@ class ValidationDapController extends Controller
 
     public function show(DemandeAutorisationPaiement $dap): Response
     {
+        $user = auth()->user();
+
+        // Un employé ne peut consulter que la DAP issue de sa propre EB
+        if ($user->isEmploye() && $dap->expressionBesoin->user_id !== $user->id) {
+            abort(403);
+        }
+
         $dap->load([
             'expressionBesoin.user',
             'expressionBesoin.entreprise',

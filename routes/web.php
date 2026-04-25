@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ValidateurController;
 use App\Http\Controllers\ComptaController;
 use App\Http\Controllers\DapPdfController;
+use App\Http\Controllers\DocumentationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpressionBesoinController;
 use App\Http\Controllers\NotificationController;
@@ -51,13 +52,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/', [ValidationDapController::class, 'index'])->name('index');
         Route::get('/toutes', [ValidationDapController::class, 'toutes'])->name('toutes');
         Route::get('/export', [ValidationDapController::class, 'exportExcel'])->name('export');
-        Route::get('/{dap}', [ValidationDapController::class, 'show'])->name('show');
         Route::post('/{dap}/approuver', [ValidationDapController::class, 'approuver'])->name('approuver');
         Route::post('/{dap}/rejeter', [ValidationDapController::class, 'rejeter'])->name('rejeter');
     });
 
+    // Fiche DAP accessible aussi aux employés (lecture seule de leurs propres DAPs)
+    Route::middleware('role:employe,validateur,admin')->get('/validations-dap/{dap}', [ValidationDapController::class, 'show'])->name('validations-dap.show');
+
     // Export PDF DAP
     Route::middleware('role:validateur,admin')->get('/dap/{dap}/pdf', [DapPdfController::class, 'download'])->name('dap.pdf');
+
+    // Documentation PDF
+    Route::middleware('role:validateur,admin')->get('/documentation/df', [DocumentationController::class, 'df'])->name('documentation.df');
+    Route::middleware('role:admin')->get('/documentation/facture', [DocumentationController::class, 'facture'])->name('documentation.facture');
 
     // Paiements (admin + compta)
     Route::middleware('role:validateur,admin')->group(function () {

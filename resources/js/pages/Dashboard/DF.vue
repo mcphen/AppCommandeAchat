@@ -3,7 +3,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import PageHeader from '@/components/PageHeader.vue';
 import { type BreadcrumbItem, type DemandeAutorisationPaiement, type Entreprise, type NiveauValidation } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowRight, Clock, CheckCircle2, TrendingUp, AlertTriangle, Download } from 'lucide-vue-next';
+import { ArrowRight, Clock, CheckCircle2, TrendingUp, AlertTriangle, Download, BookOpen } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 type BudgetSociete = {
@@ -128,13 +128,14 @@ const moisLabels = computed(() => {
                 eyebrow="Pilotage Direction Financière"
             >
                 <template #actions>
+                    <a :href="route('documentation.df')" target="_blank"
+                        class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
+                        <BookOpen class="h-4 w-4" />
+                        Guide PDF
+                    </a>
                     <Link :href="route('validations-dap.index')"
                         class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
                         DAP en attente
-                    </Link>
-                    <Link :href="route('validations-dap.toutes')"
-                        class="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors">
-                        Toutes les DAP
                     </Link>
                 </template>
             </PageHeader>

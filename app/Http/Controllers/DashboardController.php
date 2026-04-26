@@ -29,6 +29,14 @@ class DashboardController extends Controller
             return $this->validatorDashboard($user);
         }
 
+        if ($user->isCaissier()) {
+            return $this->caissierDashboard($user);
+        }
+
+        if ($user->isAgent()) {
+            return redirect()->route('mon-compte.index');
+        }
+
         return $this->demandeurDashboard($user);
     }
 
@@ -143,6 +151,34 @@ class DashboardController extends Controller
             'monthlyData'  => $monthlyData,
             'boutique'     => $user->boutique,
             'totalLevels'  => $totalLevels,
+        ]);
+    }
+
+    private function caissierDashboard(User $user): Response
+    {
+        $boutiqueId = $user->boutique_id;
+
+        $baseQuery = PurchaseOrder::where('status', 'approved')
+            ->when($boutiqueId, fn ($q) => $q->where('boutique_id', $boutiqueId));
+
+        $stats = [
+            'approved_total'  => (clone $baseQuery)->count(),
+            'unpaid'          => (clone $baseQuery)->whereNull('payment_status')->count(),
+            'partially_paid'  => (clone $baseQuery)->where('payment_status', 'partially_paid')->count(),
+            'paid'            => (clone $baseQuery)->where('payment_status', 'paid')->count(),
+            'total_to_pay'    => (int) (clone $baseQuery)->whereNull('payment_status')->sum('amount'),
+        ];
+
+        $recentOrders = (clone $baseQuery)
+            ->with(['boutique', 'fournisseur'])
+            ->latest()
+            ->limit(8)
+            ->get();
+
+        return Inertia::render('Dashboard', [
+            'stats'        => $stats,
+            'recentOrders' => $recentOrders,
+            'boutique'     => $user->boutique,
         ]);
     }
 

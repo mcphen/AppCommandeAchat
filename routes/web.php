@@ -1,6 +1,14 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountingController;
+use App\Http\Controllers\DecaissementController;
+use App\Http\Controllers\CaisseController;
+use App\Http\Controllers\TransactionEpargneController;
+use App\Http\Controllers\PretController;
+use App\Http\Controllers\PretValidationController;
+use App\Http\Controllers\RemboursementPretController;
+use App\Http\Controllers\MonCompteController;
+use App\Http\Controllers\Admin\AgentController;
 use App\Http\Controllers\Admin\AppSettingController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\OnboardingController;
@@ -101,6 +109,40 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/audit/export/{format}', [AuditController::class, 'export'])->name('audit.export')->where('format', 'pdf|excel');
     });
 
+    // Mon Compte (Agent)
+    Route::middleware('role:agent')->group(function () {
+        Route::get('/mon-compte', [MonCompteController::class, 'index'])->name('mon-compte.index');
+    });
+
+    // Caisse épargne & prêts (Caissier + Admin)
+    Route::middleware('role:caissier,admin')->prefix('caisse')->name('caisse.')->group(function () {
+        Route::get('/', [CaisseController::class, 'index'])->name('index');
+        Route::get('/agents/{agent}', [CaisseController::class, 'showAgent'])->name('agents.show');
+        Route::post('/agents/{agent}/transactions', [TransactionEpargneController::class, 'store'])->name('transactions.store');
+        Route::get('/prets', [PretController::class, 'index'])->name('prets.index');
+        Route::get('/prets/create', [PretController::class, 'create'])->name('prets.create');
+        Route::post('/prets', [PretController::class, 'store'])->name('prets.store');
+        Route::get('/prets/{pret}', [PretController::class, 'show'])->name('prets.show');
+        Route::post('/prets/{pret}/submit', [PretController::class, 'submit'])->name('prets.submit');
+        Route::post('/prets/{pret}/decaisser', [PretController::class, 'decaisser'])->name('prets.decaisser');
+        Route::post('/prets/{pret}/remboursements', [RemboursementPretController::class, 'store'])->name('remboursements.store');
+    });
+
+    // Validation des prêts (Validateur + Admin)
+    Route::middleware('role:validateur,admin')->group(function () {
+        Route::get('/pret-validations', [PretValidationController::class, 'index'])->name('pret-validations.index');
+        Route::get('/pret-validations/{pret}', [PretValidationController::class, 'show'])->name('pret-validations.show');
+        Route::post('/pret-validations/{pret}/approve', [PretValidationController::class, 'approve'])->name('pret-validations.approve');
+        Route::post('/pret-validations/{pret}/reject', [PretValidationController::class, 'reject'])->name('pret-validations.reject');
+    });
+
+    // Décaissements (Caissier + Admin)
+    Route::middleware('role:caissier,admin')->group(function () {
+        Route::get('/decaissements', [DecaissementController::class, 'index'])->name('decaissements.index');
+        Route::get('/decaissements/{purchase_order}', [DecaissementController::class, 'show'])->name('decaissements.show');
+        Route::post('/decaissements/{purchase_order}', [DecaissementController::class, 'store'])->name('decaissements.store');
+    });
+
     // Analytique (Admin uniquement)
     Route::middleware('role:admin')->group(function () {
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
@@ -123,6 +165,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('fournisseurs/{fournisseur}/catalogue/import/parse', [FournisseurArticleController::class, 'importParse'])->name('fournisseurs.catalogue.import.parse');
         Route::post('fournisseurs/{fournisseur}/catalogue/import/confirm', [FournisseurArticleController::class, 'importConfirm'])->name('fournisseurs.catalogue.import.confirm');
 
+        Route::resource('agents', AgentController::class)->except(['show']);
         Route::resource('articles', ArticleController::class)->except(['show']);
         Route::resource('budgets', BudgetController::class)->except(['show']);
         Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');

@@ -19,13 +19,16 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 // ─── Search ───────────────────────────────────────────────────────────────────
 const search = ref('');
+const filterNature = ref<'all' | 'interne' | 'achat'>('all');
 const filtered = computed(() =>
-    props.articles.filter(
-        (a) =>
+    props.articles.filter((a) => {
+        const matchSearch =
             a.name.toLowerCase().includes(search.value.toLowerCase()) ||
             (a.reference ?? '').toLowerCase().includes(search.value.toLowerCase()) ||
-            (a.category?.full_name ?? '').toLowerCase().includes(search.value.toLowerCase()),
-    ),
+            (a.category?.full_name ?? '').toLowerCase().includes(search.value.toLowerCase());
+        const matchNature = filterNature.value === 'all' || a.nature === filterNature.value;
+        return matchSearch && matchNature;
+    }),
 );
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
@@ -49,6 +52,8 @@ const groupedCategories = computed(() => {
 const activeCount = computed(() => props.articles.filter((article) => article.is_active).length);
 const pricedCount = computed(() => props.articles.filter((article) => article.unit_price != null && article.unit_price !== '').length);
 const categorizedCount = computed(() => props.articles.filter((article) => article.category_id != null).length);
+const interneCount = computed(() => props.articles.filter((article) => article.nature === 'interne').length);
+const achatCount = computed(() => props.articles.filter((article) => article.nature === 'achat').length);
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 const showModal = ref(false);
@@ -62,6 +67,7 @@ const form = useForm({
     unit: 'pièce',
     unit_price: '' as number | string,
     is_active: true,
+    nature: 'achat' as 'interne' | 'achat',
 });
 
 const openCreate = () => {
@@ -81,6 +87,7 @@ const openEdit = (a: Article) => {
     form.unit = a.unit;
     form.unit_price = a.unit_price ?? '';
     form.is_active = a.is_active;
+    form.nature = a.nature ?? 'achat';
     showModal.value = true;
 };
 

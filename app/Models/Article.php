@@ -10,7 +10,7 @@ class Article extends Model
 {
     protected $fillable = [
         'category_id', 'name', 'reference', 'description',
-        'unit', 'unit_price', 'is_active',
+        'unit', 'unit_price', 'is_active', 'nature',
     ];
 
     protected $casts = [

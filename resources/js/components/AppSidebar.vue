@@ -13,6 +13,7 @@ import {
     LayoutDashboard, ShoppingCart, CheckSquare,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
     FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal,
+    Banknote, Wallet, HandCoins, UserCircle,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -42,6 +43,45 @@ const mainNav = computed(() => {
             href: route('receptions.index'),
             icon: ClipboardCheck,
             key: 'receptions',
+        });
+    }
+
+    if (role.value === 'caissier' || role.value === 'admin') {
+        items.push({
+            title: 'Décaissements',
+            href: route('decaissements.index'),
+            icon: Banknote,
+            key: 'decaissements',
+        });
+        items.push({
+            title: 'Caisse Épargne',
+            href: route('caisse.index'),
+            icon: Wallet,
+            key: 'caisse',
+        });
+        items.push({
+            title: 'Prêts',
+            href: route('caisse.prets.index'),
+            icon: HandCoins,
+            key: 'caisse-prets',
+        });
+    }
+
+    if (role.value === 'agent') {
+        items.push({
+            title: 'Mon Compte',
+            href: route('mon-compte.index'),
+            icon: UserCircle,
+            key: 'mon-compte',
+        });
+    }
+
+    if (role.value === 'validateur' || role.value === 'admin') {
+        items.push({
+            title: 'Validations Prêts',
+            href: route('pret-validations.index'),
+            icon: HandCoins,
+            key: 'pret-validations',
         });
     }
 
@@ -79,6 +119,7 @@ const analyticsNav = computed(() => {
 const adminNav = computed(() => {
     if (role.value !== 'admin') return [];
     return [
+        { title: 'Agents',               href: route('admin.agents.index'),           icon: UserCircle, key: 'admin-agents' },
         { title: 'Boutiques',            href: route('admin.boutiques.index'),         icon: Building2,  key: 'admin-boutiques' },
         { title: 'Utilisateurs',         href: route('admin.users.index'),             icon: Users,      key: 'admin-users' },
         { title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings,   key: 'admin-levels' },
@@ -199,6 +240,8 @@ const adminNav = computed(() => {
                             'bg-violet-400 shadow-violet-400/50': role === 'admin',
                             'bg-sky-400 shadow-sky-400/50': role === 'demandeur',
                             'bg-emerald-400 shadow-emerald-400/50': role === 'validateur',
+                            'bg-amber-400 shadow-amber-400/50': role === 'caissier',
+                            'bg-teal-400 shadow-teal-400/50': role === 'agent',
                         }"
                     />
                     <span class="text-xs text-sidebar-foreground/70 font-medium">

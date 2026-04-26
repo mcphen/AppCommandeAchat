@@ -94,6 +94,6 @@ class UserController extends Controller
     {
         $role = Role::find($roleId);
 
-        return $role?->slug === 'demandeur' ? $boutiqueId : null;
+        return in_array($role?->slug, ['demandeur', 'caissier']) ? $boutiqueId : null;
     }
 }

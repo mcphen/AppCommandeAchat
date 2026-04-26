@@ -28,6 +28,7 @@ const form = useForm({
     unit: props.article?.unit ?? props.units[0] ?? 'piece',
     unit_price: props.article?.unit_price ?? '',
     is_active: props.article?.is_active ?? true,
+    nature: props.article?.nature ?? 'achat',
 });
 
 const submit = () => {
@@ -112,6 +113,16 @@ const groupedCategories = computed(() => {
                                     "
                                 >
                                     {{ form.is_active ? 'Actif' : 'Inactif' }}
+                                </span>
+                                <span
+                                    class="rounded-full px-3 py-1 text-xs font-medium"
+                                    :class="
+                                        form.nature === 'interne'
+                                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+                                            : 'bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300'
+                                    "
+                                >
+                                    {{ form.nature === 'interne' ? 'Dépense interne' : 'Achat / Revente' }}
                                 </span>
                             </div>
                         </div>
@@ -268,6 +279,52 @@ const groupedCategories = computed(() => {
                                         </button>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div class="sm:col-span-2">
+                                <label class="mb-2 block text-sm font-medium text-foreground">
+                                    Nature <span class="text-red-500">*</span>
+                                </label>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        @click="form.nature = 'achat'"
+                                        class="flex flex-col items-start gap-1 rounded-2xl border-2 p-4 text-left transition-colors"
+                                        :class="
+                                            form.nature === 'achat'
+                                                ? 'border-sky-500 bg-sky-50 dark:bg-sky-950/30'
+                                                : 'border-border bg-background hover:bg-muted/30'
+                                        "
+                                    >
+                                        <span
+                                            class="text-sm font-semibold"
+                                            :class="form.nature === 'achat' ? 'text-sky-700 dark:text-sky-300' : 'text-foreground'"
+                                        >
+                                            Achat / Revente
+                                        </span>
+                                        <span class="text-xs text-muted-foreground">Article destiné à être revendu ou livré</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        @click="form.nature = 'interne'"
+                                        class="flex flex-col items-start gap-1 rounded-2xl border-2 p-4 text-left transition-colors"
+                                        :class="
+                                            form.nature === 'interne'
+                                                ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/30'
+                                                : 'border-border bg-background hover:bg-muted/30'
+                                        "
+                                    >
+                                        <span
+                                            class="text-sm font-semibold"
+                                            :class="form.nature === 'interne' ? 'text-amber-700 dark:text-amber-300' : 'text-foreground'"
+                                        >
+                                            Dépense interne
+                                        </span>
+                                        <span class="text-xs text-muted-foreground">Consommé en interne (papier, fournitures…)</span>
+                                    </button>
+                                </div>
+                                <p v-if="form.errors.nature" class="mt-1 text-xs text-red-500">{{ form.errors.nature }}</p>
                             </div>
 
                             <div class="flex flex-wrap justify-end gap-2 sm:col-span-2">

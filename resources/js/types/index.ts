@@ -46,7 +46,7 @@ export interface SharedData {
 export interface Role {
     id: number;
     name: string;
-    slug: 'admin' | 'demandeur' | 'validateur';
+    slug: 'admin' | 'demandeur' | 'validateur' | 'caissier' | 'agent';
 }
 
 export interface ValidationLevel {
@@ -93,6 +93,7 @@ export interface PurchaseOrderAttachment {
 
 export type OrderStatus = 'draft' | 'pending' | 'needs_revision' | 'approved' | 'rejected';
 export type DeliveryStatus = 'ordered' | 'partially_received' | 'received';
+export type PaymentStatus = 'partially_paid' | 'paid';
 
 export interface PurchaseOrderReceptionLine {
     id: number;
@@ -116,6 +117,30 @@ export interface PurchaseOrderReception {
     created_at: string;
 }
 
+export interface ModeReglement {
+    id: number;
+    name: string;
+    slug: string;
+    icon: string;
+    is_active: boolean;
+    order: number;
+}
+
+export interface Decaissement {
+    id: number;
+    purchase_order_id: number;
+    recorded_by: number;
+    montant: string | number;
+    mode_reglement_id: number;
+    mode_reglement?: ModeReglement;
+    reference?: string | null;
+    notes?: string | null;
+    decaissement_date: string;
+    recorder?: User;
+    created_at: string;
+    updated_at: string;
+}
+
 export interface PurchaseOrder {
     id: number;
     user_id: number;
@@ -130,6 +155,7 @@ export interface PurchaseOrder {
     status: OrderStatus;
     order_number?: string | null;
     delivery_status?: DeliveryStatus | null;
+    payment_status?: PaymentStatus | null;
     ordered_at?: string | null;
     fully_received_at?: string | null;
     current_level_order?: number;
@@ -137,6 +163,7 @@ export interface PurchaseOrder {
     attachments?: PurchaseOrderAttachment[];
     lines?: PurchaseOrderLine[];
     receptions?: PurchaseOrderReception[];
+    decaissements?: Decaissement[];
     validation_logs?: ValidationLog[];
     comments?: OrderComment[];
     created_at: string;
@@ -225,6 +252,7 @@ export interface Article {
     unit: string;
     unit_price?: string | number | null;
     is_active: boolean;
+    nature: 'interne' | 'achat';
     order_lines_count?: number;
 }
 
@@ -306,4 +334,108 @@ export interface CatalogueTarif {
     valide_jusqu_au: string | null;
     notes: string | null;
     is_active: boolean;
+}
+
+// ── Module Caisse Épargne & Prêts ─────────────────────────────────────────────
+
+export type PretStatut = 'draft' | 'pending' | 'approved' | 'rejected' | 'decaisse' | 'solde';
+export type TransactionType = 'depot' | 'retrait';
+
+export interface Agent {
+    id: number;
+    user_id?: number | null;
+    boutique_id?: number | null;
+    matricule: string;
+    nom: string;
+    prenom: string;
+    telephone?: string | null;
+    date_adhesion: string;
+    is_active: boolean;
+    photo_path?: string | null;
+    boutique?: Boutique | null;
+    user?: User | null;
+    compte?: CompteEpargne | null;
+    prets?: Pret[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface CompteEpargne {
+    id: number;
+    agent_id: number;
+    solde_epargne: string | number;
+    solde_bloque: string | number;
+    opened_at: string;
+    is_active: boolean;
+    agent?: Agent;
+    transactions?: TransactionEpargne[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface TransactionEpargne {
+    id: number;
+    compte_epargne_id: number;
+    type: TransactionType;
+    montant: string | number;
+    mode_reglement_id: number;
+    mode_reglement?: ModeReglement;
+    reference?: string | null;
+    notes?: string | null;
+    transaction_date: string;
+    recorded_by: number;
+    recorder?: User;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Pret {
+    id: number;
+    agent_id: number;
+    compte_epargne_id: number;
+    montant_demande: string | number;
+    montant_accorde?: string | number | null;
+    motif?: string | null;
+    statut: PretStatut;
+    current_level_order?: number | null;
+    mode_reglement_id?: number | null;
+    mode_reglement?: ModeReglement | null;
+    submitted_at?: string | null;
+    decaisse_at?: string | null;
+    solde_at?: string | null;
+    recorded_by: number;
+    agent?: Agent;
+    compte_epargne?: CompteEpargne;
+    validation_logs?: PretValidationLog[];
+    remboursements?: RemboursementPret[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface PretValidationLog {
+    id: number;
+    pret_id: number;
+    validation_level_id: number;
+    user_id: number;
+    action: 'approved' | 'rejected';
+    comment?: string | null;
+    delegated_by_id?: number | null;
+    validation_level?: ValidationLevel;
+    user?: User;
+    delegated_by?: User | null;
+    created_at: string;
+}
+
+export interface RemboursementPret {
+    id: number;
+    pret_id: number;
+    montant: string | number;
+    mode_reglement_id: number;
+    mode_reglement?: ModeReglement;
+    reference?: string | null;
+    notes?: string | null;
+    remboursement_date: string;
+    recorded_by: number;
+    recorder?: User;
+    created_at: string;
 }

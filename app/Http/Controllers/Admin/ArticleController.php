@@ -26,6 +26,7 @@ class ArticleController extends Controller
                 'unit'             => $a->unit,
                 'unit_price'       => $a->unit_price,
                 'is_active'        => $a->is_active,
+                'nature'           => $a->nature,
                 'order_lines_count' => $a->order_lines_count,
                 'category'         => $a->category ? [
                     'id'       => $a->category->id,
@@ -59,6 +60,7 @@ class ArticleController extends Controller
             'unit'        => 'required|string|max:50',
             'unit_price'  => 'nullable|numeric|min:0',
             'is_active'   => 'boolean',
+            'nature'      => 'required|in:interne,achat',
         ]);
 
         Article::create($data);
@@ -86,6 +88,7 @@ class ArticleController extends Controller
             'unit'        => 'required|string|max:50',
             'unit_price'  => 'nullable|numeric|min:0',
             'is_active'   => 'boolean',
+            'nature'      => 'required|in:interne,achat',
         ]);
 
         $article->update($data);

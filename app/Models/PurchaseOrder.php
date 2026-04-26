@@ -22,13 +22,14 @@ class PurchaseOrder extends Model
         'delivery_status',
         'ordered_at',
         'fully_received_at',
+        'payment_status',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
-        'submitted_at' => 'datetime',
-        'ordered_at' => 'datetime',
-        'fully_received_at' => 'datetime',
+        'submitted_at'        => 'datetime',
+        'ordered_at'          => 'datetime',
+        'fully_received_at'   => 'datetime',
         'current_level_order' => 'integer',
     ];
 
@@ -72,6 +73,11 @@ class PurchaseOrder extends Model
         return $this->hasMany(OrderComment::class)->with('user')->oldest();
     }
 
+    public function decaissements(): HasMany
+    {
+        return $this->hasMany(Decaissement::class)->with(['recorder', 'modeReglement'])->latest();
+    }
+
     public function recalculateAmount(): void
     {
         $total = $this->lines()->selectRaw('SUM(quantity * unit_price) as total')->value('total') ?? 0;
@@ -96,6 +102,42 @@ class PurchaseOrder extends Model
     public function isOrdered(): bool           { return $this->delivery_status === 'ordered'; }
     public function isPartiallyReceived(): bool  { return $this->delivery_status === 'partially_received'; }
     public function isFullyReceived(): bool      { return $this->delivery_status === 'received'; }
+
+    public function isPartiallyPaid(): bool { return $this->payment_status === 'partially_paid'; }
+    public function isPaid(): bool          { return $this->payment_status === 'paid'; }
+
+    public function totalDecaisse(): float
+    {
+        return (float) $this->decaissements()->sum('montant');
+    }
+
+    public function resteADecaisser(): float
+    {
+        return max(0, (float) $this->amount - $this->totalDecaisse());
+    }
+
+    public function paymentStatusLabel(): string
+    {
+        return match ($this->payment_status) {
+            'partially_paid' => 'Partiellement décaissé',
+            'paid'           => 'Entièrement décaissé',
+            default          => 'Non décaissé',
+        };
+    }
+
+    public function paymentStatusColor(): string
+    {
+        return match ($this->payment_status) {
+            'partially_paid' => 'orange',
+            'paid'           => 'green',
+            default          => 'gray',
+        };
+    }
+
+    public function canBeDecaisse(): bool
+    {
+        return $this->status === 'approved' && $this->payment_status !== 'paid';
+    }
 
     public function canBeOrdered(): bool
     {

@@ -28,4 +28,14 @@ class Role extends Model
     {
         return $this->slug === 'validateur';
     }
+
+    public function isCaissier(): bool
+    {
+        return $this->slug === 'caissier';
+    }
+
+    public function isAgent(): bool
+    {
+        return $this->slug === 'agent';
+    }
 }

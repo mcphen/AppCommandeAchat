@@ -25,9 +25,10 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth'  => [
                 'user' => $user ? array_merge($user->toArray(), [
-                    'role'            => $user->role,
+                    'role'              => $user->role,
                     'niveau_validation' => $user->niveauValidation,
-                    'entreprise'      => $user->entreprise,
+                    'entreprise'        => $user->entreprise,
+                    'is_membre_comite'  => \App\Models\MembreComiteArbitrage::where('user_id', $user->id)->where('is_active', true)->exists(),
                 ]) : null,
             ],
             'flash' => [

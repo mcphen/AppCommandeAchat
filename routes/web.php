@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\BudgetAnnuelController;
+use App\Http\Controllers\Admin\ComiteArbitrageController;
 use App\Http\Controllers\Admin\EntrepriseController;
 use App\Http\Controllers\Admin\GroupeController;
 use App\Http\Controllers\Admin\NiveauValidationController;
@@ -13,7 +14,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpressionBesoinController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaiementController;
+use App\Http\Controllers\SessionArbitrageController;
 use App\Http\Controllers\ValidationDapController;
+use App\Http\Controllers\VoteArbitrageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
@@ -72,6 +75,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/paiements/{dap}', [PaiementController::class, 'store'])->name('paiements.store');
     });
 
+    // Arbitrage
+    Route::prefix('arbitrage')->name('arbitrage.')->group(function () {
+        Route::get('/sessions', [SessionArbitrageController::class, 'index'])->name('sessions.index');
+        Route::get('/sessions/{session}', [SessionArbitrageController::class, 'show'])->name('sessions.show');
+        Route::post('/sessions/{session}/voter', [VoteArbitrageController::class, 'store'])->name('sessions.voter');
+
+        Route::middleware('role:admin')->group(function () {
+            Route::get('/sessions/create', [SessionArbitrageController::class, 'create'])->name('sessions.create');
+            Route::post('/sessions', [SessionArbitrageController::class, 'store'])->name('sessions.store');
+            Route::post('/sessions/{session}/ouvrir-vote', [SessionArbitrageController::class, 'ouvrirVote'])->name('sessions.ouvrir-vote');
+            Route::post('/sessions/{session}/finaliser', [SessionArbitrageController::class, 'finaliser'])->name('sessions.finaliser');
+            Route::delete('/sessions/{session}', [SessionArbitrageController::class, 'destroy'])->name('sessions.destroy');
+        });
+    });
+
     // Administration
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('groupes', GroupeController::class)->except(['show']);
@@ -81,6 +99,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('validateurs', ValidateurController::class)->only(['index', 'store', 'destroy']);
         Route::get('niveaux-validation', [NiveauValidationController::class, 'index'])->name('niveaux-validation.index');
         Route::patch('niveaux-validation/{niveauValidation}', [NiveauValidationController::class, 'update'])->name('niveaux-validation.update');
+        Route::resource('comites-arbitrage', ComiteArbitrageController::class)->except(['show']);
     });
 });
 

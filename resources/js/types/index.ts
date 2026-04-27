@@ -106,6 +106,7 @@ export interface User {
     role?: Role;
     entreprise?: Entreprise | null;
     niveau_validation?: NiveauValidation | null;
+    is_membre_comite?: boolean;
     email_verified_at: string | null;
     created_at: string;
     updated_at: string;
@@ -200,6 +201,86 @@ export interface DemandeAutorisationPaiement {
     created_at: string;
     updated_at: string;
 }
+
+// ─── Arbitrage ────────────────────────────────────────────────────────────────
+
+export type SessionArbitrageStatut = 'brouillon' | 'en_vote' | 'cloturee' | 'annulee';
+export type MembreRole = 'president' | 'membre' | 'secretaire';
+export type SessionDapStatut = 'en_attente' | 'selectionne' | 'reporte';
+
+export interface MembreComiteArbitrage {
+    id: number;
+    comite_arbitrage_id: number;
+    user_id: number;
+    role_membre: MembreRole;
+    is_active: boolean;
+    user?: User;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ComiteArbitrage {
+    id: number;
+    nom: string;
+    description?: string | null;
+    entreprise_id?: number | null;
+    entreprise?: Entreprise | null;
+    quorum_pct: number;
+    is_active: boolean;
+    created_by: number;
+    membres?: MembreComiteArbitrage[];
+    sessions_count?: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface SessionArbitrageDap {
+    id: number;
+    session_arbitrage_id: number;
+    dap_id: number;
+    score_moyen?: number | null;
+    ordre_final?: number | null;
+    statut: SessionDapStatut;
+    dap?: DemandeAutorisationPaiement;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface VoteArbitrage {
+    id: number;
+    session_arbitrage_id: number;
+    dap_id: number;
+    user_id: number;
+    rang: number;
+    commentaire?: string | null;
+    voted_at?: string | null;
+    user?: User;
+}
+
+export interface SessionArbitrage {
+    id: number;
+    reference: string;
+    comite_arbitrage_id: number;
+    comite?: ComiteArbitrage;
+    titre: string;
+    description?: string | null;
+    tresorerie_disponible?: number | null;
+    bloquer_depassement: boolean;
+    statut: SessionArbitrageStatut;
+    date_ouverture?: string | null;
+    date_cloture?: string | null;
+    created_by: number;
+    finalise_par?: number | null;
+    created_by_user?: User;
+    finalise_par_user?: User;
+    session_daps?: SessionArbitrageDap[];
+    session_daps_count?: number;
+    votes?: VoteArbitrage[];
+    created_at: string;
+    updated_at: string;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
 
 export interface PaginatedData<T> {
     data: T[];

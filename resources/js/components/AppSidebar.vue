@@ -12,7 +12,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     LayoutDashboard, FileText, CheckSquare, CreditCard,
     Users, Settings, Shield, Building2, ClipboardList,
-    PiggyBank, SlidersHorizontal, UserCheck, Layers,
+    PiggyBank, SlidersHorizontal, UserCheck, Layers, Scale,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -80,6 +80,14 @@ const mainNav = computed(() => {
     return items;
 });
 
+const arbitrageNav = computed(() => {
+    const isMembre = user.value?.is_membre_comite ?? false;
+    if (role.value !== 'admin' && !isMembre) return [];
+    return [
+        { title: 'Sessions d\'arbitrage', href: route('arbitrage.sessions.index'), icon: Scale, key: 'arbitrage-sessions' },
+    ];
+});
+
 const adminNav = computed(() => {
     if (role.value !== 'admin') return [];
     return [
@@ -89,6 +97,7 @@ const adminNav = computed(() => {
         { title: 'Niveaux & Seuils',    href: route('admin.niveaux-validation.index'), icon: SlidersHorizontal, key: 'admin-niveaux' },
         { title: 'Validateurs',         href: route('admin.validateurs.index'),        icon: UserCheck,        key: 'admin-validateurs' },
         { title: 'Budgets annuels',     href: route('admin.budgets-annuels.index'),    icon: PiggyBank,        key: 'admin-budgets' },
+        { title: 'Comités d\'arbitrage', href: route('admin.comites-arbitrage.index'), icon: Scale,            key: 'admin-comites' },
     ];
 });
 </script>
@@ -135,6 +144,33 @@ const adminNav = computed(() => {
                     </SidebarMenu>
                 </SidebarGroupContent>
             </SidebarGroup>
+
+            <template v-if="arbitrageNav.length > 0">
+                <SidebarSeparator class="mx-4 my-2" />
+                <SidebarGroup class="px-2">
+                    <SidebarGroupLabel class="px-2 mb-1 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/45">
+                        <Scale class="h-3 w-3" />
+                        Arbitrage
+                    </SidebarGroupLabel>
+                    <SidebarGroupContent>
+                        <SidebarMenu>
+                            <SidebarMenuItem v-for="item in arbitrageNav" :key="item.key">
+                                <SidebarMenuButton
+                                    as-child
+                                    :is-active="isActive(item.href)"
+                                    :tooltip="item.title"
+                                    class="h-9 rounded-lg transition-all"
+                                >
+                                    <Link :href="item.href" class="flex items-center gap-3">
+                                        <component :is="item.icon" class="h-4 w-4 shrink-0" />
+                                        <span class="font-medium text-sm">{{ item.title }}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                        </SidebarMenu>
+                    </SidebarGroupContent>
+                </SidebarGroup>
+            </template>
 
             <template v-if="adminNav.length > 0">
                 <SidebarSeparator class="mx-4 my-2" />

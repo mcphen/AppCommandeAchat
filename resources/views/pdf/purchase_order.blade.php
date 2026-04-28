@@ -2,379 +2,316 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8" />
-    <title>Bon de commande {{ $order->order_number ?? '#'.str_pad($order->id, 5, '0', STR_PAD_LEFT) }} — {{ $company['company_name'] ?? config('app.name') }}</title>
+    <title>Bon de commande</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: DejaVu Sans, sans-serif; font-size: 11px; color: #1e293b; background: #fff; }
-        .page { padding: 28px 32px; }
+        body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #111; background: #fff; }
+        .page { padding: 18px 24px; }
 
-        /* ── Header ─────────────────────────────────────────── */
-        .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 18px; border-bottom: 3px solid #4f46e5; margin-bottom: 20px; }
-        .header-left h1 { font-size: 20px; font-weight: 700; color: #0f172a; }
-        .header-left p  { font-size: 10px; color: #64748b; margin-top: 3px; }
-        .header-right   { text-align: right; }
-        .bc-number      { font-size: 26px; font-weight: 800; color: #4f46e5; letter-spacing: -0.5px; }
-        .bc-label       { font-size: 9px; color: #94a3b8; letter-spacing: 0.06em; text-transform: uppercase; }
-        .bc-date        { font-size: 10px; color: #64748b; margin-top: 3px; }
+        /* Underlined info lines */
+        .info-line { border-bottom: 1px dotted #888; display: block; min-height: 13px; padding: 1px 0 1px 2px; margin-bottom: 3px; }
 
-        /* Badge statut */
-        .status-badge   { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 10px; font-weight: 600; margin-top: 6px; }
-        .status-draft     { background: #f1f5f9; color: #475569; }
-        .status-pending   { background: #fffbeb; color: #b45309; }
-        .status-approved  { background: #ecfdf5; color: #065f46; }
-        .status-rejected  { background: #fef2f2; color: #991b1b; }
-        .delivery-badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 10px; font-weight: 600; margin-top: 4px; margin-left: 6px; }
-        .delivery-ordered            { background: #eff6ff; color: #1d4ed8; }
-        .delivery-partially_received { background: #fff7ed; color: #c2410c; }
-        .delivery-received           { background: #ecfdf5; color: #065f46; }
+        /* Supplier bordered box */
+        .supplier-box { border: 1px solid #555; padding: 7px 10px; font-size: 9px; }
+        .supplier-box .sline { border-bottom: 1px dotted #888; min-height: 13px; padding: 1px 2px; margin-bottom: 2px; }
+        .supplier-box .sline:last-child { border-bottom: none; margin-bottom: 0; }
 
-        /* ── Layout 2 colonnes ───────────────────────────────── */
-        .cols { display: table; width: 100%; border-spacing: 14px 0; margin-bottom: 18px; }
-        .col  { display: table-cell; vertical-align: top; }
-        .col-left  { width: 55%; }
-        .col-right { width: 45%; }
+        /* "Bon de Commande" */
+        .bc-title { font-size: 24px; font-weight: bold; margin: 10px 0 4px 0; }
 
-        /* ── Section ─────────────────────────────────────────── */
-        .section       { margin-bottom: 18px; }
-        .section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid #e2e8f0; }
+        /* Badge-like buttons */
+        .badge-btn { background: #d8d8d8; padding: 3px 10px; font-size: 9px; display: inline-block; }
+        .badge-val  { border: 1px solid #888; padding: 3px 10px; font-size: 9px; background: #fff; display: inline-block; }
 
-        /* Info grid */
-        .info-grid  { display: table; width: 100%; }
-        .info-row   { display: table-row; }
-        .info-label { display: table-cell; width: 38%; font-size: 10px; color: #64748b; padding: 3px 0; vertical-align: top; }
-        .info-value { display: table-cell; font-size: 11px; font-weight: 500; color: #0f172a; padding: 3px 0; vertical-align: top; }
+        /* Delivery / ref box */
+        .deliv-box { border: 1px solid #aaa; background: #f0f0f0; padding: 6px 10px; font-size: 9px; line-height: 1.8; }
+        .deliv-box .dline { border-bottom: 1px dotted #999; min-height: 13px; padding: 1px 2px; margin-bottom: 2px; }
+        .deliv-box .dline:last-child { border-bottom: none; margin-bottom: 0; }
 
-        /* Amount */
-        .amount-box       { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 14px; }
-        .amount-box .lbl  { font-size: 9px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
-        .amount-box .val  { font-size: 20px; font-weight: 800; color: #0f172a; margin-top: 2px; }
+        /* Lines table */
+        .lines-table { width: 100%; border-collapse: collapse; font-size: 9px; margin-top: 8px; }
+        .lines-table th { border: 1px solid #888; background: #e8e8e8; padding: 4px 5px; text-align: center; font-weight: bold; }
+        .lines-table td { border: 1px solid #bbb; padding: 4px 5px; vertical-align: top; }
+        .lines-table td.right { text-align: right; }
+        .lines-table td.center { text-align: center; }
 
-        /* Description */
-        .desc-box { background: #f8fafc; border-radius: 6px; padding: 8px 10px; font-size: 11px; line-height: 1.6; color: #334155; white-space: pre-wrap; }
+        /* Total words */
+        .total-words-box { border: 1px dashed #aaa; padding: 5px 8px; font-size: 9px; min-height: 28px; }
 
-        /* ── Lignes de commande ───────────────────────────────── */
-        .lines-table { width: 100%; border-collapse: collapse; margin-bottom: 0; font-size: 10px; }
-        .lines-table th { background: #f1f5f9; text-align: left; padding: 6px 8px; font-weight: 600; color: #475569; font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em; }
-        .lines-table td { padding: 7px 8px; border-bottom: 1px solid #f1f5f9; color: #1e293b; vertical-align: top; }
-        .lines-table tr:last-child td { border-bottom: none; }
-        .lines-table .right { text-align: right; }
-        .lines-table .center { text-align: center; }
-        .lines-table tfoot td { background: #f8fafc; font-weight: 700; border-top: 2px solid #e2e8f0; }
-        .article-name { font-weight: 600; }
-        .article-ref  { font-size: 9px; color: #94a3b8; font-family: monospace; }
-        .article-note { font-size: 9px; color: #64748b; font-style: italic; }
+        /* Totals right box */
+        .totals-box { border: 1px solid #aaa; border-collapse: collapse; width: 100%; font-size: 9px; }
+        .totals-box td { padding: 4px 7px; border-bottom: 1px solid #ddd; }
+        .totals-box td.lbl { color: #333; }
+        .totals-box td.val { text-align: right; font-weight: 600; white-space: nowrap; }
+        .totals-box tr:last-child td { border-bottom: none; }
 
-        /* ── Timeline validation ──────────────────────────────── */
-        .timeline      { position: relative; padding-left: 18px; }
-        .timeline-item { position: relative; margin-bottom: 12px; }
-        .timeline-item:last-child { margin-bottom: 0; }
-        .timeline-dot  { position: absolute; left: -18px; top: 2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #e2e8f0; background: #fff; }
-        .timeline-dot.done     { background: #10b981; border-color: #10b981; }
-        .timeline-dot.active   { background: #4f46e5; border-color: #4f46e5; }
-        .timeline-dot.rejected { background: #ef4444; border-color: #ef4444; }
-        .timeline-line { position: absolute; left: -13px; top: 14px; width: 2px; height: calc(100% + 2px); background: #e2e8f0; }
-        .timeline-item.done .timeline-line { background: #10b981; }
-        .level-name      { font-weight: 600; font-size: 11px; color: #0f172a; }
-        .level-meta      { font-size: 9px; color: #64748b; margin-top: 2px; }
-        .level-validator { font-size: 10px; color: #4f46e5; margin-top: 2px; font-weight: 500; }
-        .level-comment   { font-size: 9px; color: #64748b; font-style: italic; margin-top: 2px; background: #f1f5f9; padding: 3px 6px; border-radius: 4px; }
-
-        /* ── Signatures ───────────────────────────────────────── */
-        .signatures  { display: table; width: 100%; border-spacing: 12px 0; margin-top: 24px; }
-        .sig-col     { display: table-cell; width: 33.33%; vertical-align: top; }
-        .sig-box     { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; min-height: 80px; }
-        .sig-label   { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; margin-bottom: 4px; }
-        .sig-image   { max-height: 40px; max-width: 120px; object-fit: contain; display: block; margin: 4px 0; }
-        .sig-name    { font-size: 10px; font-weight: 600; color: #0f172a; margin-top: 4px; }
-        .sig-date    { font-size: 9px; color: #94a3b8; margin-top: 2px; }
-        .sig-pending { margin-top: 28px; border-top: 1px solid #e2e8f0; }
-
-        /* ── Attachments ──────────────────────────────────────── */
-        .att-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f1f5f9; font-size: 10px; }
-        .att-item:last-child { border-bottom: none; }
-
-        /* ── Footer ───────────────────────────────────────────── */
-        .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; }
-        .footer-txt { font-size: 9px; color: #94a3b8; }
+        /* Signatures */
+        .sig-table { width: 100%; border-collapse: collapse; }
+        .sig-table td { text-align: center; width: 33.33%; vertical-align: top; font-size: 10px; font-weight: bold; padding-top: 4px; }
+        .sig-table td span { text-decoration: underline; }
     </style>
 </head>
 <body>
 <div class="page">
 
-    {{-- ── Header ──────────────────────────────────────────────────────── --}}
-    @php
-        $companyName    = $company['company_name']    ?? config('app.name');
-        $companyAddress = $company['company_address'] ?? null;
-        $companyPhone   = $company['company_phone']   ?? null;
-        $companyEmail   = $company['company_email']   ?? null;
-        $companyNif     = $company['company_nif']     ?? null;
-        $companyRccm    = $company['company_rccm']    ?? null;
-    @endphp
-    <div class="header">
-        <div class="header-left">
-            {{-- Logo entreprise --}}
+@php
+    $companyName    = $company['company_name']       ?? config('app.name');
+    $companyAddress = $company['company_address']    ?? '';
+    $companyComplement = $company['company_complement'] ?? '';
+    $companyEmail   = $company['company_email']      ?? '';
+    $companyPhone   = $company['company_phone']      ?? '';
+    $companyFax     = $company['company_fax']        ?? '';
+    $companyNif     = $company['company_nif']        ?? '';
+    $companyRccm    = $company['company_rccm']       ?? '';
+
+    $orderNumber = $order->order_number ?? ('#'.str_pad($order->id, 5, '0', STR_PAD_LEFT));
+    $orderDate   = $order->ordered_at
+        ? \Carbon\Carbon::parse($order->ordered_at)->format('d/m/Y')
+        : \Carbon\Carbon::parse($order->created_at)->format('d/m/Y');
+
+    $fournisseur = $order->fournisseur;
+
+    // Totals
+    $totalHT = 0;
+    if ($order->lines && $order->lines->count()) {
+        foreach ($order->lines as $ln) {
+            $discount = isset($ln->discount) ? (float)$ln->discount : 0;
+            $totalHT += $ln->quantity * $ln->unit_price * (1 - $discount / 100);
+        }
+    } else {
+        $totalHT = (float)($order->amount ?? 0);
+    }
+    $tvaRate  = 18;
+    $tvaAmt   = $totalHT * $tvaRate / 100;
+    $totalTTC = $totalHT + $tvaAmt;
+@endphp
+
+{{-- ══════════════════════════════════════════════════════════
+     TOP HEADER — logo + infos société  |  date/ref + fournisseur
+═══════════════════════════════════════════════════════════════ --}}
+<table style="width:100%; border-collapse:collapse; margin-bottom:8px;">
+    <tr>
+        {{-- LEFT : logo + adresses + titre --}}
+        <td style="width:44%; vertical-align:top; padding-right:12px;">
+
             @if(!empty($logoB64))
-            <img src="{{ $logoB64 }}" alt="{{ $companyName }}" style="max-height:48px; max-width:160px; object-fit:contain; margin-bottom:6px; display:block;" />
+            <img src="{{ $logoB64 }}" alt="{{ $companyName }}"
+                 style="max-height:65px; max-width:75px; object-fit:contain; display:block; margin-bottom:6px;" />
             @endif
-            <h1>{{ $companyName }}</h1>
-            @if($companyAddress)
-            <p style="margin-top:2px;">{{ $companyAddress }}</p>
-            @endif
-            @if($companyPhone || $companyEmail)
-            <p style="margin-top:2px;">
-                @if($companyPhone){{ $companyPhone }}@endif
-                @if($companyPhone && $companyEmail) &nbsp;·&nbsp; @endif
-                @if($companyEmail){{ $companyEmail }}@endif
-            </p>
-            @endif
-            @if($companyNif || $companyRccm)
-            <p style="margin-top:2px; font-size:9px; color:#94a3b8;">
-                @if($companyNif)NIF : {{ $companyNif }}@endif
-                @if($companyNif && $companyRccm) &nbsp;·&nbsp; @endif
-                @if($companyRccm)RCCM : {{ $companyRccm }}@endif
-            </p>
-            @endif
-            <p style="margin-top:6px; font-size:10px; color:#64748b;">
-                {{ $order->boutique?->name ?? 'Aucune boutique' }}@if($order->boutique) &nbsp;—&nbsp; {{ $order->boutique->code }}@endif
-            </p>
-            @if($order->fournisseur)
-            <p style="margin-top:2px;">Fournisseur : <strong>{{ $order->fournisseur->name }}</strong> ({{ $order->fournisseur->code }})</p>
-            @endif
-            @php
-                $statusLabels   = ['draft' => 'Brouillon', 'pending' => 'En attente', 'approved' => 'Approuvée', 'rejected' => 'Refusée'];
-                $deliveryLabels = ['ordered' => 'Commandée', 'partially_received' => 'Reçue partiellement', 'received' => 'Reçue entièrement'];
-            @endphp
-            <div style="margin-top:6px;">
-                <span class="status-badge status-{{ $order->status }}">
-                    {{ $statusLabels[$order->status] ?? $order->status }}
-                </span>
-                @if($order->delivery_status)
-                <span class="delivery-badge delivery-{{ $order->delivery_status }}">
-                    {{ $deliveryLabels[$order->delivery_status] ?? $order->delivery_status }}
-                </span>
-                @endif
-            </div>
-        </div>
-        <div class="header-right">
-            <div class="bc-label">Numéro de commande</div>
-            @if($order->order_number)
-                <div class="bc-number">{{ $order->order_number }}</div>
-            @else
-                <div class="bc-number" style="color:#94a3b8;">#{{ str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</div>
-            @endif
-            <div class="bc-date">
-                Créée le {{ \Carbon\Carbon::parse($order->created_at)->locale('fr')->isoFormat('DD MMMM YYYY') }}
-                @if($order->ordered_at)
-                <br>Confirmée le {{ \Carbon\Carbon::parse($order->ordered_at)->locale('fr')->isoFormat('DD MMMM YYYY') }}
-                @endif
-            </div>
-        </div>
-    </div>
 
-    {{-- ── Détails + Circuit ────────────────────────────────────────────── --}}
-    <div class="cols">
-        <div class="col col-left">
-            <div class="section">
-                <div class="section-title">Détails de la commande</div>
-                <div class="amount-box">
-                    <div class="lbl">Montant total</div>
-                    <div class="val">{{ number_format($order->amount, 0, ',', ' ') }} XOF</div>
-                </div>
-                <div class="info-grid">
-                    <div class="info-row">
-                        <div class="info-label">Demandeur</div>
-                        <div class="info-value">{{ $order->user?->name ?? '—' }}</div>
-                    </div>
-                    <div class="info-row">
-                        <div class="info-label">Boutique</div>
-                        <div class="info-value">{{ $order->boutique?->name ?? '—' }}</div>
-                    </div>
-                    @if($order->fournisseur)
-                    <div class="info-row">
-                        <div class="info-label">Fournisseur</div>
-                        <div class="info-value">{{ $order->fournisseur->name }}</div>
-                    </div>
-                    @endif
-                    @if($order->submitted_at)
-                    <div class="info-row">
-                        <div class="info-label">Soumise le</div>
-                        <div class="info-value">{{ \Carbon\Carbon::parse($order->submitted_at)->locale('fr')->isoFormat('DD MMM YYYY, HH:mm') }}</div>
-                    </div>
-                    @endif
-                    @if($order->ordered_at)
-                    <div class="info-row">
-                        <div class="info-label">Confirmée le</div>
-                        <div class="info-value">{{ \Carbon\Carbon::parse($order->ordered_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
-                    </div>
-                    @endif
-                    @if($order->fully_received_at)
-                    <div class="info-row">
-                        <div class="info-label">Réceptionnée le</div>
-                        <div class="info-value">{{ \Carbon\Carbon::parse($order->fully_received_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
-                    </div>
-                    @endif
-                </div>
-            </div>
+            <span class="info-line">{{ $companyAddress }}</span>
+            <span class="info-line">{{ $companyComplement }}</span>
+            <span class="info-line">{{ $companyEmail }}</span>
 
-            <div class="section">
-                <div class="section-title">Description / Objet</div>
-                <div class="desc-box">{{ $order->description }}</div>
-            </div>
-
-            @if($order->attachments && $order->attachments->count())
-            <div class="section">
-                <div class="section-title">Pièces jointes ({{ $order->attachments->count() }})</div>
-                @foreach($order->attachments as $att)
-                <div class="att-item">
-                    <span>{{ $att->file_name }}</span>
-                    <span style="color:#94a3b8;">
-                        @if($att->file_size >= 1048576) {{ round($att->file_size/1048576,1) }} MB
-                        @else {{ round($att->file_size/1024) }} KB @endif
-                    </span>
-                </div>
-                @endforeach
-            </div>
-            @endif
-        </div>
-
-        <div class="col col-right">
-            <div class="section">
-                <div class="section-title">Circuit de validation</div>
-                <div class="timeline">
-                    @foreach($levels as $level)
-                        @php
-                            $log        = $order->validationLogs->firstWhere('validation_level_id', $level->id);
-                            $isDone     = $order->status === 'approved' || ($order->status === 'pending' && $order->current_level_order > $level->order);
-                            $isActive   = $order->status === 'pending' && $order->current_level_order === $level->order;
-                            $isRejected = $log && $log->action === 'rejected';
-                            $dotClass   = $isRejected ? 'rejected' : ($isDone ? 'done' : ($isActive ? 'active' : ''));
-                        @endphp
-                        <div class="timeline-item {{ $isDone ? 'done' : '' }}">
-                            @if(!$loop->last) <div class="timeline-line"></div> @endif
-                            <div class="timeline-dot {{ $dotClass }}"></div>
-                            <div class="level-name">{{ $level->name }}</div>
-                            @if($isActive)
-                                <div class="level-meta">En attente de validation</div>
-                            @elseif($isDone && !$isRejected)
-                                <div class="level-meta" style="color:#10b981;">Validé</div>
-                            @elseif($isRejected)
-                                <div class="level-meta" style="color:#ef4444;">Refusé</div>
-                            @else
-                                <div class="level-meta">En attente</div>
-                            @endif
-                            @if($log)
-                                <div class="level-validator">{{ $log->user?->name ?? '—' }} — {{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
-                                @if($log->comment)
-                                    <div class="level-comment">"{{ $log->comment }}"</div>
-                                @endif
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- ── Lignes de commande ───────────────────────────────────────────── --}}
-    @if($order->lines && $order->lines->count())
-    <div class="section">
-        <div class="section-title">Lignes de commande ({{ $order->lines->count() }} article(s))</div>
-        <table class="lines-table">
-            <thead>
+            <table style="width:100%; border-collapse:collapse; font-size:9px; margin-bottom:1px;">
                 <tr>
-                    <th style="width:35%">Article</th>
-                    <th>Catégorie</th>
-                    <th>Fournisseur</th>
-                    <th class="center">Qté</th>
-                    <th class="center">Unité</th>
-                    <th class="right">Prix unit.</th>
-                    <th class="right">Sous-total</th>
+                    <td style="width:28%; white-space:nowrap;">Téléphone :</td>
+                    <td><span class="info-line">{{ $companyPhone }}</span></td>
                 </tr>
-            </thead>
-            <tbody>
-                @foreach($order->lines as $line)
                 <tr>
-                    <td>
-                        <div class="article-name">{{ $line->article?->name ?? '—' }}</div>
-                        @if($line->article?->reference)
-                            <div class="article-ref">{{ $line->article->reference }}</div>
-                        @endif
-                        @if($line->note)
-                            <div class="article-note">{{ $line->note }}</div>
-                        @endif
+                    <td style="white-space:nowrap;">Télécopie :</td>
+                    <td><span class="info-line">{{ $companyFax }}</span></td>
+                </tr>
+                <tr>
+                    <td style="white-space:nowrap;">NINEA &nbsp;&nbsp;&nbsp;&nbsp;:</td>
+                    <td><span class="info-line">{{ $companyNif }}</span></td>
+                </tr>
+                <tr>
+                    <td style="white-space:nowrap;">RCOM &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:</td>
+                    <td><span class="info-line">{{ $companyRccm }}</span></td>
+                </tr>
+            </table>
+
+            <div class="bc-title">Bon de Commande</div>
+        </td>
+
+        {{-- RIGHT : date/n° achat + bloc fournisseur --}}
+        <td style="width:56%; vertical-align:top;">
+
+            {{-- Date & N° achat --}}
+            <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                <tr>
+                    <td style="text-align:right; padding-bottom:4px;">
+                        <span class="badge-btn">Date</span>
+                        <span class="badge-val" style="min-width:90px;">{{ $orderDate }}</span>
                     </td>
-                    <td style="font-size:10px;color:#64748b;">{{ $line->article?->category?->name ?? '—' }}</td>
-                    <td style="font-size:10px;color:#64748b;">{{ $line->fournisseur?->name ?? '—' }}</td>
-                    <td class="center">{{ number_format($line->quantity, 2, ',', '') }}</td>
-                    <td class="center" style="color:#64748b;">{{ $line->article?->unit ?? '—' }}</td>
-                    <td class="right">{{ number_format($line->unit_price, 0, ',', ' ') }}</td>
-                    <td class="right" style="font-weight:600;">{{ number_format($line->quantity * $line->unit_price, 0, ',', ' ') }}</td>
                 </tr>
-                @endforeach
-            </tbody>
-            <tfoot>
                 <tr>
-                    <td colspan="6" class="right" style="padding-right:8px;">Total général</td>
-                    <td class="right">{{ number_format($order->amount, 0, ',', ' ') }} XOF</td>
+                    <td style="text-align:right;">
+                        <span class="badge-btn">Achat :</span>
+                        <span class="badge-val" style="min-width:130px;">{{ $orderNumber }}</span>
+                    </td>
                 </tr>
-            </tfoot>
-        </table>
-    </div>
-    @endif
+            </table>
 
-    {{-- ── Signatures ────────────────────────────────────────────────────── --}}
-    @if($order->status === 'approved' || $order->delivery_status)
-    <div class="section" style="margin-top:8px;">
-        <div class="section-title">Signatures et approbations</div>
-        <div class="signatures">
-            <div class="sig-col">
-                <div class="sig-box">
-                    <div class="sig-label">Demandeur</div>
-                    <div class="sig-name">{{ $order->user?->name ?? '—' }}</div>
-                    @if($order->submitted_at)
-                    <div class="sig-date">{{ \Carbon\Carbon::parse($order->submitted_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
-                    @endif
-                </div>
+            {{-- Supplier box --}}
+            <div class="supplier-box">
+                <div class="sline"><strong>{{ $fournisseur?->name ?? '—' }}</strong></div>
+                <div class="sline">{{ $fournisseur?->contact ?? '' }}</div>
+                <div class="sline">{{ $fournisseur?->address ?? '' }}</div>
+                <div class="sline">{{ $fournisseur?->complement ?? '' }}</div>
+                <div class="sline">{{ $fournisseur?->phone ?? $fournisseur?->fax ?? '' }}</div>
             </div>
-            @foreach($levels as $level)
-                @php
-                    $log = $order->validationLogs->where('action', 'approved')->firstWhere('validation_level_id', $level->id);
-                    $sigImg = null;
-                    if ($log && $log->user?->signature_path) {
-                        $absPath = storage_path('app/public/' . $log->user->signature_path);
-                        if (file_exists($absPath)) {
-                            $mime   = mime_content_type($absPath);
-                            $sigImg = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absPath));
+        </td>
+    </tr>
+</table>
+
+{{-- ══════════════════════════════════════════════════════════
+     SUIVI PAR  +  ADRESSE DE LIVRAISON
+═══════════════════════════════════════════════════════════════ --}}
+<table style="width:100%; border-collapse:collapse; margin-bottom:6px;">
+    <tr>
+        <td style="width:44%; vertical-align:middle; padding-right:12px;">
+            <span class="badge-btn">Suivi Par :</span>
+            <span class="badge-val" style="min-width:110px;">{{ $order->user?->name ?? '—' }}</span>
+        </td>
+        <td style="width:56%; vertical-align:middle; text-align:right;">
+            <span class="badge-btn" style="padding:4px 20px;">Adresse de livraison</span>
+        </td>
+    </tr>
+</table>
+
+{{-- Delivery / reference box --}}
+<div class="deliv-box" style="margin-bottom:10px;">
+    <div class="dline">
+        {{ $order->boutique?->name ?? '' }}
+        @if($order->boutique) &nbsp;—&nbsp; {{ $order->boutique->code }} @endif
+    </div>
+    <div class="dline">{{ $companyAddress }}</div>
+    <div class="dline">{{ $companyPhone }}</div>
+</div>
+
+{{-- ══════════════════════════════════════════════════════════
+     LIGNES DE COMMANDE
+═══════════════════════════════════════════════════════════════ --}}
+<table class="lines-table">
+    <thead>
+        <tr>
+            <th style="width:13%">Référence</th>
+            <th style="width:37%">Désignation</th>
+            <th style="width:9%">Qté</th>
+            <th style="width:14%">Px unitaire</th>
+            <th style="width:9%">Remise</th>
+            <th style="width:18%">Montant HT</th>
+        </tr>
+    </thead>
+    <tbody>
+        @php $lineCount = $order->lines ? $order->lines->count() : 0; @endphp
+
+        @forelse($order->lines ?? [] as $line)
+        @php
+            $discount  = isset($line->discount) ? (float)$line->discount : 0;
+            $lineTotal = $line->quantity * $line->unit_price * (1 - $discount / 100);
+        @endphp
+        <tr>
+            <td>{{ $line->article?->reference ?? '—' }}</td>
+            <td>
+                <strong>{{ $line->article?->name ?? '—' }}</strong>
+                @if($line->note)
+                    <br/><em style="color:#666; font-size:8px;">{{ $line->note }}</em>
+                @endif
+            </td>
+            <td class="center">{{ number_format($line->quantity, 2, ',', '') }}</td>
+            <td class="right">{{ number_format($line->unit_price, 0, ',', ' ') }}</td>
+            <td class="center">{{ $discount > 0 ? number_format($discount, 1, ',', '').' %' : '—' }}</td>
+            <td class="right">{{ number_format($lineTotal, 0, ',', ' ') }}</td>
+        </tr>
+        @empty
+        <tr>
+            <td colspan="6" style="text-align:center; color:#999; height:18px;">Aucune ligne de commande</td>
+        </tr>
+        @endforelse
+
+        {{-- Filler rows to reach at least 5 lines --}}
+        @for($i = $lineCount; $i < 5; $i++)
+        <tr>
+            <td style="height:16px;">&nbsp;</td>
+            <td></td><td></td><td></td><td></td><td></td>
+        </tr>
+        @endfor
+    </tbody>
+</table>
+
+{{-- ══════════════════════════════════════════════════════════
+     TOTAUX
+═══════════════════════════════════════════════════════════════ --}}
+<table style="width:100%; border-collapse:collapse; margin-top:8px;">
+    <tr>
+        {{-- Total en lettres --}}
+        <td style="width:52%; vertical-align:top; padding-right:8px;">
+            <div class="total-words-box" style="margin-bottom:5px; font-style:italic; color:#555;">
+                Arrêter la présente Commande à la somme de :
+            </div>
+            <div class="total-words-box">
+                @if(!empty($order->amount_in_words))
+                    {{ $order->amount_in_words }}
+                @else
+                    {{ number_format($totalTTC, 0, ',', ' ') }} Francs CFA
+                @endif
+            </div>
+        </td>
+
+        {{-- Montants HT / TVA / TTC --}}
+        <td style="width:26%; vertical-align:top; padding-right:5px;">
+            <table class="totals-box">
+                <tr>
+                    <td class="lbl">Montant HT</td>
+                    <td class="val">{{ number_format($totalHT, 0, ',', ' ') }}</td>
+                </tr>
+                <tr>
+                    <td class="lbl">TVA {{ $tvaRate }}%</td>
+                    <td class="val">{{ number_format($tvaAmt, 0, ',', ' ') }}</td>
+                </tr>
+                <tr>
+                    <td class="lbl"><strong>Montant TTC</strong></td>
+                    <td class="val"><strong>{{ number_format($totalTTC, 0, ',', ' ') }}</strong></td>
+                </tr>
+            </table>
+        </td>
+
+        {{-- Colonne supplémentaire (visa / cachet) --}}
+        <td style="width:22%; vertical-align:top;">
+            <table class="totals-box">
+                <tr><td style="height:22px;">&nbsp;</td></tr>
+                <tr><td style="height:22px;">&nbsp;</td></tr>
+                <tr><td style="height:22px;">&nbsp;</td></tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+{{-- ══════════════════════════════════════════════════════════
+     SIGNATURES
+═══════════════════════════════════════════════════════════════ --}}
+<table class="sig-table" style="margin-top:38px;">
+    <tr>
+        <td><span>Responsable Achats</span></td>
+        <td><span>DAF</span></td>
+        <td><span>La Direction Générale</span></td>
+    </tr>
+    <tr>
+        <td style="height:65px; vertical-align:bottom; border-top:1px solid #ccc; padding-top:6px;">
+            @php
+                $sigAchat = null;
+                foreach(($order->validationLogs ?? collect()) as $vlog) {
+                    if ($vlog->action === 'approved' && $vlog->user?->signature_path) {
+                        $p = storage_path('app/public/'.$vlog->user->signature_path);
+                        if (file_exists($p)) {
+                            $m = mime_content_type($p);
+                            $sigAchat = 'data:'.$m.';base64,'.base64_encode(file_get_contents($p));
+                            break;
                         }
                     }
-                @endphp
-                <div class="sig-col">
-                    <div class="sig-box">
-                        <div class="sig-label">{{ $level->name }}</div>
-                        @if($log)
-                            @if($sigImg)
-                                <img src="{{ $sigImg }}" class="sig-image" alt="Signature {{ $log->user?->name }}" />
-                            @endif
-                            <div class="sig-name">{{ $log->user?->name ?? '—' }}</div>
-                            <div class="sig-date">{{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
-                        @else
-                            <div class="sig-pending"></div>
-                        @endif
-                    </div>
-                </div>
-            @endforeach
-        </div>
-    </div>
-    @endif
-
-    {{-- ── Footer ────────────────────────────────────────────────────────── --}}
-    <div class="footer">
-        <div class="footer-txt">Généré le {{ \Carbon\Carbon::now()->locale('fr')->isoFormat('DD MMMM YYYY [à] HH:mm') }}</div>
-        <div class="footer-txt">
-            {{ $order->order_number ?? ('#'.str_pad($order->id, 5, '0', STR_PAD_LEFT)) }}
-            &mdash; {{ $company['company_name'] ?? config('app.name') }}
-        </div>
-    </div>
+                }
+            @endphp
+            @if($sigAchat)
+                <img src="{{ $sigAchat }}" style="max-height:40px; max-width:100px; object-fit:contain;" />
+            @endif
+        </td>
+        <td style="height:65px; vertical-align:bottom; border-top:1px solid #ccc; padding-top:6px;">&nbsp;</td>
+        <td style="height:65px; vertical-align:bottom; border-top:1px solid #ccc; padding-top:6px;">&nbsp;</td>
+    </tr>
+</table>
 
 </div>
 </body>

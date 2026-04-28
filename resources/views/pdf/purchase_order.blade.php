@@ -281,35 +281,76 @@
 </table>
 
 {{-- ══════════════════════════════════════════════════════════
-     SIGNATURES
+     SIGNATURES — Demandeur + niveaux de validation dynamiques
 ═══════════════════════════════════════════════════════════════ --}}
-<table class="sig-table" style="margin-top:38px;">
+@php
+    $sigCols = collect();
+
+    // Colonne Demandeur
+    $sigCols->push([
+        'label'   => 'Demandeur',
+        'name'    => $order->user?->name ?? '—',
+        'date'    => $order->submitted_at
+                        ? \Carbon\Carbon::parse($order->submitted_at)->locale('fr')->isoFormat('DD MMM YYYY')
+                        : null,
+        'img'     => null,
+        'pending' => false,
+    ]);
+
+    // Une colonne par niveau de validation
+    foreach ($levels as $level) {
+        $log = $order->validationLogs
+            ->where('action', 'approved')
+            ->firstWhere('validation_level_id', $level->id);
+
+        $sigImg = null;
+        if ($log && $log->user?->signature_path) {
+            $absPath = storage_path('app/public/' . $log->user->signature_path);
+            if (file_exists($absPath)) {
+                $mime   = mime_content_type($absPath);
+                $sigImg = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absPath));
+            }
+        }
+
+        $sigCols->push([
+            'label'   => $level->name,
+            'name'    => $log ? ($log->user?->name ?? '—') : null,
+            'date'    => $log ? \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') : null,
+            'img'     => $sigImg,
+            'pending' => !$log,
+        ]);
+    }
+
+    $colPct = floor(100 / $sigCols->count());
+@endphp
+
+<table style="width:100%; border-collapse:collapse; margin-top:38px;">
+    {{-- Labels --}}
     <tr>
-        <td><span>Responsable Achats</span></td>
-        <td><span>DAF</span></td>
-        <td><span>La Direction Générale</span></td>
+        @foreach($sigCols as $col)
+        <td style="width:{{ $colPct }}%; text-align:center; font-size:10px; font-weight:bold; padding-bottom:4px;">
+            <span style="text-decoration:underline;">{{ $col['label'] }}</span>
+        </td>
+        @endforeach
     </tr>
+    {{-- Espace signature + image + nom --}}
     <tr>
-        <td style="height:65px; vertical-align:bottom; border-top:1px solid #ccc; padding-top:6px;">
-            @php
-                $sigAchat = null;
-                foreach(($order->validationLogs ?? collect()) as $vlog) {
-                    if ($vlog->action === 'approved' && $vlog->user?->signature_path) {
-                        $p = storage_path('app/public/'.$vlog->user->signature_path);
-                        if (file_exists($p)) {
-                            $m = mime_content_type($p);
-                            $sigAchat = 'data:'.$m.';base64,'.base64_encode(file_get_contents($p));
-                            break;
-                        }
-                    }
-                }
-            @endphp
-            @if($sigAchat)
-                <img src="{{ $sigAchat }}" style="max-height:40px; max-width:100px; object-fit:contain;" />
+        @foreach($sigCols as $col)
+        <td style="width:{{ $colPct }}%; text-align:center; vertical-align:bottom; border-top:1px solid #bbb; padding-top:8px; height:70px;">
+            @if($col['img'])
+                <img src="{{ $col['img'] }}" style="max-height:40px; max-width:90px; object-fit:contain; display:block; margin:0 auto 4px;" />
+            @endif
+            @if($col['name'])
+                <div style="font-size:9px; font-weight:600; color:#222;">{{ $col['name'] }}</div>
+            @endif
+            @if($col['date'])
+                <div style="font-size:8px; color:#888; margin-top:2px;">{{ $col['date'] }}</div>
+            @endif
+            @if($col['pending'])
+                <div style="font-size:8px; color:#aaa; margin-top:16px; font-style:italic;">En attente</div>
             @endif
         </td>
-        <td style="height:65px; vertical-align:bottom; border-top:1px solid #ccc; padding-top:6px;">&nbsp;</td>
-        <td style="height:65px; vertical-align:bottom; border-top:1px solid #ccc; padding-top:6px;">&nbsp;</td>
+        @endforeach
     </tr>
 </table>
 

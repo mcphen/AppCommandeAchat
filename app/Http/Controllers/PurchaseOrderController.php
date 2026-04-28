@@ -526,6 +526,12 @@ class PurchaseOrderController extends Controller
                 $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absPath));
             }
         }
+        if (! $logoBase64) {
+            $fallback = public_path('logo_scn.jpg');
+            if (file_exists($fallback)) {
+                $logoBase64 = 'data:image/jpeg;base64,' . base64_encode(file_get_contents($fallback));
+            }
+        }
 
         $pdf = Pdf::loadView('pdf.purchase_order', [
             'order'    => $purchaseOrder,

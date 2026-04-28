@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ShoppingCart } from 'lucide-vue-next';
 
 defineProps<{
     title?: string;
@@ -14,10 +13,8 @@ defineProps<{
             <div class="flex flex-col gap-8">
                 <div class="flex flex-col items-center gap-4">
                     <Link :href="route('login')" class="flex flex-col items-center gap-3 font-medium">
-                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30">
-                            <ShoppingCart class="h-7 w-7 text-white" />
-                        </div>
-                        <span class="text-xl font-bold tracking-tight text-foreground">AchatPro</span>
+                        <img src="/logo_scn.jpg" alt="SCN" class="h-20 w-20 rounded-full object-cover shadow-lg ring-4 ring-white/60" />
+                        <span class="text-xl font-bold tracking-tight text-foreground">SCN</span>
                     </Link>
                     <div class="space-y-1.5 text-center">
                         <h1 class="text-xl font-semibold text-foreground">{{ title }}</h1>

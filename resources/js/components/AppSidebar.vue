@@ -10,7 +10,7 @@ import {
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
-    LayoutDashboard, ShoppingCart, CheckSquare,
+    LayoutDashboard, CheckSquare,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
     FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal,
     Banknote, Wallet, HandCoins, UserCircle,
@@ -138,11 +138,9 @@ const adminNav = computed(() => {
         <SidebarHeader class="border-b border-sidebar-border/40 pb-3">
             <div class="flex items-center justify-between gap-2 px-1 py-1 group-data-[collapsible=icon]:justify-center">
                 <Link :href="route('dashboard')" class="flex min-w-0 items-center gap-3">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary/20 text-sidebar-primary shadow-inner border border-sidebar-primary/30">
-                        <ShoppingCart class="h-4 w-4" />
-                    </div>
+                    <img src="/logo_scn.jpg" alt="SCN" class="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-sidebar-primary/30 shadow-sm" />
                     <div class="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-                        <span class="font-bold text-sm text-sidebar-foreground tracking-wide">AchatPro</span>
+                        <span class="font-bold text-sm text-sidebar-foreground tracking-wide">SCN</span>
                         <span class="text-[11px] text-sidebar-foreground/40 font-medium">Gestion des commandes</span>
                     </div>
                 </Link>

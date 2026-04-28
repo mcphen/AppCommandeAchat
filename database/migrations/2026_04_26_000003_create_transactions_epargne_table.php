@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('transactions_epargne', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('compte_epargne_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('compte_epargne_id')->constrained('comptes_epargne')->cascadeOnDelete();
             $table->enum('type', ['depot', 'retrait']);
             $table->decimal('montant', 15, 2);
             $table->foreignId('mode_reglement_id')->constrained('modes_reglement');

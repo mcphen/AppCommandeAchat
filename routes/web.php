@@ -154,6 +154,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('users', AdminUserController::class)->except(['show']);
         Route::resource('validation-levels', ValidationLevelController::class)->except(['show']);
         Route::resource('categories', CategoryController::class)->except(['show']);
+        // Import fournisseurs (avant resource pour éviter conflit de routes)
+        Route::get('fournisseurs/template', [FournisseurController::class, 'downloadTemplate'])->name('fournisseurs.template');
+        Route::post('fournisseurs/import/parse', [FournisseurController::class, 'importParse'])->name('fournisseurs.import.parse');
+        Route::post('fournisseurs/import/confirm', [FournisseurController::class, 'importConfirm'])->name('fournisseurs.import.confirm');
         Route::resource('fournisseurs', FournisseurController::class);
         // Catalogue de prix par fournisseur
         Route::get('fournisseurs/{fournisseur}/catalogue', [FournisseurArticleController::class, 'index'])->name('fournisseurs.catalogue.index');
@@ -166,6 +170,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('fournisseurs/{fournisseur}/catalogue/import/confirm', [FournisseurArticleController::class, 'importConfirm'])->name('fournisseurs.catalogue.import.confirm');
 
         Route::resource('agents', AgentController::class)->except(['show']);
+        // Import articles (avant resource pour éviter conflit de routes)
+        Route::get('articles/template', [ArticleController::class, 'downloadTemplate'])->name('articles.template');
+        Route::post('articles/import/parse', [ArticleController::class, 'importParse'])->name('articles.import.parse');
+        Route::post('articles/import/confirm', [ArticleController::class, 'importConfirm'])->name('articles.import.confirm');
         Route::resource('articles', ArticleController::class)->except(['show']);
         Route::resource('budgets', BudgetController::class)->except(['show']);
         Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');

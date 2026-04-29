@@ -10,7 +10,7 @@ import {
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
-    LayoutDashboard, CheckSquare,
+    LayoutDashboard, CheckSquare, ShoppingCart,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
     FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal,
     Banknote, Wallet, HandCoins, UserCircle,

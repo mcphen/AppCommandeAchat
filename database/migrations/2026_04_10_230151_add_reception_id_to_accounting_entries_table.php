@@ -16,7 +16,7 @@ return new class extends Migration
                   ->nullable()
                   ->after('purchase_order_id')
                   ->constrained('purchase_order_receptions')
-                  ->nullOnDelete();
+                  ->noActionOnDelete();
 
             $table->index('reception_id');
         });

@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('purchase_order_reception_lines', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('reception_id')->constrained('purchase_order_receptions')->cascadeOnDelete();
+            $table->foreignId('reception_id')->constrained('purchase_order_receptions')->noActionOnDelete();
             $table->foreignId('purchase_order_line_id')->constrained('purchase_order_lines')->cascadeOnDelete();
             $table->decimal('quantity_received', 10, 2);
             $table->timestamps();

@@ -13,7 +13,7 @@ return new class extends Migration
                 ->nullable()
                 ->after('comment')
                 ->constrained('users')
-                ->nullOnDelete();
+                ->noActionOnDelete();
         });
     }
 

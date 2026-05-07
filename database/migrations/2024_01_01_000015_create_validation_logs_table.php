@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('validation_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('purchase_order_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('validation_level_id')->constrained()->restrictOnDelete();
-            $table->foreignId('user_id')->constrained()->restrictOnDelete();
+            $table->foreignId('validation_level_id')->constrained()->noActionOnDelete();
+            $table->foreignId('user_id')->constrained()->noActionOnDelete();
             $table->enum('action', ['approved', 'rejected']);
             $table->text('comment')->nullable();
             $table->timestamps();

@@ -13,7 +13,7 @@ return new class extends Migration
                 ->nullable()
                 ->after('validation_level_id')
                 ->constrained('boutiques')
-                ->restrictOnDelete();
+                ->noActionOnDelete();
         });
     }
 

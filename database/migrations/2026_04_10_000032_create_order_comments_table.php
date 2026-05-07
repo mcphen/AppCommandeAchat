@@ -11,7 +11,7 @@ return new class extends Migration
         Schema::create('order_comments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('purchase_order_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained()->restrictOnDelete();
+            $table->foreignId('user_id')->constrained()->noActionOnDelete();
             $table->enum('type', ['comment', 'revision_request'])->default('comment');
             $table->text('content');
             $table->string('attachment_path')->nullable();

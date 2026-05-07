@@ -13,7 +13,7 @@ return new class extends Migration
                 ->nullable()
                 ->after('user_id')
                 ->constrained('boutiques')
-                ->restrictOnDelete();
+                ->noActionOnDelete();
         });
     }
 

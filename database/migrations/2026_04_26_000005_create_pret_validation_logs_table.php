@@ -11,8 +11,8 @@ return new class extends Migration
         Schema::create('pret_validation_logs', function (Blueprint $table) {
             $table->id();
             $table->foreignId('pret_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('validation_level_id')->constrained()->restrictOnDelete();
-            $table->foreignId('user_id')->constrained()->restrictOnDelete();
+            $table->foreignId('validation_level_id')->constrained()->noActionOnDelete();
+            $table->foreignId('user_id')->constrained()->noActionOnDelete();
             $table->enum('action', ['approved', 'rejected']);
             $table->text('comment')->nullable();
             $table->foreignId('delegated_by_id')->nullable()->constrained('users')->nullOnDelete();

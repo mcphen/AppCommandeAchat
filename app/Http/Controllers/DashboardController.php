@@ -92,14 +92,23 @@ class DashboardController extends Controller
     {
         $levelOrder = $user->validationLevel?->order;
 
-        $pendingCount = $levelOrder
-            ? PurchaseOrder::where('status', 'pending')->where('current_level_order', $levelOrder)->count()
-            : PurchaseOrder::where('status', 'pending')->count();
+        $pendingQuery = PurchaseOrder::where('status', 'pending')
+            ->when($levelOrder, fn ($q) => $q->where('current_level_order', $levelOrder));
+
+        $myApprovedLogs = $user->validationLogs()->where('action', 'approved');
 
         $stats = [
-            'pending'     => $pendingCount,
-            'my_approved' => $user->validationLogs()->where('action', 'approved')->count(),
-            'my_rejected' => $user->validationLogs()->where('action', 'rejected')->count(),
+            'pending'               => (clone $pendingQuery)->count(),
+            'budget_pending'        => (int) (clone $pendingQuery)->sum('amount'),
+            'my_approved'           => $user->validationLogs()->where('action', 'approved')->count(),
+            'my_rejected'           => $user->validationLogs()->where('action', 'rejected')->count(),
+            'my_budget_approved'    => (int) $myApprovedLogs
+                ->join('purchase_orders', 'validation_logs.purchase_order_id', '=', 'purchase_orders.id')
+                ->sum('purchase_orders.amount'),
+            'global_approved'       => PurchaseOrder::where('status', 'approved')->count(),
+            'global_rejected'       => PurchaseOrder::where('status', 'rejected')->count(),
+            'global_budget_approved'=> (int) PurchaseOrder::where('status', 'approved')->sum('amount'),
+            'global_pending'        => PurchaseOrder::where('status', 'pending')->count(),
         ];
 
         $recentOrders = PurchaseOrder::with(['user', 'boutique'])
@@ -109,7 +118,16 @@ class DashboardController extends Controller
             ->limit(8)
             ->get();
 
-        $totalLevels = ValidationLevel::count();
+        // Pipeline : état de chaque niveau de validation
+        $allLevels = ValidationLevel::orderBy('order')->get();
+        $pipeline  = $allLevels->map(fn ($lvl) => [
+            'level_order' => $lvl->order,
+            'level_name'  => $lvl->name,
+            'pending'     => PurchaseOrder::where('status', 'pending')->where('current_level_order', $lvl->order)->count(),
+            'amount'      => (int) PurchaseOrder::where('status', 'pending')->where('current_level_order', $lvl->order)->sum('amount'),
+        ])->values()->all();
+
+        $totalLevels = count($pipeline);
 
         $activeDelegations = $user->activeDelegationsReceived()
             ->with(['delegator', 'validationLevel'])
@@ -121,6 +139,7 @@ class DashboardController extends Controller
             'validationLevel'   => $user->validationLevel,
             'totalLevels'       => $totalLevels,
             'activeDelegations' => $activeDelegations,
+            'pipeline'          => $pipeline,
         ]);
     }
 

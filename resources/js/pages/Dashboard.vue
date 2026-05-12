@@ -7,7 +7,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
     ShoppingCart, Clock, CheckCircle2, XCircle, FileText,
     TrendingUp, Users, Settings, ArrowRight, Eye,
-    Store, Layers, Wallet, Ban, Building2, PiggyBank, AlertTriangle, UserCheck,
+    Store, Layers, Wallet, Ban, Building2, PiggyBank, AlertTriangle, UserCheck, History, BarChart3,
 } from 'lucide-vue-next';
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Tooltip } from 'chart.js';
 import { Bar, Doughnut } from 'vue-chartjs';
@@ -72,6 +72,12 @@ const props = defineProps<{
     };
     alertBudgets?: Budget[];
     activeDelegations?: ActiveDelegation[];
+    pipeline?: Array<{
+        level_order: number;
+        level_name: string;
+        pending: number;
+        amount: number;
+    }>;
     checklist?: Checklist | null;
 }>();
 
@@ -456,62 +462,161 @@ const hasBarData = computed(() =>
                         </p>
                         <p v-if="validationLevel.description" class="text-xs text-indigo-600 mt-0.5">{{ validationLevel.description }}</p>
                     </div>
+                    <Link :href="route('validations.history')" class="ml-auto shrink-0 hidden items-center gap-1.5 rounded-xl border border-indigo-200 bg-white/60 px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-white transition-colors sm:flex">
+                        <History class="h-3.5 w-3.5" />
+                        Historique
+                    </Link>
                 </div>
 
-                <!-- Stat cards -->
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+                <!-- Stat cards — à mon niveau -->
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-sm font-medium text-muted-foreground">À valider</span>
+                            <span class="text-xs font-medium text-muted-foreground sm:text-sm">À valider</span>
                             <div class="rounded-lg bg-amber-50 p-2"><Clock class="h-4 w-4 text-amber-600" /></div>
                         </div>
-                        <p class="text-3xl font-bold text-foreground">{{ stats.pending }}</p>
-                        <p class="text-xs text-muted-foreground mt-1">à mon niveau</p>
+                        <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.pending }}</p>
+                        <p class="text-xs text-amber-600 font-medium mt-1">{{ formatAmountShort(stats.budget_pending ?? 0) }} FCFA</p>
                     </div>
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-sm font-medium text-muted-foreground">Approuvées par moi</span>
+                            <span class="text-xs font-medium text-muted-foreground sm:text-sm">J'ai approuvé</span>
                             <div class="rounded-lg bg-emerald-50 p-2"><CheckCircle2 class="h-4 w-4 text-emerald-600" /></div>
                         </div>
-                        <p class="text-3xl font-bold text-foreground">{{ stats.my_approved }}</p>
+                        <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.my_approved }}</p>
+                        <p class="text-xs text-emerald-600 font-medium mt-1">{{ formatAmountShort(stats.my_budget_approved ?? 0) }} FCFA</p>
                     </div>
                     <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                         <div class="flex items-center justify-between mb-3">
-                            <span class="text-sm font-medium text-muted-foreground">Refusées par moi</span>
+                            <span class="text-xs font-medium text-muted-foreground sm:text-sm">J'ai refusé</span>
                             <div class="rounded-lg bg-red-50 p-2"><XCircle class="h-4 w-4 text-red-600" /></div>
                         </div>
-                        <p class="text-3xl font-bold text-foreground">{{ stats.my_rejected }}</p>
+                        <p class="text-2xl font-bold text-foreground sm:text-3xl">{{ stats.my_rejected }}</p>
+                    </div>
+                    <div class="rounded-2xl border bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 shadow-sm sm:p-5">
+                        <div class="flex items-center justify-between mb-3">
+                            <span class="text-xs font-medium text-emerald-800 sm:text-sm">Validées (global)</span>
+                            <div class="rounded-lg bg-emerald-100 p-2"><Wallet class="h-4 w-4 text-emerald-600" /></div>
+                        </div>
+                        <p class="text-2xl font-bold text-emerald-700 sm:text-3xl">{{ stats.global_approved }}</p>
+                        <p class="text-xs text-emerald-600 font-medium mt-1">{{ formatAmountShort(stats.global_budget_approved ?? 0) }} FCFA</p>
                     </div>
                 </div>
 
-                <!-- Donut validateur -->
-                <div v-if="hasDonutData" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div class="rounded-2xl border bg-card p-5 shadow-sm">
-                        <h3 class="font-semibold text-foreground text-sm mb-4">Mes décisions</h3>
-                        <div class="h-56">
-                            <Doughnut :data="donutData" :options="donutOptions" />
+                <!-- Pipeline de validation -->
+                <div v-if="pipeline && pipeline.length > 1" class="rounded-2xl border bg-card shadow-sm">
+                    <div class="flex items-center justify-between border-b px-4 py-4 sm:px-6">
+                        <h2 class="font-semibold text-foreground flex items-center gap-2">
+                            <BarChart3 class="h-4 w-4 text-muted-foreground" />
+                            Circuit de validation — en cours
+                        </h2>
+                        <span class="text-sm text-muted-foreground">{{ stats.global_pending }} commandes en circuit</span>
+                    </div>
+                    <div class="divide-y">
+                        <div
+                            v-for="step in pipeline"
+                            :key="step.level_order"
+                            class="flex items-center gap-4 px-4 py-3 sm:px-6"
+                            :class="step.level_order === validationLevel?.order ? 'bg-amber-50/60' : ''"
+                        >
+                            <!-- Icône niveau -->
+                            <div
+                                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-bold"
+                                :class="step.level_order === validationLevel?.order
+                                    ? 'bg-amber-100 text-amber-700'
+                                    : 'bg-muted text-muted-foreground'"
+                            >
+                                {{ step.level_order }}
+                            </div>
+
+                            <!-- Nom du niveau -->
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-medium text-foreground truncate">
+                                    {{ step.level_name }}
+                                    <span v-if="step.level_order === validationLevel?.order" class="ml-1.5 text-xs font-semibold text-amber-600">(vous)</span>
+                                </p>
+                                <p class="text-xs text-muted-foreground">{{ formatAmount(step.amount) }} en attente</p>
+                            </div>
+
+                            <!-- Barre de progression -->
+                            <div class="hidden w-32 flex-col gap-1 sm:flex">
+                                <div class="h-2 w-full rounded-full bg-muted overflow-hidden">
+                                    <div
+                                        class="h-full rounded-full transition-all"
+                                        :class="step.level_order === validationLevel?.order ? 'bg-amber-400' : 'bg-slate-300'"
+                                        :style="{ width: stats.global_pending > 0 ? Math.round((step.pending / stats.global_pending) * 100) + '%' : '0%' }"
+                                    />
+                                </div>
+                            </div>
+
+                            <!-- Compteur -->
+                            <div class="shrink-0 text-right">
+                                <span
+                                    class="inline-flex items-center rounded-full px-2.5 py-1 text-sm font-bold"
+                                    :class="step.pending > 0
+                                        ? (step.level_order === validationLevel?.order ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600')
+                                        : 'bg-emerald-50 text-emerald-600'"
+                                >
+                                    {{ step.pending }}
+                                </span>
+                            </div>
                         </div>
                     </div>
-                    <div v-if="stats.pending > 0" class="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col justify-center items-center text-center gap-3">
-                        <div class="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-                            <Clock class="h-6 w-6 text-amber-600" />
+                </div>
+
+                <!-- Vue globale + donut pour N2+ ou si pas de pipeline -->
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <!-- Donut mes décisions -->
+                    <div class="rounded-2xl border bg-card p-5 shadow-sm">
+                        <h3 class="font-semibold text-foreground text-sm mb-4">Mes décisions</h3>
+                        <div v-if="hasDonutData" class="h-56">
+                            <Doughnut :data="donutData" :options="donutOptions" />
                         </div>
-                        <p class="text-3xl font-bold text-amber-700">{{ stats.pending }}</p>
-                        <p class="text-sm font-medium text-amber-800">commande{{ stats.pending > 1 ? 's' : '' }} en attente de votre validation</p>
-                        <Link :href="route('validations.index')" class="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 transition-colors">
-                            Voir les validations <ArrowRight class="h-3.5 w-3.5" />
+                        <div v-else class="flex h-56 flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+                            <CheckCircle2 class="h-8 w-8 text-emerald-200" />
+                            Aucune décision encore
+                        </div>
+                    </div>
+
+                    <!-- Stats globales -->
+                    <div class="rounded-2xl border bg-card p-5 shadow-sm flex flex-col gap-4">
+                        <h3 class="font-semibold text-foreground text-sm">Vue globale du circuit</h3>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="rounded-xl bg-emerald-50 p-3 text-center">
+                                <p class="text-2xl font-bold text-emerald-700">{{ stats.global_approved }}</p>
+                                <p class="text-xs text-emerald-600 font-medium mt-0.5">Approuvées</p>
+                            </div>
+                            <div class="rounded-xl bg-red-50 p-3 text-center">
+                                <p class="text-2xl font-bold text-red-700">{{ stats.global_rejected }}</p>
+                                <p class="text-xs text-red-600 font-medium mt-0.5">Rejetées</p>
+                            </div>
+                            <div class="col-span-2 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-3">
+                                <p class="text-xs text-emerald-600 font-semibold uppercase tracking-wide mb-1">Budget validé total</p>
+                                <p class="text-lg font-bold text-emerald-700 truncate">{{ formatAmount(stats.global_budget_approved ?? 0) }}</p>
+                            </div>
+                        </div>
+                        <Link
+                            :href="route('validations.history')"
+                            class="mt-auto inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                        >
+                            <History class="h-4 w-4" />
+                            Voir l'historique complet
+                            <ArrowRight class="ml-auto h-3.5 w-3.5 text-muted-foreground" />
                         </Link>
                     </div>
                 </div>
-                <div v-else-if="stats.pending > 0" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-3">
+
+                <!-- CTA si commandes en attente -->
+                <div v-if="stats.pending > 0" class="rounded-2xl border border-amber-200 bg-amber-50 p-4 flex items-center justify-between gap-3">
                     <div class="flex items-center gap-3 min-w-0">
                         <div class="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
-                        <p class="text-sm font-medium text-amber-800 truncate">
-                            {{ stats.pending }} commande{{ stats.pending > 1 ? 's' : '' }} en attente
+                        <p class="text-sm font-medium text-amber-800">
+                            <span class="font-bold">{{ stats.pending }}</span> commande{{ stats.pending > 1 ? 's' : '' }} en attente de votre validation
+                            <span v-if="stats.budget_pending" class="text-amber-600"> · {{ formatAmount(stats.budget_pending) }}</span>
                         </p>
                     </div>
                     <Link :href="route('validations.index')" class="text-sm font-semibold text-amber-700 flex items-center gap-1 hover:gap-2 transition-all shrink-0">
-                        Voir <ArrowRight class="h-3.5 w-3.5" />
+                        Valider <ArrowRight class="h-3.5 w-3.5" />
                     </Link>
                 </div>
             </template>

@@ -20,6 +20,59 @@ use Inertia\Response;
 
 class ValidationController extends Controller
 {
+    public function history(Request $request): Response
+    {
+        $user = $request->user();
+
+        $query = PurchaseOrder::with(['user', 'boutique', 'validationLogs.validationLevel'])
+            ->latest('submitted_at');
+
+        if (! $user->isAdmin()) {
+            // Récupère les IDs des niveaux de validation de l'utilisateur
+            $levelOrders = $user->validatableLevelOrders();
+            abort_unless(count($levelOrders) > 0, 403, 'Vous n\'avez aucun niveau de validation actif.');
+
+            $levelIds = ValidationLevel::whereIn('order', $levelOrders)->pluck('id');
+
+            // Commandes qui ont été ou sont à ce niveau de validation
+            $query->where(function ($q) use ($levelOrders, $levelIds) {
+                // Soit actuellement en attente à ce niveau
+                $q->where(fn ($sub) => $sub->where('status', 'pending')->whereIn('current_level_order', $levelOrders))
+                  // Soit qui ont un log de validation à ce niveau (déjà traitées)
+                  ->orWhereHas('validationLogs', fn ($sub) => $sub->whereIn('validation_level_id', $levelIds));
+            });
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->string('status'));
+        }
+
+        if ($request->filled('boutique_id')) {
+            $query->where('boutique_id', $request->integer('boutique_id'));
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('submitted_at', '>=', $request->string('date_from'));
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('submitted_at', '<=', $request->string('date_to'));
+        }
+
+        $orders = $query->paginate(15)->withQueryString();
+
+        return Inertia::render('Validations/History', [
+            'orders'   => $orders,
+            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'filters'  => [
+                'status'      => $request->string('status')->toString(),
+                'boutique_id' => $request->string('boutique_id')->toString(),
+                'date_from'   => $request->string('date_from')->toString(),
+                'date_to'     => $request->string('date_to')->toString(),
+            ],
+        ]);
+    }
+
     public function index(Request $request): Response
     {
         $user = $request->user();

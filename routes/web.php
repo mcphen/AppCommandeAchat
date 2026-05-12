@@ -97,6 +97,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Validations (Validateur + Admin)
     Route::middleware('role:validateur,admin')->group(function () {
         Route::get('/validations', [ValidationController::class, 'index'])->name('validations.index');
+        Route::get('/validations/historique', [ValidationController::class, 'history'])->name('validations.history');
         Route::get('/validations/{purchase_order}', [ValidationController::class, 'show'])->name('validations.show');
         Route::post('/validations/{purchase_order}/approve', [ValidationController::class, 'approve'])->name('validations.approve');
         Route::post('/validations/{purchase_order}/reject', [ValidationController::class, 'reject'])->name('validations.reject');

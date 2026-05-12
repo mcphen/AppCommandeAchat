@@ -13,7 +13,7 @@ import {
     LayoutDashboard, CheckSquare, ShoppingCart,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
     FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal,
-    Banknote, Wallet, HandCoins, UserCircle,
+    Banknote, Wallet, HandCoins, UserCircle, History,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -91,6 +91,12 @@ const mainNav = computed(() => {
             href: route('validations.index'),
             icon: CheckSquare,
             key: 'validations',
+        });
+        items.push({
+            title: 'Historique validations',
+            href: route('validations.history'),
+            icon: History,
+            key: 'validations-history',
         });
         items.push({
             title: 'Délégations',

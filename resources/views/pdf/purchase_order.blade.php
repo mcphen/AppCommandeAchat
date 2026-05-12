@@ -82,6 +82,70 @@
         $totalAmount = (float)($order->amount ?? 0);
     }
     $hasLines = $order->lines && $order->lines->count() > 0;
+
+    // Conversion montant en lettres (français)
+    if (!function_exists('_pdf_numToFr')) {
+        function _pdf_numToFr(int $n): string {
+            if ($n === 0) return 'zéro';
+            $units = ['','un','deux','trois','quatre','cinq','six','sept','huit','neuf',
+                      'dix','onze','douze','treize','quatorze','quinze','seize',
+                      'dix-sept','dix-huit','dix-neuf'];
+            $tens  = ['','','vingt','trente','quarante','cinquante','soixante',
+                      'soixante','quatre-vingt','quatre-vingt'];
+            $res = '';
+            if ($n < 0) { return 'moins '._pdf_numToFr(-$n); }
+            if ($n >= 1000000000) {
+                $b = intdiv($n, 1000000000);
+                $res .= _pdf_numToFr($b).($b > 1 ? ' milliards' : ' milliard');
+                $n %= 1000000000;
+                if ($n) $res .= ' ';
+            }
+            if ($n >= 1000000) {
+                $m = intdiv($n, 1000000);
+                $res .= _pdf_numToFr($m).($m > 1 ? ' millions' : ' million');
+                $n %= 1000000;
+                if ($n) $res .= ' ';
+            }
+            if ($n >= 1000) {
+                $k = intdiv($n, 1000);
+                $res .= ($k === 1 ? 'mille' : _pdf_numToFr($k).' mille');
+                $n %= 1000;
+                if ($n) $res .= ' ';
+            }
+            if ($n >= 100) {
+                $h = intdiv($n, 100);
+                if ($h === 1) $res .= 'cent';
+                else $res .= $units[$h].' cent';
+                $n %= 100;
+                if ($n) $res .= ' ';
+                elseif ($h > 1) $res .= 's';
+            }
+            if ($n > 0) {
+                if ($n < 20) {
+                    $res .= $units[$n];
+                } elseif ($n < 70) {
+                    $t = intdiv($n, 10); $u = $n % 10;
+                    $res .= $tens[$t];
+                    if ($u === 1) $res .= ' et un';
+                    elseif ($u) $res .= '-'.$units[$u];
+                    elseif ($t === 8) $res .= 's';
+                } elseif ($n < 80) {
+                    $u = $n - 60;
+                    $res .= 'soixante'.($u === 11 ? ' et' : '').'-'.$units[$u];
+                } elseif ($n < 90) {
+                    $u = $n - 80;
+                    $res .= 'quatre-vingt'.($u ? '-'.$units[$u] : 's');
+                } else {
+                    $u = $n - 80;
+                    $res .= 'quatre-vingt-'.$units[$u];
+                }
+            }
+            return $res;
+        }
+    }
+
+    $amountInt  = (int) round($totalAmount);
+    $amountWords = ucfirst(_pdf_numToFr($amountInt)).' Francs CFA';
 @endphp
 
 {{-- ══════════════════════════════════════════════════════════
@@ -250,7 +314,7 @@
                 @if(!empty($order->amount_in_words))
                     {{ $order->amount_in_words }}
                 @else
-                    {{ number_format($totalAmount, 0, ',', ' ') }} Francs CFA
+                    {{ $amountWords }}
                 @endif
             </div>
         </td>

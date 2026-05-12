@@ -192,7 +192,7 @@ function submit() {
                                 step="1"
                                 min="1"
                                 :max="resteADecaisser"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                class="w-full rounded-xl border border-input bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 :class="form.errors.montant ? 'border-red-400' : ''"
                             />
                             <p v-if="form.errors.montant" class="mt-1 text-xs text-red-500">{{ form.errors.montant }}</p>
@@ -229,7 +229,7 @@ function submit() {
                                 v-model="form.reference"
                                 type="text"
                                 placeholder="Optionnel"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                class="w-full rounded-xl border border-input bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                             />
                         </div>
 
@@ -239,7 +239,7 @@ function submit() {
                             <input
                                 v-model="form.decaissement_date"
                                 type="date"
-                                class="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                class="w-full rounded-xl border border-input bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                 :class="form.errors.decaissement_date ? 'border-red-400' : ''"
                             />
                             <p v-if="form.errors.decaissement_date" class="mt-1 text-xs text-red-500">{{ form.errors.decaissement_date }}</p>
@@ -254,7 +254,7 @@ function submit() {
                                 v-model="form.notes"
                                 rows="2"
                                 placeholder="Observations, remarques…"
-                                class="w-full resize-none rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                class="w-full resize-none rounded-xl border border-input bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                             />
                         </div>
 

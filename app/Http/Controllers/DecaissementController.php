@@ -112,7 +112,10 @@ class DecaissementController extends Controller
             'decaissement_date' => ['required', 'date'],
         ]);
 
-        DB::transaction(function () use ($validated, $purchaseOrder, $user) {
+        $decaissement      = null;
+        $dernierValidateur = null;
+
+        DB::transaction(function () use ($validated, $purchaseOrder, $user, &$decaissement, &$dernierValidateur) {
             $decaissement = Decaissement::create([
                 ...$validated,
                 'purchase_order_id' => $purchaseOrder->id,
@@ -124,22 +127,25 @@ class DecaissementController extends Controller
 
             $purchaseOrder->update(['payment_status' => $paymentStatus]);
 
-            // Notifier le dernier validateur
             $dernierValidateur = $purchaseOrder->validationLogs()
                 ->where('action', 'approved')
                 ->latest()
                 ->first()
                 ?->user;
+        });
 
+        // Notifications envoyées hors transaction pour éviter un rollback si WhatsApp échoue
+        try {
             if ($dernierValidateur) {
                 $dernierValidateur->notify(new DecaissementEnregistreNotification($purchaseOrder, $decaissement));
             }
 
-            // Notifier les admins (sauf si l'admin est lui-même le dernier validateur)
             User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))
                 ->where('id', '!=', $dernierValidateur?->id)
                 ->each(fn ($admin) => $admin->notify(new DecaissementEnregistreNotification($purchaseOrder, $decaissement)));
-        });
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Notification décaissement échouée : ' . $e->getMessage());
+        }
 
         return redirect()->route('decaissements.show', $purchaseOrder)
             ->with('success', 'Décaissement enregistré avec succès.');

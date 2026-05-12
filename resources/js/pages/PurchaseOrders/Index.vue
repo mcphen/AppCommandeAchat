@@ -68,7 +68,12 @@ const draftCount = computed(() => visibleOrders.value.filter((order) => order.st
 const pendingCount = computed(() => visibleOrders.value.filter((order) => order.status === 'pending').length);
 const approvedCount = computed(() => visibleOrders.value.filter((order) => order.status === 'approved').length);
 const rejectedCount = computed(() => visibleOrders.value.filter((order) => order.status === 'rejected').length);
-const visibleAmountTotal = computed(() => visibleOrders.value.reduce((sum, order) => sum + Number(order.amount || 0), 0));
+const cancelledCount = computed(() => visibleOrders.value.filter((order) => order.status === 'cancelled').length);
+const visibleAmountTotal = computed(() =>
+    visibleOrders.value
+        .filter((order) => order.status !== 'cancelled')
+        .reduce((sum, order) => sum + Number(order.amount || 0), 0),
+);
 
 const statusConfig = {
     draft: { label: 'Brouillon', classes: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400' },
@@ -76,7 +81,7 @@ const statusConfig = {
     needs_revision: { label: 'Revision demandee', classes: 'bg-orange-50 text-orange-700', dot: 'bg-orange-500' },
     approved: { label: 'Approuvee', classes: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
     rejected: { label: 'Refusee', classes: 'bg-red-50 text-red-700', dot: 'bg-red-500' },
-    cancelled: { label: 'Annulee', classes: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
+    cancelled: { label: 'Annulée', classes: 'bg-red-100 text-red-700', dot: 'bg-red-500' },
 } as const;
 
 const formatAmount = (value: string | number) =>
@@ -237,7 +242,7 @@ const submitOrder = async (order: PurchaseOrder) => {
                 </div>
             </section>
 
-            <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <section class="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total</p>
                     <p class="mt-2 text-2xl font-bold text-foreground">{{ orders.total }}</p>
@@ -256,10 +261,16 @@ const submitOrder = async (order: PurchaseOrder) => {
                     <p class="mt-1 text-xs text-muted-foreground">pretes a etre traitees</p>
                 </div>
 
+                <div class="rounded-2xl border border-red-100 bg-red-50 p-4 shadow-sm">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Annulées</p>
+                    <p class="mt-2 text-2xl font-bold text-red-600">{{ cancelledCount }}</p>
+                    <p class="mt-1 text-xs text-muted-foreground">sur la page courante</p>
+                </div>
+
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Montant page</p>
                     <p class="mt-2 text-2xl font-bold text-foreground">{{ formatAmount(visibleAmountTotal) }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">cumule des lignes affichees</p>
+                    <p class="mt-1 text-xs text-muted-foreground">hors annulées</p>
                 </div>
             </section>
 
@@ -567,17 +578,25 @@ const submitOrder = async (order: PurchaseOrder) => {
                         </thead>
 
                         <tbody class="divide-y divide-border/60">
-                            <tr v-for="order in orders.data" :key="order.id" class="transition-colors hover:bg-muted/20">
+                            <tr v-for="order in orders.data" :key="order.id"
+                                class="transition-colors hover:bg-muted/20"
+                                :class="order.status === 'cancelled' ? 'opacity-60 bg-red-50/40' : ''"
+                            >
                                 <td class="px-5 py-4">
                                     <div class="flex items-center gap-3">
-                                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                            :class="order.status === 'cancelled' ? 'bg-red-100 text-red-400' : 'bg-primary/10 text-primary'"
+                                        >
                                             <FileText class="h-4 w-4" />
                                         </div>
 
                                         <div class="min-w-0">
-                                            <p class="truncate font-semibold text-foreground">{{ order.title }}</p>
+                                            <p class="truncate font-semibold text-foreground"
+                                                :class="order.status === 'cancelled' ? 'line-through text-muted-foreground' : ''"
+                                            >{{ order.title }}</p>
                                             <p v-if="order.reference" class="font-mono text-xs text-muted-foreground">{{ order.reference }}</p>
-                                            <p class="mt-1 text-xs text-muted-foreground">{{ progressLabel(order) }}</p>
+                                            <p v-if="order.status === 'cancelled'" class="mt-0.5 text-xs font-semibold text-red-600">Commande annulée</p>
+                                            <p v-else class="mt-1 text-xs text-muted-foreground">{{ progressLabel(order) }}</p>
                                             <p v-if="validatorsSummary(order)" class="mt-1 text-xs font-medium text-emerald-600">
                                                 {{ validatorsSummary(order) }}
                                             </p>
@@ -595,7 +614,11 @@ const submitOrder = async (order: PurchaseOrder) => {
                                     </div>
                                 </td>
 
-                                <td class="hidden px-4 py-4 font-medium text-foreground lg:table-cell">{{ formatAmount(order.amount) }}</td>
+                                <td class="hidden px-4 py-4 font-medium text-foreground lg:table-cell">
+                                    <span :class="order.status === 'cancelled' ? 'line-through text-muted-foreground' : ''">
+                                        {{ formatAmount(order.amount) }}
+                                    </span>
+                                </td>
 
                                 <td class="px-4 py-4">
                                     <span

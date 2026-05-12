@@ -25,7 +25,7 @@ class StoreUserRequest extends FormRequest
             'role_id'                => ['required', 'exists:roles,id'],
             'validation_level_id'    => ['nullable', 'exists:validation_levels,id'],
             'boutique_id'         => [
-                Rule::requiredIf(fn () => Role::whereKey($this->input('role_id'))->value('slug') === 'demandeur'),
+                Rule::requiredIf(fn () => in_array(Role::whereKey($this->input('role_id'))->value('slug'), ['demandeur', 'caissier'])),
                 'nullable',
                 'exists:boutiques,id',
             ],

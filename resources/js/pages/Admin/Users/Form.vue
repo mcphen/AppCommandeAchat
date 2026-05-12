@@ -42,7 +42,7 @@ const submit = () => {
 
 const selectedRole = computed(() => props.roles.find(r => r.id === Number(form.role_id)));
 const needsLevel = computed(() => selectedRole.value?.slug === 'validateur' || selectedRole.value?.slug === 'admin');
-const needsBoutique = computed(() => selectedRole.value?.slug === 'demandeur');
+const needsBoutique = computed(() => selectedRole.value?.slug === 'demandeur' || selectedRole.value?.slug === 'caissier');
 
 watch(needsBoutique, (value) => {
     if (value) {
@@ -181,6 +181,7 @@ watch(needsBoutique, (value) => {
                         <label class="text-sm font-medium text-foreground">
                             Boutique
                             <span v-if="needsBoutique" class="text-red-500">*</span>
+                            <span v-if="selectedRole?.slug === 'caissier'" class="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-semibold text-amber-700">Notifications filtrées</span>
                         </label>
                         <select
                             v-model="form.boutique_id"
@@ -195,8 +196,9 @@ watch(needsBoutique, (value) => {
                         </select>
                         <p v-if="form.errors.boutique_id" class="text-xs text-red-500">{{ form.errors.boutique_id }}</p>
                         <p class="text-xs text-muted-foreground">
-                            <template v-if="needsBoutique">Obligatoire pour rattacher ce demandeur ÃƒÂ  une boutique.</template>
-                            <template v-else>Les validateurs et admins restent rattachÃƒÂ©s au groupe.</template>
+                            <template v-if="selectedRole?.slug === 'demandeur'">Obligatoire pour rattacher ce demandeur à une boutique.</template>
+                            <template v-else-if="selectedRole?.slug === 'caissier'">Obligatoire — le caissier ne recevra que les notifications de cette boutique.</template>
+                            <template v-else>Les validateurs et admins restent rattachés au groupe.</template>
                         </p>
                     </div>
 

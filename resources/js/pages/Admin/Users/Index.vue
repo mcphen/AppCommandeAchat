@@ -84,6 +84,7 @@ const deleteUser = async (user: User) => {
                                             <div class="min-w-0">
                                                 <p class="max-w-[120px] truncate font-medium text-foreground sm:max-w-none">{{ user.name }}</p>
                                                 <p class="max-w-[120px] truncate text-xs text-muted-foreground sm:max-w-none">{{ user.email }}</p>
+                                                <p v-if="user.phone" class="mt-0.5 font-mono text-xs text-muted-foreground">{{ user.phone }}</p>
                                             </div>
                                         </div>
                                     </td>

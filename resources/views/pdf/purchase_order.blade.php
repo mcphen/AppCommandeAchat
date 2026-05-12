@@ -72,18 +72,16 @@
     $fournisseur = $order->fournisseur;
 
     // Totals
-    $totalHT = 0;
+    $totalAmount = 0;
     if ($order->lines && $order->lines->count()) {
         foreach ($order->lines as $ln) {
             $discount = isset($ln->discount) ? (float)$ln->discount : 0;
-            $totalHT += $ln->quantity * $ln->unit_price * (1 - $discount / 100);
+            $totalAmount += $ln->quantity * $ln->unit_price * (1 - $discount / 100);
         }
     } else {
-        $totalHT = (float)($order->amount ?? 0);
+        $totalAmount = (float)($order->amount ?? 0);
     }
-    $tvaRate  = 18;
-    $tvaAmt   = $totalHT * $tvaRate / 100;
-    $totalTTC = $totalHT + $tvaAmt;
+    $hasLines = $order->lines && $order->lines->count() > 0;
 @endphp
 
 {{-- ══════════════════════════════════════════════════════════
@@ -181,9 +179,18 @@
     <div class="dline">{{ $companyPhone }}</div>
 </div>
 
+{{-- ══ TITRE DE LA COMMANDE (toujours affiché) ══ --}}
+<div style="border: 1px solid #ccc; background:#f8f8f8; padding: 6px 10px; margin-bottom:10px; font-size:10px;">
+    <strong>Objet :</strong> {{ $order->title }}
+    @if($order->description)
+        <div style="color:#555; font-size:9px; margin-top:2px;">{{ $order->description }}</div>
+    @endif
+</div>
+
 {{-- ══════════════════════════════════════════════════════════
-     LIGNES DE COMMANDE
+     LIGNES DE COMMANDE (seulement si lignes présentes)
 ═══════════════════════════════════════════════════════════════ --}}
+@if($hasLines)
 <table class="lines-table">
     <thead>
         <tr>
@@ -192,13 +199,13 @@
             <th style="width:9%">Qté</th>
             <th style="width:14%">Px unitaire</th>
             <th style="width:9%">Remise</th>
-            <th style="width:18%">Montant HT</th>
+            <th style="width:18%">Montant</th>
         </tr>
     </thead>
     <tbody>
-        @php $lineCount = $order->lines ? $order->lines->count() : 0; @endphp
+        @php $lineCount = $order->lines->count(); @endphp
 
-        @forelse($order->lines ?? [] as $line)
+        @foreach($order->lines as $line)
         @php
             $discount  = isset($line->discount) ? (float)$line->discount : 0;
             $lineTotal = $line->quantity * $line->unit_price * (1 - $discount / 100);
@@ -216,11 +223,7 @@
             <td class="center">{{ $discount > 0 ? number_format($discount, 1, ',', '').' %' : '—' }}</td>
             <td class="right">{{ number_format($lineTotal, 0, ',', ' ') }}</td>
         </tr>
-        @empty
-        <tr>
-            <td colspan="6" style="text-align:center; color:#999; height:18px;">Aucune ligne de commande</td>
-        </tr>
-        @endforelse
+        @endforeach
 
         {{-- Filler rows to reach at least 5 lines --}}
         @for($i = $lineCount; $i < 5; $i++)
@@ -231,6 +234,7 @@
         @endfor
     </tbody>
 </table>
+@endif
 
 {{-- ══════════════════════════════════════════════════════════
      TOTAUX
@@ -246,25 +250,17 @@
                 @if(!empty($order->amount_in_words))
                     {{ $order->amount_in_words }}
                 @else
-                    {{ number_format($totalTTC, 0, ',', ' ') }} Francs CFA
+                    {{ number_format($totalAmount, 0, ',', ' ') }} Francs CFA
                 @endif
             </div>
         </td>
 
-        {{-- Montants HT / TVA / TTC --}}
+        {{-- Montant total --}}
         <td style="width:26%; vertical-align:top; padding-right:5px;">
             <table class="totals-box">
                 <tr>
-                    <td class="lbl">Montant HT</td>
-                    <td class="val">{{ number_format($totalHT, 0, ',', ' ') }}</td>
-                </tr>
-                <tr>
-                    <td class="lbl">TVA {{ $tvaRate }}%</td>
-                    <td class="val">{{ number_format($tvaAmt, 0, ',', ' ') }}</td>
-                </tr>
-                <tr>
-                    <td class="lbl"><strong>Montant TTC</strong></td>
-                    <td class="val"><strong>{{ number_format($totalTTC, 0, ',', ' ') }}</strong></td>
+                    <td class="lbl"><strong>Montant total</strong></td>
+                    <td class="val"><strong>{{ number_format($totalAmount, 0, ',', ' ') }}</strong></td>
                 </tr>
             </table>
         </td>

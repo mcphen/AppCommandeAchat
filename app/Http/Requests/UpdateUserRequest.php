@@ -19,11 +19,13 @@ class UpdateUserRequest extends FormRequest
         $userId = $this->route('user')->id;
 
         return [
-            'name'                => ['required', 'string', 'max:255'],
-            'email'               => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($userId)],
-            'password'            => ['nullable', 'confirmed', Password::defaults()],
-            'role_id'             => ['required', 'exists:roles,id'],
-            'validation_level_id' => ['nullable', 'exists:validation_levels,id'],
+            'name'                   => ['required', 'string', 'max:255'],
+            'email'                  => ['required', 'string', 'email', 'max:255', Rule::unique('users')->ignore($userId)],
+            'phone'                  => ['nullable', 'string', 'max:20'],
+            'whatsapp_notifications' => ['boolean'],
+            'password'               => ['nullable', 'confirmed', Password::defaults()],
+            'role_id'                => ['required', 'exists:roles,id'],
+            'validation_level_id'    => ['nullable', 'exists:validation_levels,id'],
             'boutique_id'         => [
                 Rule::requiredIf(fn () => Role::whereKey($this->input('role_id'))->value('slug') === 'demandeur'),
                 'nullable',

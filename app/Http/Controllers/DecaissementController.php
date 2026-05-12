@@ -6,6 +6,8 @@ use App\Models\Boutique;
 use App\Models\Decaissement;
 use App\Models\ModeReglement;
 use App\Models\PurchaseOrder;
+use App\Models\User;
+use App\Notifications\DecaissementEnregistreNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -111,17 +113,32 @@ class DecaissementController extends Controller
         ]);
 
         DB::transaction(function () use ($validated, $purchaseOrder, $user) {
-            Decaissement::create([
+            $decaissement = Decaissement::create([
                 ...$validated,
                 'purchase_order_id' => $purchaseOrder->id,
                 'recorded_by'       => $user->id,
             ]);
 
-            // Recalculer après insertion
             $totalDecaisse = (float) $purchaseOrder->decaissements()->sum('montant');
             $paymentStatus = $totalDecaisse >= (float) $purchaseOrder->amount ? 'paid' : 'partially_paid';
 
             $purchaseOrder->update(['payment_status' => $paymentStatus]);
+
+            // Notifier le dernier validateur
+            $dernierValidateur = $purchaseOrder->validationLogs()
+                ->where('action', 'approved')
+                ->latest()
+                ->first()
+                ?->user;
+
+            if ($dernierValidateur) {
+                $dernierValidateur->notify(new DecaissementEnregistreNotification($purchaseOrder, $decaissement));
+            }
+
+            // Notifier les admins (sauf si l'admin est lui-même le dernier validateur)
+            User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))
+                ->where('id', '!=', $dernierValidateur?->id)
+                ->each(fn ($admin) => $admin->notify(new DecaissementEnregistreNotification($purchaseOrder, $decaissement)));
         });
 
         return redirect()->route('decaissements.show', $purchaseOrder)

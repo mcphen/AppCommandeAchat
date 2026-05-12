@@ -39,12 +39,14 @@ class UserController extends Controller
     public function store(StoreUserRequest $request): RedirectResponse
     {
         User::create([
-            'name'                => $request->name,
-            'email'               => $request->email,
-            'password'            => Hash::make($request->password),
-            'role_id'             => $request->role_id,
-            'validation_level_id' => $request->validation_level_id,
-            'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
+            'name'                   => $request->name,
+            'email'                  => $request->email,
+            'phone'                  => $request->phone,
+            'password'               => Hash::make($request->password),
+            'role_id'                => $request->role_id,
+            'validation_level_id'    => $request->validation_level_id,
+            'boutique_id'            => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
+            'whatsapp_notifications' => $request->boolean('whatsapp_notifications'),
         ]);
 
         return redirect()->route('admin.users.index')
@@ -64,11 +66,13 @@ class UserController extends Controller
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
         $data = [
-            'name'                => $request->name,
-            'email'               => $request->email,
-            'role_id'             => $request->role_id,
-            'validation_level_id' => $request->validation_level_id,
-            'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
+            'name'                   => $request->name,
+            'email'                  => $request->email,
+            'phone'                  => $request->phone,
+            'role_id'                => $request->role_id,
+            'validation_level_id'    => $request->validation_level_id,
+            'boutique_id'            => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
+            'whatsapp_notifications' => $request->boolean('whatsapp_notifications'),
         ];
 
         if ($request->filled('password')) {

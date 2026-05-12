@@ -23,6 +23,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 const form = useForm({
     name: props.user?.name ?? '',
     email: props.user?.email ?? '',
+    phone: props.user?.phone ?? '',
+    whatsapp_notifications: props.user?.whatsapp_notifications ?? false,
     password: '',
     password_confirmation: '',
     role_id: props.user?.role_id?.toString() ?? '',
@@ -95,6 +97,40 @@ watch(needsBoutique, (value) => {
                                 :class="{ 'border-red-400': form.errors.email }"
                             />
                             <p v-if="form.errors.email" class="text-xs text-red-500">{{ form.errors.email }}</p>
+                        </div>
+                    </div>
+
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-medium text-foreground">Numéro WhatsApp</label>
+                            <input
+                                v-model="form.phone"
+                                type="tel"
+                                placeholder="+221771234567"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                :class="{ 'border-red-400': form.errors.phone }"
+                            />
+                            <p v-if="form.errors.phone" class="text-xs text-red-500">{{ form.errors.phone }}</p>
+                            <p class="text-xs text-muted-foreground">Format international, ex : +221771234567</p>
+                        </div>
+                        <div class="flex flex-col gap-1.5 justify-center">
+                            <label class="text-sm font-medium text-foreground">Notifications WhatsApp</label>
+                            <label class="flex items-center gap-3 cursor-pointer mt-1">
+                                <div
+                                    @click="form.whatsapp_notifications = !form.whatsapp_notifications"
+                                    :class="form.whatsapp_notifications ? 'bg-green-500' : 'bg-muted'"
+                                    class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-primary"
+                                >
+                                    <span
+                                        :class="form.whatsapp_notifications ? 'translate-x-6' : 'translate-x-1'"
+                                        class="inline-block h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
+                                    />
+                                </div>
+                                <span class="text-sm text-muted-foreground">
+                                    {{ form.whatsapp_notifications ? 'Activées' : 'Désactivées' }}
+                                </span>
+                            </label>
+                            <p class="text-xs text-muted-foreground">Envoie les alertes par WhatsApp si un numéro est renseigné.</p>
                         </div>
                     </div>
 

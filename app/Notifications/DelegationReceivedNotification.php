@@ -12,7 +12,7 @@ class DelegationReceivedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'whatsapp'];
     }
 
     public function toDatabase(object $notifiable): array
@@ -23,6 +23,25 @@ class DelegationReceivedNotification extends Notification
             'body'        => "{$this->delegation->delegator->name} vous délègue ses droits de validation \"{$this->delegation->validationLevel->name}\" du {$this->delegation->starts_at->format('d/m/Y')} au {$this->delegation->ends_at->format('d/m/Y')}.",
             'url'         => route('delegations.index'),
             'color'       => 'indigo',
+        ];
+    }
+
+    public function toWhatsApp(object $notifiable): array
+    {
+        return [
+            'template_sid' => config('services.twilio.templates.delegation_received'),
+            'variables'    => [
+                '1' => $this->delegation->delegator->name,
+                '2' => $this->delegation->validationLevel->name,
+                '3' => $this->delegation->starts_at->format('d/m/Y'),
+                '4' => $this->delegation->ends_at->format('d/m/Y'),
+                '5' => route('delegations.index'),
+            ],
+            'fallback' => "🤝 *Délégation de validation reçue*\n"
+                . "De : {$this->delegation->delegator->name}\n"
+                . "Niveau : {$this->delegation->validationLevel->name}\n"
+                . "Du {$this->delegation->starts_at->format('d/m/Y')} au {$this->delegation->ends_at->format('d/m/Y')}\n"
+                . route('delegations.index'),
         ];
     }
 

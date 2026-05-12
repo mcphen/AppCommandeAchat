@@ -2,20 +2,31 @@
 
 namespace App\Providers;
 
+use App\Channels\WhatsAppChannel;
+use Illuminate\Notifications\ChannelManager;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
+use Twilio\Rest\Client as TwilioClient;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $this->app->singleton(TwilioClient::class, function () {
+            return new TwilioClient(
+                config('services.twilio.sid'),
+                config('services.twilio.token'),
+            );
+        });
     }
 
     public function boot(): void
     {
-        // Appliquer la configuration SMTP stockée en base de données
         $this->applyMailSettings();
+
+        $this->app->make(ChannelManager::class)->extend('whatsapp', function ($app) {
+            return new WhatsAppChannel($app->make(TwilioClient::class));
+        });
     }
 
     private function applyMailSettings(): void

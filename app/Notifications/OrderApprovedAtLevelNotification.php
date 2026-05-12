@@ -18,7 +18,7 @@ class OrderApprovedAtLevelNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'whatsapp'];
     }
 
     public function toDatabase(object $notifiable): array
@@ -31,6 +31,27 @@ class OrderApprovedAtLevelNotification extends Notification
             'order_id'    => $this->order->id,
             'order_title' => $this->order->title,
             'color'       => 'amber',
+        ];
+    }
+
+    public function toWhatsApp(object $notifiable): array
+    {
+        return [
+            'template_sid' => config('services.twilio.templates.order_approved_at_level'),
+            'variables'    => [
+                '1' => $this->order->title,
+                '2' => $this->order->user->name,
+                '3' => number_format($this->order->amount, 0, ',', ' ') . ' FCFA',
+                '4' => $this->approvedLevel->name,
+                '5' => $this->nextLevel->name,
+                '6' => route('validations.show', $this->order),
+            ],
+            'fallback' => "✅ *Commande en attente de votre validation*\n"
+                . "Commande : {$this->order->title}\n"
+                . "Montant : " . number_format($this->order->amount, 0, ',', ' ') . " FCFA\n"
+                . "Demandeur : {$this->order->user->name}\n"
+                . "Niveau requis : {$this->nextLevel->name}\n"
+                . route('validations.show', $this->order),
         ];
     }
 

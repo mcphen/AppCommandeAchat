@@ -17,11 +17,13 @@ class StoreUserRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name'                => ['required', 'string', 'max:255'],
-            'email'               => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password'            => ['required', 'confirmed', Password::defaults()],
-            'role_id'             => ['required', 'exists:roles,id'],
-            'validation_level_id' => ['nullable', 'exists:validation_levels,id'],
+            'name'                   => ['required', 'string', 'max:255'],
+            'email'                  => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'phone'                  => ['nullable', 'string', 'max:20'],
+            'whatsapp_notifications' => ['boolean'],
+            'password'               => ['required', 'confirmed', Password::defaults()],
+            'role_id'                => ['required', 'exists:roles,id'],
+            'validation_level_id'    => ['nullable', 'exists:validation_levels,id'],
             'boutique_id'         => [
                 Rule::requiredIf(fn () => Role::whereKey($this->input('role_id'))->value('slug') === 'demandeur'),
                 'nullable',

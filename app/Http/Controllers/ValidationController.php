@@ -7,9 +7,11 @@ use App\Models\Boutique;
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
 use App\Models\ValidationLog;
+use App\Notifications\DecaissementPretNotification;
 use App\Notifications\OrderApprovedAtLevelNotification;
 use App\Notifications\OrderFinallyApprovedNotification;
 use App\Notifications\OrderRejectedNotification;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -105,7 +107,17 @@ class ValidationController extends Controller
                     'current_level_order' => null,
                 ]);
 
+                // Notifier le demandeur
                 $purchaseOrder->user->notify(new OrderFinallyApprovedNotification($purchaseOrder));
+
+                // Notifier les caissiers de la boutique concernée
+                $caissiers = User::whereHas('role', fn ($q) => $q->where('slug', 'caissier'))
+                    ->when($purchaseOrder->boutique_id, fn ($q) => $q->where('boutique_id', $purchaseOrder->boutique_id))
+                    ->get();
+
+                foreach ($caissiers as $caissier) {
+                    $caissier->notify(new DecaissementPretNotification($purchaseOrder));
+                }
             }
         });
 

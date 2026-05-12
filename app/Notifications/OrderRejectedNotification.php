@@ -18,7 +18,7 @@ class OrderRejectedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'whatsapp'];
     }
 
     public function toDatabase(object $notifiable): array
@@ -31,6 +31,24 @@ class OrderRejectedNotification extends Notification
             'order_id'    => $this->order->id,
             'order_title' => $this->order->title,
             'color'       => 'red',
+        ];
+    }
+
+    public function toWhatsApp(object $notifiable): array
+    {
+        return [
+            'template_sid' => config('services.twilio.templates.order_rejected'),
+            'variables'    => [
+                '1' => $this->order->title,
+                '2' => $this->level->name,
+                '3' => $this->reason ?: 'Non précisé',
+                '4' => route('purchase-orders.edit', $this->order),
+            ],
+            'fallback' => "❌ *Commande refusée*\n"
+                . "Commande : {$this->order->title}\n"
+                . "Niveau : {$this->level->name}\n"
+                . ($this->reason ? "Motif : {$this->reason}\n" : '')
+                . route('purchase-orders.edit', $this->order),
         ];
     }
 

@@ -16,7 +16,7 @@ class OrderCommentAddedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'whatsapp'];
     }
 
     public function toDatabase(object $notifiable): array
@@ -29,6 +29,24 @@ class OrderCommentAddedNotification extends Notification
             'order_id'    => $this->order->id,
             'order_title' => $this->order->title,
             'color'       => 'blue',
+        ];
+    }
+
+    public function toWhatsApp(object $notifiable): array
+    {
+        return [
+            'template_sid' => config('services.twilio.templates.comment_added'),
+            'variables'    => [
+                '1' => $this->order->title,
+                '2' => $this->comment->user->name,
+                '3' => $this->comment->content,
+                '4' => route('purchase-orders.show', $this->order),
+            ],
+            'fallback' => "💬 *Nouveau message sur une commande*\n"
+                . "Commande : {$this->order->title}\n"
+                . "De : {$this->comment->user->name}\n"
+                . "Message : {$this->comment->content}\n"
+                . route('purchase-orders.show', $this->order),
         ];
     }
 

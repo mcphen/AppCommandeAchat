@@ -70,6 +70,8 @@ export interface User {
     id: number;
     name: string;
     email: string;
+    phone?: string | null;
+    whatsapp_notifications?: boolean;
     avatar?: string;
     role_id?: number;
     validation_level_id?: number;

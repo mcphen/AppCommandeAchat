@@ -35,4 +35,21 @@ return [
         ],
     ],
 
+    'twilio' => [
+        'sid'           => env('TWILIO_SID'),
+        'token'         => env('TWILIO_AUTH_TOKEN'),
+        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM', '+221773325158'),
+        'templates'     => [
+            'order_submitted'         => env('TWILIO_TPL_ORDER_SUBMITTED'),
+            'order_approved_at_level' => env('TWILIO_TPL_ORDER_APPROVED_LEVEL'),
+            'order_finally_approved'  => env('TWILIO_TPL_ORDER_FINALLY_APPROVED'),
+            'order_rejected'          => env('TWILIO_TPL_ORDER_REJECTED'),
+            'revision_requested'      => env('TWILIO_TPL_REVISION_REQUESTED'),
+            'comment_added'           => env('TWILIO_TPL_COMMENT_ADDED'),
+            'delegation_received'      => env('TWILIO_TPL_DELEGATION_RECEIVED'),
+            'decaissement_pret'        => env('TWILIO_TPL_DECAISSEMENT_PRET'),
+            'decaissement_enregistre'  => env('TWILIO_TPL_DECAISSEMENT_ENREGISTRE'),
+        ],
+    ],
+
 ];

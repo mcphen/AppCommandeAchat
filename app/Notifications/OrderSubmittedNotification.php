@@ -17,7 +17,7 @@ class OrderSubmittedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return ['mail', 'database', 'whatsapp'];
     }
 
     public function toDatabase(object $notifiable): array
@@ -30,6 +30,26 @@ class OrderSubmittedNotification extends Notification
             'order_id'    => $this->order->id,
             'order_title' => $this->order->title,
             'color'       => 'blue',
+        ];
+    }
+
+    public function toWhatsApp(object $notifiable): array
+    {
+        return [
+            'template_sid' => config('services.twilio.templates.order_submitted'),
+            'variables'    => [
+                '1' => $this->order->title,
+                '2' => $this->order->user->name,
+                '3' => number_format($this->order->amount, 0, ',', ' ') . ' FCFA',
+                '4' => $this->level->name,
+                '5' => route('validations.show', $this->order),
+            ],
+            'fallback' => "📋 *Nouvelle commande à valider*\n"
+                . "Commande : {$this->order->title}\n"
+                . "Montant : " . number_format($this->order->amount, 0, ',', ' ') . " FCFA\n"
+                . "Demandeur : {$this->order->user->name}\n"
+                . "Niveau : {$this->level->name}\n"
+                . route('validations.show', $this->order),
         ];
     }
 

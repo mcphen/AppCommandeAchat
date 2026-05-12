@@ -18,6 +18,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
+        'phone',
         'password',
         'role_id',
         'validation_level_id',
@@ -25,6 +26,7 @@ class User extends Authenticatable
         'signature_path',
         'onboarding_completed_at',
         'checklist_dismissed_at',
+        'whatsapp_notifications',
     ];
 
     protected $hidden = [
@@ -39,12 +41,18 @@ class User extends Authenticatable
             'onboarding_completed_at'  => 'datetime',
             'checklist_dismissed_at'   => 'datetime',
             'password'                 => 'hashed',
+            'whatsapp_notifications'   => 'boolean',
         ];
     }
 
     public function needsOnboarding(): bool
     {
         return $this->onboarding_completed_at === null;
+    }
+
+    public function routeNotificationForWhatsapp(): ?string
+    {
+        return $this->phone;
     }
 
     public function role(): BelongsTo

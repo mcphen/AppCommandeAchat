@@ -293,8 +293,12 @@ class PurchaseOrderController extends Controller
                     'submitted_at'        => now(),
                 ]);
 
-                foreach ($firstLevel->validators as $validator) {
-                    $validator->notify(new OrderSubmittedNotification($order, $firstLevel));
+                // Notifier tous les niveaux de validation
+                $allLevels = ValidationLevel::with('validators')->orderBy('order')->get();
+                foreach ($allLevels as $level) {
+                    foreach ($level->validators as $validator) {
+                        $validator->notify(new OrderSubmittedNotification($order, $level));
+                    }
                 }
 
                 return redirect()->route('purchase-orders.show', $order)
@@ -484,10 +488,12 @@ class PurchaseOrderController extends Controller
             'submitted_at'        => now(),
         ]);
 
-        // Notifier les validateurs du premier niveau
-        $validators = $firstLevel->validators;
-        foreach ($validators as $validator) {
-            $validator->notify(new OrderSubmittedNotification($purchaseOrder, $firstLevel));
+        // Notifier les validateurs de tous les niveaux
+        $allLevels = ValidationLevel::with('validators')->orderBy('order')->get();
+        foreach ($allLevels as $level) {
+            foreach ($level->validators as $validator) {
+                $validator->notify(new OrderSubmittedNotification($purchaseOrder, $level));
+            }
         }
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)

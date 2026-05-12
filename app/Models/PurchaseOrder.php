@@ -98,6 +98,7 @@ class PurchaseOrder extends Model
     public function isNeedsRevision(): bool { return $this->status === 'needs_revision'; }
     public function isApproved(): bool      { return $this->status === 'approved'; }
     public function isRejected(): bool      { return $this->status === 'rejected'; }
+    public function isCancelled(): bool     { return $this->status === 'cancelled'; }
 
     public function isOrdered(): bool           { return $this->delivery_status === 'ordered'; }
     public function isPartiallyReceived(): bool  { return $this->delivery_status === 'partially_received'; }
@@ -171,7 +172,37 @@ class PurchaseOrder extends Model
 
     public function isEditableBy(User $user): bool
     {
-        return $this->user_id === $user->id && in_array($this->status, ['draft', 'rejected', 'needs_revision']);
+        if ($this->user_id !== $user->id) {
+            return false;
+        }
+
+        if (in_array($this->status, ['draft', 'rejected', 'needs_revision'])) {
+            return true;
+        }
+
+        // Autoriser la modification si la commande est en attente au premier niveau (pas encore validée)
+        if ($this->status === 'pending') {
+            $firstLevel = ValidationLevel::first_level();
+
+            return $firstLevel && $this->current_level_order === $firstLevel->order;
+        }
+
+        return false;
+    }
+
+    public function isCancellableBy(User $user): bool
+    {
+        if ($this->user_id !== $user->id) {
+            return false;
+        }
+
+        if ($this->status === 'pending') {
+            $firstLevel = ValidationLevel::first_level();
+
+            return $firstLevel && $this->current_level_order === $firstLevel->order;
+        }
+
+        return false;
     }
 
     public function isResubmittable(): bool
@@ -187,6 +218,7 @@ class PurchaseOrder extends Model
             'needs_revision' => 'Révision demandée',
             'approved'       => 'Approuvée',
             'rejected'       => 'Refusée',
+            'cancelled'      => 'Annulée',
             default          => $this->status,
         };
     }
@@ -199,6 +231,7 @@ class PurchaseOrder extends Model
             'needs_revision' => 'indigo',
             'approved'       => 'green',
             'rejected'       => 'red',
+            'cancelled'      => 'slate',
             default          => 'gray',
         };
     }

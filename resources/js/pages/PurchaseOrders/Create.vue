@@ -5,6 +5,7 @@ import { type Article, type Boutique, type BreadcrumbItem, type Fournisseur } fr
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
 import axios from 'axios';
 import { AlertTriangle, ArrowLeft, ChevronDown, Copy, FileText, Loader2, Package, Plus, Send, ShieldAlert, Store, Trash2, Upload, X } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps<{
@@ -274,6 +275,17 @@ const submit = (andSend = false) => {
     form.post(route('purchase-orders.store'), {
         forceFormData: true,
         onFinish: () => { submitting.value = false; },
+        onError: (errors) => {
+            // Erreurs de validation classiques : ne rien faire (affichées dans le formulaire)
+            if (Object.keys(errors).length > 0) return;
+            Swal.fire({
+                icon: 'error',
+                title: 'Une erreur est survenue',
+                text: 'Le serveur a rencontré un problème lors de l\'enregistrement. Veuillez réessayer.',
+                confirmButtonText: 'OK',
+                confirmButtonColor: '#4f46e5',
+            });
+        },
     });
 };
 </script>

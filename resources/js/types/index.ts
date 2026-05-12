@@ -93,7 +93,7 @@ export interface PurchaseOrderAttachment {
     created_at: string;
 }
 
-export type OrderStatus = 'draft' | 'pending' | 'needs_revision' | 'approved' | 'rejected';
+export type OrderStatus = 'draft' | 'pending' | 'needs_revision' | 'approved' | 'rejected' | 'cancelled';
 export type DeliveryStatus = 'ordered' | 'partially_received' | 'received';
 export type PaymentStatus = 'partially_paid' | 'paid';
 

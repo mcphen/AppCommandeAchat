@@ -76,6 +76,7 @@ const statusConfig = {
     needs_revision: { label: 'Revision demandee', classes: 'bg-orange-50 text-orange-700', dot: 'bg-orange-500' },
     approved: { label: 'Approuvee', classes: 'bg-emerald-50 text-emerald-700', dot: 'bg-emerald-500' },
     rejected: { label: 'Refusee', classes: 'bg-red-50 text-red-700', dot: 'bg-red-500' },
+    cancelled: { label: 'Annulee', classes: 'bg-slate-100 text-slate-600', dot: 'bg-slate-400' },
 } as const;
 
 const formatAmount = (value: string | number) =>

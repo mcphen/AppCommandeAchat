@@ -29,6 +29,8 @@ const props = defineProps<{
     order: PurchaseOrder;
     levels: ValidationLevel[];
     savings: SavingsData;
+    canEdit: boolean;
+    canCancel: boolean;
 }>();
 
 const page = usePage();
@@ -43,6 +45,7 @@ const statusConfig = {
     needs_revision: { label: 'Révision demandée',  bg: 'bg-indigo-50',  text: 'text-indigo-700', dot: 'bg-indigo-500', icon: AlertCircle },
     approved:       { label: 'Approuvée',           bg: 'bg-emerald-50', text: 'text-emerald-700',dot: 'bg-emerald-500',icon: CheckCircle2 },
     rejected:       { label: 'Refusée',             bg: 'bg-red-50',     text: 'text-red-700',    dot: 'bg-red-500',    icon: XCircle },
+    cancelled:      { label: 'Annulée',             bg: 'bg-slate-100',  text: 'text-slate-600',  dot: 'bg-slate-400',  icon: XCircle },
 } as const;
 
 const deliveryConfig = {
@@ -108,6 +111,21 @@ const submitOrder = async () => {
         reverseButtons: true,
     });
     if (result.isConfirmed) router.post(route('purchase-orders.submit', props.order.id));
+};
+
+const cancelOrder = async () => {
+    const result = await Swal.fire({
+        title: 'Annuler la commande ?',
+        text: 'La commande sera annulée et retirée du circuit de validation. Cette action est irréversible.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Oui, annuler',
+        cancelButtonText: 'Retour',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+    });
+    if (result.isConfirmed) router.post(route('purchase-orders.cancel', props.order.id));
 };
 
 const confirmOrder = async () => {
@@ -260,7 +278,7 @@ const submitReception = () => {
                         <span class="hidden sm:inline">PDF</span>
                     </a>
                     <Link
-                        v-if="order.status === 'draft' || order.status === 'rejected'"
+                        v-if="canEdit"
                         :href="route('purchase-orders.edit', order.id)"
                         class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
                     >
@@ -283,6 +301,15 @@ const submitReception = () => {
                     >
                         <Send class="h-4 w-4" />
                         Re-soumettre
+                    </button>
+                    <!-- Annuler la commande en attente au premier niveau -->
+                    <button
+                        v-if="canCancel"
+                        class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-100"
+                        @click="cancelOrder"
+                    >
+                        <X class="h-4 w-4" />
+                        Annuler la commande
                     </button>
                     <!-- Confirmer la commande (admin, approuvée, pas encore ordonnée) -->
                     <button

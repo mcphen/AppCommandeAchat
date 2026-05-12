@@ -368,10 +368,14 @@ class PurchaseOrderController extends Controller
             }
         }
 
+        $user = auth()->user();
+
         return Inertia::render('PurchaseOrders/Show', [
-            'order'   => $purchaseOrder,
-            'levels'  => $levels,
-            'savings' => $savings,
+            'order'     => $purchaseOrder,
+            'levels'    => $levels,
+            'savings'   => $savings,
+            'canEdit'   => $purchaseOrder->isEditableBy($user),
+            'canCancel' => $purchaseOrder->isCancellableBy($user),
         ]);
     }
 
@@ -431,10 +435,20 @@ class PurchaseOrderController extends Controller
             }
 
             $this->storeAttachments($purchaseOrder, $request);
+
+            // Si la commande était en attente de validation au premier niveau, on la remet en brouillon
+            // pour qu'elle soit soumise à nouveau après modification.
+            if ($purchaseOrder->isPending()) {
+                $purchaseOrder->update([
+                    'status'              => 'draft',
+                    'current_level_order' => null,
+                    'submitted_at'        => null,
+                ]);
+            }
         });
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)
-            ->with('success', 'Commande mise à jour.');
+            ->with('success', 'Commande mise à jour. Veuillez la soumettre à nouveau pour validation.');
     }
 
     public function submit(PurchaseOrder $purchaseOrder): RedirectResponse
@@ -543,6 +557,19 @@ class PurchaseOrderController extends Controller
         $filename = 'commande-' . $purchaseOrder->id . '-' . str($purchaseOrder->title)->slug() . '.pdf';
 
         return $pdf->download($filename);
+    }
+
+    public function cancel(PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        abort_unless($purchaseOrder->isCancellableBy(auth()->user()), 403);
+
+        $purchaseOrder->update([
+            'status'              => 'cancelled',
+            'current_level_order' => null,
+        ]);
+
+        return redirect()->route('purchase-orders.show', $purchaseOrder)
+            ->with('success', 'Commande annulée.');
     }
 
     public function destroy(PurchaseOrder $purchaseOrder): RedirectResponse

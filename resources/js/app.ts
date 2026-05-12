@@ -1,11 +1,12 @@
 import '../css/app.css';
 
-import { createInertiaApp } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import { initializeTheme } from './composables/useAppearance';
+import Swal from 'sweetalert2';
 
 // Extend ImportMeta interface for Vite...
 declare module 'vite/client' {
@@ -38,3 +39,25 @@ createInertiaApp({
 
 // This will set light / dark mode on page load...
 initializeTheme();
+
+// Gestion globale des erreurs serveur (500, 503, etc.)
+router.on('error', (event) => {
+    Swal.fire({
+        icon: 'error',
+        title: 'Une erreur est survenue',
+        text: 'Le serveur a rencontré un problème. Veuillez réessayer ou contacter le support si le problème persiste.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#4f46e5',
+    });
+});
+
+router.on('invalid', (event) => {
+    event.preventDefault();
+    Swal.fire({
+        icon: 'error',
+        title: 'Erreur inattendue',
+        text: 'Une réponse inattendue a été reçue du serveur. Veuillez réessayer.',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#4f46e5',
+    });
+});

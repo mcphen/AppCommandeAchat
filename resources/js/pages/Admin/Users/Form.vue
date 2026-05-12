@@ -82,7 +82,7 @@ watch(needsBoutique, (value) => {
                                 v-model="form.name"
                                 type="text"
                                 placeholder="Jean Dupont"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                                 :class="{ 'border-red-400': form.errors.name }"
                             />
                             <p v-if="form.errors.name" class="text-xs text-red-500">{{ form.errors.name }}</p>
@@ -93,7 +93,7 @@ watch(needsBoutique, (value) => {
                                 v-model="form.email"
                                 type="email"
                                 placeholder="jean@example.com"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                                 :class="{ 'border-red-400': form.errors.email }"
                             />
                             <p v-if="form.errors.email" class="text-xs text-red-500">{{ form.errors.email }}</p>
@@ -107,7 +107,7 @@ watch(needsBoutique, (value) => {
                                 v-model="form.phone"
                                 type="tel"
                                 placeholder="+221771234567"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                                 :class="{ 'border-red-400': form.errors.phone }"
                             />
                             <p v-if="form.errors.phone" class="text-xs text-red-500">{{ form.errors.phone }}</p>
@@ -144,7 +144,7 @@ watch(needsBoutique, (value) => {
                                 v-model="form.password"
                                 type="password"
                                 placeholder="••••••••"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                                 :class="{ 'border-red-400': form.errors.password }"
                             />
                             <p v-if="form.errors.password" class="text-xs text-red-500">{{ form.errors.password }}</p>
@@ -155,7 +155,7 @@ watch(needsBoutique, (value) => {
                                 v-model="form.password_confirmation"
                                 type="password"
                                 placeholder="••••••••"
-                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
                             />
                         </div>
                     </div>

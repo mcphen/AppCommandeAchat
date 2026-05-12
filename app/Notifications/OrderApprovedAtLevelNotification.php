@@ -18,7 +18,7 @@ class OrderApprovedAtLevelNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database', 'whatsapp'];
+        return ['database', 'whatsapp'];
     }
 
     public function toDatabase(object $notifiable): array

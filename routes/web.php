@@ -46,6 +46,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('purchase-orders', PurchaseOrderController::class);
         Route::post('purchase-orders/{purchase_order}/submit', [PurchaseOrderController::class, 'submit'])
             ->name('purchase-orders.submit');
+        Route::post('purchase-orders/{purchase_order}/cancel', [PurchaseOrderController::class, 'cancel'])
+            ->name('purchase-orders.cancel');
     });
 
     // Commandes : confirmation d'ordre et réceptions (Demandeur + Admin uniquement)

@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\Boutique;
 use App\Models\Decaissement;
 use App\Models\ModeReglement;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Notifications\DecaissementEnregistreNotification;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -149,5 +152,51 @@ class DecaissementController extends Controller
 
         return redirect()->route('decaissements.show', $purchaseOrder)
             ->with('success', 'Décaissement enregistré avec succès.');
+    }
+
+    public function downloadPdf(PurchaseOrder $purchaseOrder): HttpResponse
+    {
+        $user = auth()->user();
+
+        abort_unless($purchaseOrder->isApproved(), 403);
+
+        if ($user->isCaissier() && $user->boutique_id) {
+            abort_unless($purchaseOrder->boutique_id === $user->boutique_id, 403);
+        }
+
+        $purchaseOrder->load([
+            'boutique',
+            'fournisseur',
+            'user',
+            'decaissements.modeReglement',
+            'decaissements.recorder',
+        ]);
+
+        $settings = AppSetting::allAsArray();
+
+        $logoBase64 = null;
+        if (! empty($settings['company_logo'])) {
+            $absPath = storage_path('app/public/' . $settings['company_logo']);
+            if (file_exists($absPath)) {
+                $mime       = mime_content_type($absPath);
+                $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absPath));
+            }
+        }
+        if (! $logoBase64) {
+            $fallback = public_path('logo_scn.jpg');
+            if (file_exists($fallback)) {
+                $logoBase64 = 'data:image/jpeg;base64,' . base64_encode(file_get_contents($fallback));
+            }
+        }
+
+        $pdf = Pdf::loadView('pdf.decaissement', [
+            'order'   => $purchaseOrder,
+            'company' => $settings,
+            'logoB64' => $logoBase64,
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'recu-decaissement-' . ($purchaseOrder->order_number ?? $purchaseOrder->id) . '.pdf';
+
+        return $pdf->download($filename);
     }
 }

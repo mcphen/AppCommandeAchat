@@ -4,7 +4,7 @@ import { type BreadcrumbItem, type ModeReglement, type PurchaseOrder } from '@/t
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import {
     ArrowLeft, Banknote, Building2, CalendarDays, CheckCircle2,
-    CircleDollarSign, CreditCard, FileText, Loader2, Smartphone, Wallet,
+    CircleDollarSign, CreditCard, Download, FileText, Loader2, Smartphone, Wallet,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
@@ -99,7 +99,7 @@ function submit() {
                 >
                     <ArrowLeft class="h-3.5 w-3.5" /> Retour
                 </Link>
-                <div>
+                <div class="flex-1">
                     <h1 class="text-2xl font-bold text-foreground">{{ order.title }}</h1>
                     <div class="mt-1 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                         <span v-if="order.order_number" class="font-mono font-semibold text-blue-700">{{ order.order_number }}</span>
@@ -111,6 +111,15 @@ function submit() {
                         </span>
                     </div>
                 </div>
+                <!-- Bouton télécharger reçu PDF -->
+                <a
+                    v-if="(order.decaissements ?? []).length > 0"
+                    :href="route('decaissements.pdf', order.uuid)"
+                    target="_blank"
+                    class="mt-0.5 flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition-colors hover:bg-emerald-100"
+                >
+                    <Download class="h-3.5 w-3.5" /> Reçu PDF
+                </a>
             </div>
 
             <!-- Barre de progression décaissement -->

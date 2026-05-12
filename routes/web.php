@@ -143,6 +143,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Décaissements (Caissier + Admin)
     Route::middleware('role:caissier,admin')->group(function () {
         Route::get('/decaissements', [DecaissementController::class, 'index'])->name('decaissements.index');
+        Route::get('/decaissements/{purchase_order}/pdf', [DecaissementController::class, 'downloadPdf'])->name('decaissements.pdf');
         Route::get('/decaissements/{purchase_order}', [DecaissementController::class, 'show'])->name('decaissements.show');
         Route::post('/decaissements/{purchase_order}', [DecaissementController::class, 'store'])->name('decaissements.store');
     });

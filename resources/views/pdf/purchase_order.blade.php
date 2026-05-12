@@ -306,7 +306,7 @@
 <table style="width:100%; border-collapse:collapse; margin-top:8px;">
     <tr>
         {{-- Total en lettres --}}
-        <td style="width:52%; vertical-align:top; padding-right:8px;">
+        <td style="vertical-align:top; padding-right:8px;">
             <div class="total-words-box" style="margin-bottom:5px; font-style:italic; color:#555;">
                 Arrêter la présente Commande à la somme de :
             </div>
@@ -320,21 +320,12 @@
         </td>
 
         {{-- Montant total --}}
-        <td style="width:26%; vertical-align:top; padding-right:5px;">
+        <td style="width:30%; vertical-align:top; white-space:nowrap;">
             <table class="totals-box">
                 <tr>
                     <td class="lbl"><strong>Montant total</strong></td>
                     <td class="val"><strong>{{ number_format($totalAmount, 0, ',', ' ') }}</strong></td>
                 </tr>
-            </table>
-        </td>
-
-        {{-- Colonne supplémentaire (visa / cachet) --}}
-        <td style="width:22%; vertical-align:top;">
-            <table class="totals-box">
-                <tr><td style="height:22px;">&nbsp;</td></tr>
-                <tr><td style="height:22px;">&nbsp;</td></tr>
-                <tr><td style="height:22px;">&nbsp;</td></tr>
             </table>
         </td>
     </tr>

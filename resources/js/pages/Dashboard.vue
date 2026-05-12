@@ -674,8 +674,8 @@ const hasBarData = computed(() =>
                             </template>
                             <Link
                                 :href="role === 'admin' || role === 'validateur'
-                                    ? route('validations.show', order.id)
-                                    : route('purchase-orders.show', order.id)"
+                                    ? route('validations.show', order.uuid)
+                                    : route('purchase-orders.show', order.uuid)"
                                 class="rounded-lg p-1.5 hover:bg-muted transition-colors"
                             >
                                 <Eye class="h-4 w-4 text-muted-foreground" />

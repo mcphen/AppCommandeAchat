@@ -166,7 +166,7 @@ const formatSize = (b: number) => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB
 
 const submit = () => {
     form.lines = lines.value;
-    form.post(route('purchase-orders.update', props.order.id), { forceFormData: true });
+    form.post(route('purchase-orders.update', props.order.uuid), { forceFormData: true });
 };
 </script>
 
@@ -441,7 +441,7 @@ const submit = () => {
                 </div>
 
                 <div class="flex items-center justify-end gap-3">
-                    <Link :href="route('purchase-orders.show', order.id)" class="rounded-xl border px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors">
+                    <Link :href="route('purchase-orders.show', order.uuid)" class="rounded-xl border px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors">
                         Annuler
                     </Link>
                     <button type="submit" :disabled="form.processing"

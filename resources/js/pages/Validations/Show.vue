@@ -39,12 +39,12 @@ const approve = async () => {
     });
 
     if (result.isConfirmed) {
-        approveForm.post(route('validations.approve', props.order.id));
+        approveForm.post(route('validations.approve', props.order.uuid));
     }
 };
 
 const reject = () => {
-    rejectForm.post(route('validations.reject', props.order.id), {
+    rejectForm.post(route('validations.reject', props.order.uuid), {
         onSuccess: () => {
             showRejectModal.value = false;
             rejectForm.reset();
@@ -93,7 +93,7 @@ const progressSummary = () => {
                     <p class="mt-2 text-sm text-muted-foreground">{{ progressSummary() }}</p>
                 </div>
                 <a
-                    :href="route('purchase-orders.pdf', order.id)"
+                    :href="route('purchase-orders.pdf', order.uuid)"
                     target="_blank"
                     class="inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
                     title="Telecharger en PDF"

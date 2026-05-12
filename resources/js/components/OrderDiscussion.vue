@@ -49,7 +49,7 @@ const setType = (t: 'comment' | 'revision_request') => {
 };
 
 const submit = () => {
-    form.post(route('order-comments.store', props.order.id), {
+    form.post(route('order-comments.store', props.order.uuid), {
         forceFormData: true,
         preserveScroll: true,
         onSuccess: () => {
@@ -63,7 +63,7 @@ const submit = () => {
 
 const destroy = (comment: OrderComment) => {
     if (! confirm('Supprimer ce message ?')) return;
-    useForm({}).delete(route('order-comments.destroy', { purchase_order: props.order.id, comment: comment.id }), {
+    useForm({}).delete(route('order-comments.destroy', { purchase_order: props.order.uuid, comment: comment.id }), {
         preserveScroll: true,
     });
 };
@@ -124,7 +124,7 @@ const isInteractive = computed(() =>
 
                         <!-- Pièce jointe -->
                         <a v-if="comment.attachment_name"
-                           :href="route('order-comments.download', { purchase_order: order.id, comment: comment.id })"
+                           :href="route('order-comments.download', { purchase_order: order.uuid, comment: comment.id })"
                            target="_blank"
                            class="mt-2 inline-flex items-center gap-1.5 rounded-lg border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition hover:bg-muted">
                             <Paperclip class="h-3.5 w-3.5 text-muted-foreground" />

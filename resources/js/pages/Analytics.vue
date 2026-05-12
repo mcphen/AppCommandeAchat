@@ -272,7 +272,7 @@ const rateColor = (rate: number) => {
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <Link :href="route('validations.show', order.id)"
+                                    <Link :href="route('validations.show', order.uuid)"
                                           class="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-medium text-indigo-700 transition hover:bg-indigo-100">
                                         Voir <ArrowRight class="h-3 w-3" />
                                     </Link>

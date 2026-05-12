@@ -736,7 +736,7 @@ const importMappingValid = computed(() =>
                                     </td>
                                     <td class="px-4 py-4 text-right align-top">
                                         <Link
-                                            :href="route('validations.show', order.id)"
+                                            :href="route('validations.show', order.uuid)"
                                             class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300 dark:hover:bg-blue-950/50"
                                         >
                                             <Eye class="h-3.5 w-3.5" />

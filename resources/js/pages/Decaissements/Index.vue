@@ -264,7 +264,7 @@ function progressPct(order: PurchaseOrder): number {
 
                         <!-- Lien -->
                         <Link
-                            :href="route('decaissements.show', order.id)"
+                            :href="route('decaissements.show', order.uuid)"
                             class="ml-2 flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold text-foreground transition-colors hover:bg-muted"
                         >
                             Décaisser <ArrowRight class="h-3.5 w-3.5" />

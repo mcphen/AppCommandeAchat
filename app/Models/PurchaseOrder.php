@@ -5,10 +5,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class PurchaseOrder extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
+        'uuid',
+        'reference',
         'user_id',
         'boutique_id',
         'fournisseur_id',
@@ -26,12 +32,38 @@ class PurchaseOrder extends Model
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount'              => 'decimal:2',
         'submitted_at'        => 'datetime',
         'ordered_at'          => 'datetime',
         'fully_received_at'   => 'datetime',
         'current_level_order' => 'integer',
     ];
+
+    // Utiliser l'UUID pour le route model binding
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (PurchaseOrder $order) {
+            if (empty($order->uuid)) {
+                $order->uuid = Str::uuid()->toString();
+            }
+
+            // Référence de type DA-YYYY-NNNNN (Demande d'Achat)
+            if (empty($order->reference)) {
+                $year   = now()->year;
+                $prefix = 'DA-' . $year . '-';
+                $last   = static::withTrashed()
+                    ->where('reference', 'like', $prefix . '%')
+                    ->max('reference');
+                $seq              = $last ? ((int) substr($last, strlen($prefix))) + 1 : 1;
+                $order->reference = $prefix . str_pad($seq, 5, '0', STR_PAD_LEFT);
+            }
+        });
+    }
 
     public function user(): BelongsTo
     {

@@ -155,7 +155,7 @@ const confirmDelete = async (order: PurchaseOrder) => {
         cancelButtonColor: '#6b7280',
         reverseButtons: true,
     });
-    if (result.isConfirmed) router.delete(route('purchase-orders.destroy', order.id));
+    if (result.isConfirmed) router.delete(route('purchase-orders.destroy', order.uuid));
 };
 
 const submitOrder = async (order: PurchaseOrder) => {
@@ -170,7 +170,7 @@ const submitOrder = async (order: PurchaseOrder) => {
         cancelButtonColor: '#6b7280',
         reverseButtons: true,
     });
-    if (result.isConfirmed) router.post(route('purchase-orders.submit', order.id));
+    if (result.isConfirmed) router.post(route('purchase-orders.submit', order.uuid));
 };
 </script>
 
@@ -576,6 +576,7 @@ const submitOrder = async (order: PurchaseOrder) => {
 
                                         <div class="min-w-0">
                                             <p class="truncate font-semibold text-foreground">{{ order.title }}</p>
+                                            <p v-if="order.reference" class="font-mono text-xs text-muted-foreground">{{ order.reference }}</p>
                                             <p class="mt-1 text-xs text-muted-foreground">{{ progressLabel(order) }}</p>
                                             <p v-if="validatorsSummary(order)" class="mt-1 text-xs font-medium text-emerald-600">
                                                 {{ validatorsSummary(order) }}
@@ -621,7 +622,7 @@ const submitOrder = async (order: PurchaseOrder) => {
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex flex-wrap items-center justify-end gap-2">
                                         <Link
-                                            :href="route('purchase-orders.show', order.id)"
+                                            :href="route('purchase-orders.show', order.uuid)"
                                             class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
                                             title="Voir"
                                         >
@@ -630,7 +631,7 @@ const submitOrder = async (order: PurchaseOrder) => {
                                         </Link>
 
                                         <a
-                                            :href="route('purchase-orders.pdf', order.id)"
+                                            :href="route('purchase-orders.pdf', order.uuid)"
                                             target="_blank"
                                             class="inline-flex items-center gap-1.5 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
                                             title="Telecharger PDF"
@@ -641,7 +642,7 @@ const submitOrder = async (order: PurchaseOrder) => {
 
                                         <template v-if="order.status === 'draft' || order.status === 'rejected'">
                                             <Link
-                                                :href="route('purchase-orders.edit', order.id)"
+                                                :href="route('purchase-orders.edit', order.uuid)"
                                                 class="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
                                                 title="Modifier"
                                             >

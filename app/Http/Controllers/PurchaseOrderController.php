@@ -439,6 +439,9 @@ class PurchaseOrderController extends Controller
             // Si la commande était en attente de validation au premier niveau, on la remet en brouillon
             // pour qu'elle soit soumise à nouveau après modification.
             if ($purchaseOrder->isPending()) {
+                // Supprimer les anciens logs de validation pour repartir d'un historique propre
+                $purchaseOrder->validationLogs()->delete();
+
                 $purchaseOrder->update([
                     'status'              => 'draft',
                     'current_level_order' => null,
@@ -469,6 +472,11 @@ class PurchaseOrderController extends Controller
             : ValidationLevel::first_level();
 
         abort_if(! $firstLevel, 422, 'Aucun niveau de validation configuré.');
+
+        // Supprimer les anciens logs sauf pour needs_revision (les logs montrent le contexte de la révision)
+        if (! $purchaseOrder->isNeedsRevision()) {
+            $purchaseOrder->validationLogs()->delete();
+        }
 
         $purchaseOrder->update([
             'status'              => 'pending',

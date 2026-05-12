@@ -73,7 +73,7 @@ const form = useForm({
 });
 
 function submit() {
-    form.post(route('decaissements.store', props.order.id), {
+    form.post(route('decaissements.store', props.order.uuid), {
         preserveScroll: true,
         onSuccess: () => {
             form.reset();

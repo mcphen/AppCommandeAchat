@@ -110,7 +110,7 @@ const submitOrder = async () => {
         cancelButtonColor: '#6b7280',
         reverseButtons: true,
     });
-    if (result.isConfirmed) router.post(route('purchase-orders.submit', props.order.id));
+    if (result.isConfirmed) router.post(route('purchase-orders.submit', props.order.uuid));
 };
 
 const cancelOrder = async () => {
@@ -125,7 +125,7 @@ const cancelOrder = async () => {
         cancelButtonColor: '#6b7280',
         reverseButtons: true,
     });
-    if (result.isConfirmed) router.post(route('purchase-orders.cancel', props.order.id));
+    if (result.isConfirmed) router.post(route('purchase-orders.cancel', props.order.uuid));
 };
 
 const confirmOrder = async () => {
@@ -140,7 +140,7 @@ const confirmOrder = async () => {
         cancelButtonColor: '#6b7280',
         reverseButtons: true,
     });
-    if (result.isConfirmed) router.post(route('purchase-orders.mark-ordered', props.order.id));
+    if (result.isConfirmed) router.post(route('purchase-orders.mark-ordered', props.order.uuid));
 };
 
 // ─── Reception modal ──────────────────────────────────────────────────────────
@@ -170,7 +170,7 @@ const openInvoiceEdit = (reception: { id: number; invoice_number?: string | null
 
 const saveInvoice = (receptionId: number) => {
     const f = invoiceForms[receptionId];
-    router.patch(route('purchase-orders.receptions.invoice', { purchase_order: props.order.id, reception: receptionId }), {
+    router.patch(route('purchase-orders.receptions.invoice', { purchase_order: props.order.uuid, reception: receptionId }), {
         invoice_number: f.invoice_number || null,
         invoice_date:   f.invoice_date   || null,
         invoice_amount: f.invoice_amount !== '' ? f.invoice_amount : null,
@@ -217,7 +217,7 @@ const submitReception = () => {
             quantity_received: l.quantity_received,
         })),
     };
-    router.post(route('purchase-orders.receptions.store', props.order.id), payload, {
+    router.post(route('purchase-orders.receptions.store', props.order.uuid), payload, {
         onSuccess: () => { showModal.value = false; },
     });
 };
@@ -236,6 +236,7 @@ const submitReception = () => {
                     </Link>
                     <div>
                         <h1 class="text-2xl font-bold text-foreground">{{ order.title }}</h1>
+                        <p v-if="order.reference" class="mt-0.5 font-mono text-xs text-muted-foreground">{{ order.reference }}</p>
                         <div class="mt-2 flex flex-wrap items-center gap-2">
                             <!-- Statut validation -->
                             <span
@@ -269,7 +270,7 @@ const submitReception = () => {
                 <!-- Boutons d'action -->
                 <div class="flex flex-wrap items-center justify-end gap-2">
                     <a
-                        :href="route('purchase-orders.pdf', order.id)"
+                        :href="route('purchase-orders.pdf', order.uuid)"
                         target="_blank"
                         class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200"
                         title="Telecharger en PDF"
@@ -279,7 +280,7 @@ const submitReception = () => {
                     </a>
                     <Link
                         v-if="canEdit"
-                        :href="route('purchase-orders.edit', order.id)"
+                        :href="route('purchase-orders.edit', order.uuid)"
                         class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
                     >
                         <Pencil class="h-4 w-4" />

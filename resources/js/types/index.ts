@@ -145,6 +145,8 @@ export interface Decaissement {
 
 export interface PurchaseOrder {
     id: number;
+    uuid: string;
+    reference: string;
     user_id: number;
     boutique_id?: number | null;
     fournisseur_id?: number | null;

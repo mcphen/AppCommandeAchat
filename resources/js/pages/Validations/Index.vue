@@ -150,7 +150,7 @@ const hasActiveFilters = computed(() => !!props.filters.boutique_id);
                                     </td>
                                     <td class="px-4 py-4 text-right sm:px-6">
                                         <Link
-                                            :href="route('validations.show', order.id)"
+                                            :href="route('validations.show', order.uuid)"
                                             class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 sm:gap-2 sm:px-4"
                                         >
                                             <Eye class="h-4 w-4" />

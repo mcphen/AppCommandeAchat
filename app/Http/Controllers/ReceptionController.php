@@ -28,9 +28,14 @@ class ReceptionController extends Controller
             ->whereNotNull('delivery_status')
             ->latest('ordered_at');
 
-        // Un demandeur ne voit que ses propres commandes
+        // Un demandeur voit les commandes de tous les demandeurs de sa boutique
         if (! $user->isAdmin()) {
-            $query->where('user_id', $user->id);
+            if ($user->isDemandeur() && $user->boutique_id) {
+                $boutiqueUserIds = \App\Models\User::where('boutique_id', $user->boutique_id)->pluck('id');
+                $query->whereIn('user_id', $boutiqueUserIds);
+            } else {
+                $query->where('user_id', $user->id);
+            }
         }
 
         if ($request->filled('delivery_status')) {
@@ -70,7 +75,14 @@ class ReceptionController extends Controller
     private function countForUser($user, string $status): int
     {
         $q = PurchaseOrder::where('delivery_status', $status);
-        if (! $user->isAdmin()) $q->where('user_id', $user->id);
+        if (! $user->isAdmin()) {
+            if ($user->isDemandeur() && $user->boutique_id) {
+                $boutiqueUserIds = \App\Models\User::where('boutique_id', $user->boutique_id)->pluck('id');
+                $q->whereIn('user_id', $boutiqueUserIds);
+            } else {
+                $q->where('user_id', $user->id);
+            }
+        }
         return $q->count();
     }
 

@@ -127,6 +127,46 @@ class ValidationController extends Controller
         ]);
     }
 
+    public function showFromHistory(PurchaseOrder $purchaseOrder): Response
+    {
+        $user = auth()->user();
+
+        if (! $user->isAdmin()) {
+            $levelOrders = $user->validatableLevelOrders();
+            abort_unless(count($levelOrders) > 0, 403, 'Vous n\'avez aucun niveau de validation actif.');
+
+            $levelIds = ValidationLevel::whereIn('order', $levelOrders)->pluck('id');
+
+            // Vérifier que cette commande a bien été traitée par ce validateur
+            $hasProcessed = $purchaseOrder->validationLogs()
+                ->whereIn('validation_level_id', $levelIds)
+                ->exists();
+
+            $isCurrentlyAtLevel = $purchaseOrder->status === 'pending'
+                && in_array($purchaseOrder->current_level_order, $levelOrders);
+
+            abort_unless($hasProcessed || $isCurrentlyAtLevel, 403, 'Accès non autorisé à cette commande.');
+        }
+
+        $purchaseOrder->load([
+            'user',
+            'boutique',
+            'attachments',
+            'validationLogs.validationLevel',
+            'validationLogs.user',
+            'validationLogs.delegatedBy',
+            'comments.user',
+        ]);
+
+        $levels = ValidationLevel::orderBy('order')->get();
+
+        return Inertia::render('Validations/Show', [
+            'order'      => $purchaseOrder,
+            'levels'     => $levels,
+            'readOnly'   => true,
+        ]);
+    }
+
     public function approve(PurchaseOrder $purchaseOrder): RedirectResponse
     {
         $this->authorizeValidation($purchaseOrder);

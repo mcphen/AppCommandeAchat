@@ -36,7 +36,11 @@ class PurchaseOrderController extends Controller
         return Inertia::render('PurchaseOrders/Index', [
             'orders'      => $orders,
             'boutiques'   => Boutique::where('is_active', true)->orderBy('name')->get(),
-            'demandeurs'  => $user->isAdmin() ? \App\Models\User::whereHas('role', fn ($q) => $q->where('slug', 'demandeur'))->orderBy('name')->get(['id', 'name']) : [],
+            'demandeurs'  => $user->isAdmin()
+                ? \App\Models\User::whereHas('role', fn ($q) => $q->where('slug', 'demandeur'))->orderBy('name')->get(['id', 'name'])
+                : ($user->isDemandeur() && $user->boutique_id
+                    ? \App\Models\User::where('boutique_id', $user->boutique_id)->orderBy('name')->get(['id', 'name'])
+                    : []),
             'levels'      => ValidationLevel::orderBy('order')->get(['id', 'name', 'order']),
             'levelsCount' => ValidationLevel::count(),
             'filters'     => $this->getFilters($request),
@@ -66,7 +70,13 @@ class PurchaseOrderController extends Controller
         $query = PurchaseOrder::with(['attachments', 'boutique', 'user', 'validationLogs.user', 'validationLogs.validationLevel'])->latest();
 
         if (! $user->isAdmin()) {
-            $query->where('user_id', $user->id);
+            if ($user->isDemandeur() && $user->boutique_id) {
+                // Le demandeur voit toutes les commandes de sa boutique
+                $boutiqueUserIds = \App\Models\User::where('boutique_id', $user->boutique_id)->pluck('id');
+                $query->whereIn('user_id', $boutiqueUserIds);
+            } else {
+                $query->where('user_id', $user->id);
+            }
         }
 
         if ($request->filled('boutique_id')) {
@@ -77,7 +87,7 @@ class PurchaseOrderController extends Controller
             $query->where('status', $request->string('status'));
         }
 
-        if ($request->filled('user_id') && $user->isAdmin()) {
+        if ($request->filled('user_id') && ($user->isAdmin() || ($user->isDemandeur() && $user->boutique_id))) {
             $query->where('user_id', $request->integer('user_id'));
         }
 

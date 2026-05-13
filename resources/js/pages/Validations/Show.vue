@@ -19,6 +19,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const props = defineProps<{
     order: PurchaseOrder;
     levels: ValidationLevel[];
+    readOnly?: boolean;
 }>();
 
 const showRejectModal = ref(false);
@@ -171,7 +172,7 @@ const progressSummary = () => {
                         <p v-else class="text-sm text-muted-foreground">Aucune piece jointe</p>
                     </div>
 
-                    <div class="rounded-2xl border-2 border-dashed border-border bg-card p-6">
+                    <div v-if="!readOnly" class="rounded-2xl border-2 border-dashed border-border bg-card p-6">
                         <h2 class="mb-1 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Votre decision</h2>
                         <p class="mb-5 text-xs text-muted-foreground">Cette action est irreversible. Le demandeur sera notifie automatiquement.</p>
                         <div class="flex gap-3">

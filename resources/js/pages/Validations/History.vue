@@ -251,7 +251,7 @@ const statCounts = computed(() => {
                                     <!-- Action -->
                                     <td class="px-4 py-4 text-right sm:px-6">
                                         <Link
-                                            :href="route('validations.show', order.uuid)"
+                                            :href="route('validations.history.show', order.uuid)"
                                             class="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted sm:gap-2 sm:px-4"
                                         >
                                             <History class="h-4 w-4" />

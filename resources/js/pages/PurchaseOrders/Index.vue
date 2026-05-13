@@ -180,7 +180,7 @@ const submitOrder = async (order: PurchaseOrder) => {
 </script>
 
 <template>
-    <Head :title="isAdmin ? 'Commandes du groupe' : 'Mes commandes'" />
+    <Head :title="isAdmin ? 'Commandes du groupe' : (demandeurs.length > 1 ? 'Commandes de ma boutique' : 'Mes commandes')" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto max-w-7xl space-y-6 px-3 py-4 sm:px-6 sm:py-6">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -188,12 +188,14 @@ const submitOrder = async (order: PurchaseOrder) => {
                     <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                         {{ isAdmin ? 'Pilotage des achats' : 'Suivi des achats' }}
                     </p>
-                    <h1 class="mt-1 text-2xl font-bold text-foreground">{{ isAdmin ? 'Commandes du groupe' : 'Mes commandes' }}</h1>
+                    <h1 class="mt-1 text-2xl font-bold text-foreground">{{ isAdmin ? 'Commandes du groupe' : (demandeurs.length > 1 ? 'Commandes de ma boutique' : 'Mes commandes') }}</h1>
                     <p class="mt-1 text-sm text-muted-foreground">
                         {{
                             isAdmin
                                 ? 'Visualisez les demandes du groupe, leur circuit de validation et leur niveau de progression.'
-                                : 'Retrouvez vos demandes d achat, leurs statuts et les actions utiles depuis une seule page.'
+                                : (demandeurs.length > 1
+                                    ? 'Visualisez les demandes de tous les demandeurs de votre boutique pour éviter les doublons.'
+                                    : 'Retrouvez vos demandes d achat, leurs statuts et les actions utiles depuis une seule page.')
                         }}
                     </p>
                 </div>
@@ -411,7 +413,7 @@ const submitOrder = async (order: PurchaseOrder) => {
                                 </select>
                             </div>
 
-                            <div v-if="isAdmin">
+                            <div v-if="demandeurs.length > 0">
                                 <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Demandeur</label>
                                 <select
                                     v-model="localFilters.user_id"
@@ -630,7 +632,7 @@ const submitOrder = async (order: PurchaseOrder) => {
                                     </span>
                                 </td>
 
-                                <td v-if="isAdmin" class="hidden px-4 py-4 xl:table-cell">
+                                <td v-if="demandeurs.length > 0" class="hidden px-4 py-4 xl:table-cell">
                                     <div v-if="order.user" class="flex items-center gap-2">
                                         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
                                             {{ order.user.name.split(' ').map((name: string) => name[0]).slice(0, 2).join('').toUpperCase() }}

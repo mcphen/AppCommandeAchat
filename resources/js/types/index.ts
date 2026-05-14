@@ -28,11 +28,14 @@ export interface AppNotification {
 }
 
 export interface SharedData {
+    [key: string]: unknown;
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
     flash: { success?: string; error?: string };
     unread_notifications_count: number;
+    pending_validations_count: number;
+    pending_dd_count: number;
     show_onboarding: boolean;
     ziggy: {
         location: string;
@@ -130,10 +133,11 @@ export interface ModeReglement {
 
 export interface Decaissement {
     id: number;
-    purchase_order_id: number;
+    purchase_order_id: number | null;
+    disbursement_request_id?: number | null;
     recorded_by: number;
     montant: string | number;
-    mode_reglement_id: number;
+    mode_reglement_id: number | null;
     mode_reglement?: ModeReglement;
     reference?: string | null;
     notes?: string | null;
@@ -214,6 +218,50 @@ export interface Category {
     articles_count?: number;
     account_code?: string | null;
     account_label?: string | null;
+}
+
+export interface NatureOperation {
+    id: number;
+    name: string;
+    slug?: string;
+    description?: string | null;
+    is_active: boolean;
+    created_at?: string;
+}
+
+export type DisbursementStatus = 'draft' | 'pending' | 'needs_revision' | 'approved' | 'rejected' | 'cancelled';
+
+export interface DisbursementRequestAttachment {
+    id: number;
+    disbursement_request_id: number;
+    file_path: string;
+    file_name: string;
+    file_size: number;
+    created_at: string;
+}
+
+export interface DisbursementRequest {
+    id: number;
+    uuid: string;
+    reference: string;
+    user_id: number;
+    boutique_id?: number | null;
+    nature_operation_id: number;
+    title: string;
+    description?: string | null;
+    amount: string | number;
+    status: DisbursementStatus;
+    payment_status?: 'paid' | null;
+    current_level_order?: number | null;
+    submitted_at?: string | null;
+    user?: User;
+    boutique?: Boutique | null;
+    nature_operation?: NatureOperation;
+    attachments?: DisbursementRequestAttachment[];
+    validation_logs?: ValidationLog[];
+    decaissement?: Decaissement | null;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface AccountingEntry {

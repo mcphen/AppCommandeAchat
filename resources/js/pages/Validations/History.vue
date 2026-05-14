@@ -5,7 +5,7 @@ import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOr
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     Building2, Calendar, CheckCircle2, Clock, FileText, Filter,
-    History, RotateCcw, XCircle, AlertCircle, Ban, FileEdit,
+    History, RotateCcw, XCircle, AlertCircle, Ban, FileEdit, Download,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -82,6 +82,15 @@ const statCounts = computed(() => {
     }
     return counts;
 });
+
+const exportUrl = computed(() => {
+    const params = new URLSearchParams();
+    Object.entries(props.filters).forEach(([key, value]) => {
+        if (value) params.set(key, value);
+    });
+    const query = params.toString();
+    return query ? `${route('validations.history.export')}?${query}` : route('validations.history.export');
+});
 </script>
 
 <template>
@@ -110,6 +119,16 @@ const statCounts = computed(() => {
                     <span class="text-sm font-semibold text-primary">{{ orders.total }}</span>
                     <span class="text-sm text-muted-foreground">commande{{ orders.total !== 1 ? 's' : '' }}</span>
                 </div>
+            </div>
+
+            <div class="flex justify-end">
+                <a
+                    :href="exportUrl"
+                    class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                    <Download class="h-4 w-4" />
+                    Export Excel
+                </a>
             </div>
 
             <!-- Filtres -->
@@ -251,7 +270,7 @@ const statCounts = computed(() => {
                                     <!-- Action -->
                                     <td class="px-4 py-4 text-right sm:px-6">
                                         <Link
-                                            :href="route('validations.history.show', order.uuid)"
+                                            :href="route('validations.history.show', { purchase_order: order.uuid })"
                                             class="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted sm:gap-2 sm:px-4"
                                         >
                                             <History class="h-4 w-4" />

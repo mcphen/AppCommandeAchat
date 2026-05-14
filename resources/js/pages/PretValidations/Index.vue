@@ -3,7 +3,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type Pret } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ArrowRight, Building2, CheckSquare, HandCoins, RotateCcw, SlidersHorizontal, X } from 'lucide-vue-next';
+import { ArrowRight, Building2, CheckSquare, Download, HandCoins, RotateCcw, SlidersHorizontal, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -24,6 +24,9 @@ watch(() => localFilters.value.boutique_id, apply);
 function apply() { router.get(route('pret-validations.index'), localFilters.value, { preserveState: true, replace: true }); }
 function clear() { localFilters.value = { boutique_id: '' }; }
 const hasFilters = computed(() => localFilters.value.boutique_id);
+const exportUrl = computed(() => localFilters.value.boutique_id
+    ? `${route('pret-validations.export')}?boutique_id=${encodeURIComponent(localFilters.value.boutique_id)}`
+    : route('pret-validations.export'));
 
 const formatAmount = (v: string | number) =>
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', minimumFractionDigits: 0 }).format(Number(v));
@@ -43,9 +46,18 @@ function levelProgress(pret: Pret): string {
                     <h1 class="text-2xl font-bold text-foreground">Validations Prêts</h1>
                     <p class="mt-1 text-sm text-muted-foreground">Demandes en attente de votre validation</p>
                 </div>
-                <span v-if="prets.total" class="rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">
-                    {{ prets.total }}
-                </span>
+                <div class="flex items-center gap-2">
+                    <a
+                        :href="exportUrl"
+                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                    >
+                        <Download class="h-4 w-4" />
+                        Export Excel
+                    </a>
+                    <span v-if="prets.total" class="rounded-full bg-primary px-3 py-1 text-sm font-bold text-primary-foreground">
+                        {{ prets.total }}
+                    </span>
+                </div>
             </div>
 
             <!-- Filtres -->

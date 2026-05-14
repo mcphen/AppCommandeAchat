@@ -17,28 +17,92 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class ValidationController extends Controller
 {
     public function history(Request $request): Response
     {
         $user = $request->user();
+        $query = $this->buildHistoryQuery($request, $user);
 
+        $orders = $query->paginate(15)->withQueryString();
+
+        return Inertia::render('Validations/History', [
+            'orders'   => $orders,
+            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'filters'  => [
+                'status'      => $request->string('status')->toString(),
+                'boutique_id' => $request->string('boutique_id')->toString(),
+                'date_from'   => $request->string('date_from')->toString(),
+                'date_to'     => $request->string('date_to')->toString(),
+            ],
+        ]);
+    }
+
+    public function exportIndex(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $orders = $this->buildIndexQuery($request, $request->user())->get();
+        return $this->exportOrdersExcel($orders, 'validations-en-attente');
+    }
+
+    public function exportHistory(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $orders = $this->buildHistoryQuery($request, $request->user())->get();
+        return $this->exportOrdersExcel($orders, 'historique-validations');
+    }
+
+    public function index(Request $request): Response
+    {
+        $user = $request->user();
+        $query = $this->buildIndexQuery($request, $user);
+
+        $orders = $query->paginate(10)->withQueryString();
+
+        return Inertia::render('Validations/Index', [
+            'orders' => $orders,
+            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
+            'levelsCount' => ValidationLevel::count(),
+            'filters' => [
+                'boutique_id' => $request->string('boutique_id')->toString(),
+            ],
+        ]);
+    }
+
+    private function buildIndexQuery(Request $request, $user)
+    {
+        $query = PurchaseOrder::where('status', 'pending')
+            ->with(['user', 'boutique', 'attachments'])
+            ->latest('submitted_at');
+
+        if (! $user->isAdmin()) {
+            $validatableOrders = $user->validatableLevelOrders();
+            abort_unless(count($validatableOrders) > 0, 403, 'Vous n\'avez aucun niveau de validation actif.');
+            $query->whereIn('current_level_order', $validatableOrders);
+        }
+
+        if ($request->filled('boutique_id')) {
+            $query->where('boutique_id', $request->integer('boutique_id'));
+        }
+
+        return $query;
+    }
+
+    private function buildHistoryQuery(Request $request, $user)
+    {
         $query = PurchaseOrder::with(['user', 'boutique', 'validationLogs.validationLevel'])
             ->latest('submitted_at');
 
         if (! $user->isAdmin()) {
-            // Récupère les IDs des niveaux de validation de l'utilisateur
             $levelOrders = $user->validatableLevelOrders();
             abort_unless(count($levelOrders) > 0, 403, 'Vous n\'avez aucun niveau de validation actif.');
 
             $levelIds = ValidationLevel::whereIn('order', $levelOrders)->pluck('id');
 
-            // Commandes qui ont été ou sont à ce niveau de validation
             $query->where(function ($q) use ($levelOrders, $levelIds) {
-                // Soit actuellement en attente à ce niveau
                 $q->where(fn ($sub) => $sub->where('status', 'pending')->whereIn('current_level_order', $levelOrders))
-                  // Soit qui ont un log de validation à ce niveau (déjà traitées)
                   ->orWhereHas('validationLogs', fn ($sub) => $sub->whereIn('validation_level_id', $levelIds));
             });
         }
@@ -59,49 +123,49 @@ class ValidationController extends Controller
             $query->whereDate('submitted_at', '<=', $request->string('date_to'));
         }
 
-        $orders = $query->paginate(15)->withQueryString();
-
-        return Inertia::render('Validations/History', [
-            'orders'   => $orders,
-            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'filters'  => [
-                'status'      => $request->string('status')->toString(),
-                'boutique_id' => $request->string('boutique_id')->toString(),
-                'date_from'   => $request->string('date_from')->toString(),
-                'date_to'     => $request->string('date_to')->toString(),
-            ],
-        ]);
+        return $query;
     }
 
-    public function index(Request $request): Response
+    private function exportOrdersExcel($orders, string $prefix): \Symfony\Component\HttpFoundation\Response
     {
-        $user = $request->user();
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Validations');
 
-        // L'admin voit toutes les commandes en attente
-        // Le validateur voit celles à son niveau
-        $query = PurchaseOrder::where('status', 'pending')
-            ->with(['user', 'boutique', 'attachments'])
-            ->latest('submitted_at');
-
-        if (! $user->isAdmin()) {
-            $validatableOrders = $user->validatableLevelOrders();
-            abort_unless(count($validatableOrders) > 0, 403, 'Vous n\'avez aucun niveau de validation actif.');
-            $query->whereIn('current_level_order', $validatableOrders);
+        $headers = ['BC', 'Titre', 'Demandeur', 'Boutique', 'Montant (XOF)', 'Statut', 'Niveau courant', 'Soumise le'];
+        foreach ($headers as $col => $header) {
+            $cell = Coordinate::stringFromColumnIndex($col + 1) . '1';
+            $sheet->setCellValue($cell, $header);
+            $sheet->getStyle($cell)->getFont()->setBold(true);
+            $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4F46E5');
+            $sheet->getStyle($cell)->getFont()->getColor()->setRGB('FFFFFF');
         }
 
-        if ($request->filled('boutique_id')) {
-            $query->where('boutique_id', $request->integer('boutique_id'));
+        $labels = ['draft' => 'Brouillon', 'pending' => 'En attente', 'needs_revision' => 'Révision demandée', 'approved' => 'Approuvée', 'rejected' => 'Rejetée', 'cancelled' => 'Annulée'];
+        foreach ($orders as $row => $order) {
+            $values = [
+                $order->order_number ?? '',
+                $order->title,
+                $order->user?->name ?? '',
+                $order->boutique?->name ?? '',
+                (float) $order->amount,
+                $labels[$order->status] ?? $order->status,
+                $order->current_level_order ? 'Niveau ' . $order->current_level_order : '',
+                $order->submitted_at?->format('d/m/Y') ?? '',
+            ];
+
+            foreach ($values as $col => $value) {
+                $sheet->setCellValue(Coordinate::stringFromColumnIndex($col + 1) . ($row + 2), $value);
+            }
         }
 
-        $orders = $query->paginate(10)->withQueryString();
+        foreach (range(1, count($headers)) as $column) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($column))->setAutoSize(true);
+        }
 
-        return Inertia::render('Validations/Index', [
-            'orders' => $orders,
-            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
-            'levelsCount' => ValidationLevel::count(),
-            'filters' => [
-                'boutique_id' => $request->string('boutique_id')->toString(),
-            ],
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        return response()->streamDownload(fn () => $writer->save('php://output'), $prefix . '-' . now()->format('Y-m-d') . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 

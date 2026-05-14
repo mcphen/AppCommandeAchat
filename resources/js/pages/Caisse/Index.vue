@@ -3,7 +3,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Agent, type Boutique, type BreadcrumbItem, type PaginatedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowRight, Banknote, Building2, HandCoins, RotateCcw, Search, SlidersHorizontal, TrendingUp, UserCircle, Users, X } from 'lucide-vue-next';
+import { ArrowRight, Banknote, Building2, Download, HandCoins, RotateCcw, Search, SlidersHorizontal, TrendingUp, UserCircle, Users, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -31,6 +31,16 @@ function apply() { router.get(route('caisse.index'), localFilters.value, { prese
 function clear() { localFilters.value = { boutique_id: '', search: '' }; }
 const hasFilters = computed(() => localFilters.value.boutique_id || localFilters.value.search);
 
+function exportUrl() {
+    const params = new URLSearchParams();
+    Object.entries(localFilters.value).forEach(([key, value]) => {
+        if (value) params.set(key, String(value));
+    });
+
+    const query = params.toString();
+    return query ? `${route('caisse.export')}?${query}` : route('caisse.export');
+}
+
 const formatAmount = (v: number) =>
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', minimumFractionDigits: 0 }).format(v);
 </script>
@@ -44,10 +54,19 @@ const formatAmount = (v: number) =>
                     <h1 class="text-2xl font-bold text-foreground">Caisse Épargne</h1>
                     <p class="mt-1 text-sm text-muted-foreground">Gestion des comptes épargne des agents</p>
                 </div>
-                <Link :href="route('caisse.prets.index')"
-                    class="flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors hover:bg-muted">
-                    <HandCoins class="h-4 w-4" /> Voir les prêts
-                </Link>
+                <div class="flex items-center gap-2">
+                    <a
+                        :href="exportUrl()"
+                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                    >
+                        <Download class="h-4 w-4" />
+                        Export Excel
+                    </a>
+                    <Link :href="route('caisse.prets.index')"
+                        class="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
+                        <HandCoins class="h-4 w-4" /> Voir les prêts
+                    </Link>
+                </div>
             </div>
 
             <!-- KPIs -->
@@ -108,7 +127,7 @@ const formatAmount = (v: number) =>
                 <div class="flex items-center gap-2">
                     <SlidersHorizontal class="h-4 w-4 text-muted-foreground" />
                     <select v-if="isAdmin" v-model="localFilters.boutique_id"
-                        class="rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
+                        class="rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40">
                         <option value="">Toutes les boutiques</option>
                         <option v-for="b in boutiques" :key="b.id" :value="b.id">{{ b.name }}</option>
                     </select>
@@ -145,8 +164,8 @@ const formatAmount = (v: number) =>
                             Bloqué : {{ new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF', minimumFractionDigits: 0 }).format(Number(agent.compte.solde_bloque)) }}
                         </p>
                     </div>
-                    <Link :href="route('caisse.agents.show', agent.id)"
-                        class="ml-2 flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-semibold transition-colors hover:bg-muted">
+                    <Link :href="route('caisse.agents.show', { agent: agent.id })"
+                        class="ml-2 flex shrink-0 items-center gap-1.5 rounded-xl bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700 transition-colors hover:bg-teal-100">
                         Gérer <ArrowRight class="h-3.5 w-3.5" />
                     </Link>
                 </div>

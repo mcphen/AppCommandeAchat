@@ -49,6 +49,10 @@ return [
             'delegation_received'      => env('TWILIO_TPL_DELEGATION_RECEIVED'),
             'decaissement_pret'        => env('TWILIO_TPL_DECAISSEMENT_PRET'),
             'decaissement_enregistre'  => env('TWILIO_TPL_DECAISSEMENT_ENREGISTRE'),
+            'dr_submitted'             => env('TWILIO_TPL_DR_SUBMITTED'),
+            'dr_approved_at_level'     => env('TWILIO_TPL_DR_APPROVED_LEVEL'),
+            'dr_finally_approved'      => env('TWILIO_TPL_DR_FINALLY_APPROVED'),
+            'dr_rejected'              => env('TWILIO_TPL_DR_REJECTED'),
         ],
     ],
 

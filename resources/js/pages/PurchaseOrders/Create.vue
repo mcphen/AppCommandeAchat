@@ -228,13 +228,31 @@ const submitting = ref(false);
 // ---- Fichiers ----
 const dragOver = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+const uploadError = ref('');
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 const addFiles = (files: FileList | File[]) => {
-    const pdfs = Array.from(files).filter(f => f.type === 'application/pdf');
+    const oversizedFiles: string[] = [];
+    const pdfs = Array.from(files).filter((file) => {
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            oversizedFiles.push(`${file.name} (${formatSize(file.size)})`);
+            return false;
+        }
+
+        return file.type === 'application/pdf';
+    });
+
     form.attachments = [...form.attachments, ...pdfs];
+    uploadError.value = oversizedFiles.length > 0
+        ? `Fichier${oversizedFiles.length > 1 ? 's' : ''} refusé${oversizedFiles.length > 1 ? 's' : ''} : ${oversizedFiles.join(', ')}. Taille maximale : 10 Mo par fichier.`
+        : '';
 };
 const onDrop = (e: DragEvent) => { dragOver.value = false; if (e.dataTransfer?.files) addFiles(e.dataTransfer.files); };
-const onFileChange = (e: Event) => { const input = e.target as HTMLInputElement; if (input.files) addFiles(input.files); };
+const onFileChange = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (input.files) addFiles(input.files);
+    input.value = '';
+};
 const removeFile = (i: number) => { form.attachments = form.attachments.filter((_, idx) => idx !== i); };
 const formatSize = (b: number) => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1024).toFixed(0) + ' KB';
 const formatAmount = (v: number) =>
@@ -654,7 +672,11 @@ const submit = (andSend = false) => {
                         <p class="text-xs text-muted-foreground mt-1">Fichiers PDF uniquement · 10 Mo max par fichier</p>
                     </div>
                     <div class="relative rounded-xl border-2 border-dashed p-8 text-center transition-colors cursor-pointer"
-                        :class="dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/30'"
+                        :class="uploadError
+                            ? 'border-red-300 bg-red-50/60'
+                            : dragOver
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/50 hover:bg-muted/30'"
                         @dragover.prevent="dragOver = true"
                         @dragleave="dragOver = false"
                         @drop.prevent="onDrop"
@@ -670,6 +692,10 @@ const submit = (andSend = false) => {
                             </div>
                         </div>
                     </div>
+                    <p v-if="uploadError" class="flex items-start gap-2 text-xs text-red-600">
+                        <AlertTriangle class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{{ uploadError }}</span>
+                    </p>
                     <div v-if="form.attachments.length > 0" class="flex flex-col gap-2">
                         <div v-for="(file, i) in form.attachments" :key="i"
                             class="flex items-center justify-between rounded-xl border bg-muted/30 px-4 py-3">

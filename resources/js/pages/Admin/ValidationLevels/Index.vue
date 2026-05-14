@@ -11,7 +11,7 @@ const props = defineProps<{ levels: (ValidationLevel & { validators_count: numbe
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
-    { title: 'Administration', href: '#' },
+    { title: 'Administration', href: '/admin/users' },
     { title: 'Niveaux de validation', href: '/admin/validation-levels' },
 ];
 

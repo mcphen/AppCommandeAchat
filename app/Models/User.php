@@ -75,6 +75,11 @@ class User extends Authenticatable
         return $this->hasMany(PurchaseOrder::class);
     }
 
+    public function disbursementRequests(): HasMany
+    {
+        return $this->hasMany(DisbursementRequest::class);
+    }
+
     public function validationLogs(): HasMany
     {
         return $this->hasMany(ValidationLog::class);

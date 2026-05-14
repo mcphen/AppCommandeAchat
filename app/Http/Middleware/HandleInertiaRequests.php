@@ -55,6 +55,34 @@ class HandleInertiaRequests extends Middleware
         return parent::version($request);
     }
 
+    private function pendingValidationsCount(?\App\Models\User $user): int
+    {
+        if (! $user) return 0;
+        $isAdmin = $user->role?->slug === 'admin';
+        $isValidateur = $user->role?->slug === 'validateur';
+        if (! $isAdmin && ! $isValidateur) return 0;
+
+        $query = \App\Models\PurchaseOrder::where('status', 'pending');
+        if ($isValidateur && $user->validationLevel) {
+            $query->where('current_level_order', $user->validationLevel->order);
+        }
+        return $query->count();
+    }
+
+    private function pendingDdCount(?\App\Models\User $user): int
+    {
+        if (! $user) return 0;
+        $isAdmin = $user->role?->slug === 'admin';
+        $isValidateur = $user->role?->slug === 'validateur';
+        if (! $isAdmin && ! $isValidateur) return 0;
+
+        $query = \App\Models\DisbursementRequest::where('status', 'pending');
+        if ($isValidateur && $user->validationLevel) {
+            $query->where('current_level_order', $user->validationLevel->order);
+        }
+        return $query->count();
+    }
+
     /**
      * Define the props that are shared by default.
      *
@@ -82,9 +110,11 @@ class HandleInertiaRequests extends Middleware
                 'success' => $request->session()->get('success'),
                 'error'   => $request->session()->get('error'),
             ],
-            'unread_notifications_count' => $user ? $user->unreadNotifications()->count() : 0,
-            'show_onboarding'            => $user ? $user->needsOnboarding() : false,
-            'company'                    => $this->companyProps(),
+            'unread_notifications_count'  => $user ? $user->unreadNotifications()->count() : 0,
+            'show_onboarding'             => $user ? $user->needsOnboarding() : false,
+            'company'                     => $this->companyProps(),
+            'pending_validations_count'   => $this->pendingValidationsCount($user),
+            'pending_dd_count'            => $this->pendingDdCount($user),
         ]);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -95,9 +96,9 @@ class PurchaseOrder extends Model
         return $this->hasMany(PurchaseOrderReception::class)->with(['receiver', 'lines'])->latest();
     }
 
-    public function validationLogs(): HasMany
+    public function validationLogs(): MorphMany
     {
-        return $this->hasMany(ValidationLog::class)->with(['validationLevel', 'user'])->latest();
+        return $this->morphMany(ValidationLog::class, 'validationable')->with(['validationLevel', 'user'])->latest();
     }
 
     public function comments(): HasMany

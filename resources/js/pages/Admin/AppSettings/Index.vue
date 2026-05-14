@@ -22,7 +22,7 @@ const page = usePage<SharedData>();
 const flash = page.props.flash;
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Administration', href: '#' },
+    { title: 'Administration', href: '/admin/users' },
     { title: 'Configuration', href: route('admin.settings.index') },
 ];
 

@@ -17,7 +17,7 @@ class WhatsAppChannel
 
         $phone = $notifiable->routeNotificationFor('whatsapp', $notification);
 
-        if (! $phone || ! $notifiable->whatsapp_notifications) {
+        if (! $phone) {
             return;
         }
 

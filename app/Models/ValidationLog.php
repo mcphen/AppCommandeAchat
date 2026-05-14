@@ -4,17 +4,25 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ValidationLog extends Model
 {
     protected $fillable = [
         'purchase_order_id',
+        'validationable_type',
+        'validationable_id',
         'validation_level_id',
         'user_id',
         'action',
         'comment',
         'delegated_by_id',
     ];
+
+    public function validationable(): MorphTo
+    {
+        return $this->morphTo();
+    }
 
     public function purchaseOrder(): BelongsTo
     {

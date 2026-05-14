@@ -8,7 +8,7 @@ import Swal from 'sweetalert2';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
-    { title: 'Administration', href: '#' },
+    { title: 'Administration', href: '/admin/users' },
     { title: 'Utilisateurs', href: '/admin/users' },
 ];
 

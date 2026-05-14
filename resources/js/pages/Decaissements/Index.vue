@@ -5,7 +5,7 @@ import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOr
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ArrowRight, Banknote, Building2, CheckCircle2, CircleDollarSign,
-    Clock, RotateCcw, Search, SlidersHorizontal, Wallet, X,
+    Clock, Download, RotateCcw, Search, SlidersHorizontal, Wallet, X,
 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
@@ -42,6 +42,16 @@ function applyFilters() {
 }
 function clearFilters() {
     localFilters.value = { boutique_id: '', payment_status: '', search: '' };
+}
+
+function exportUrl() {
+    const params = new URLSearchParams();
+    Object.entries(localFilters.value).forEach(([key, value]) => {
+        if (value) params.set(key, String(value));
+    });
+
+    const query = params.toString();
+    return query ? `${route('decaissements.export')}?${query}` : route('decaissements.export');
 }
 
 const hasActiveFilters = computed(() =>
@@ -92,6 +102,13 @@ function progressPct(order: PurchaseOrder): number {
                         Enregistrement des paiements pour les commandes approuvées
                     </p>
                 </div>
+                <a
+                    :href="exportUrl()"
+                    class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                    <Download class="h-4 w-4" />
+                    Export Excel
+                </a>
             </div>
 
             <!-- KPI cards -->

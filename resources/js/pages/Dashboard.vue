@@ -7,7 +7,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
     ShoppingCart, Clock, CheckCircle2, XCircle, FileText,
     TrendingUp, Users, Settings, ArrowRight, Eye,
-    Store, Layers, Wallet, Ban, Building2, PiggyBank, AlertTriangle, UserCheck, History, BarChart3,
+    Store, Layers, Wallet, Ban, Building2, PiggyBank, AlertTriangle, UserCheck, History, BarChart3, Banknote,
 } from 'lucide-vue-next';
 import { ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Tooltip } from 'chart.js';
 import { Bar, Doughnut } from 'vue-chartjs';
@@ -72,6 +72,7 @@ const props = defineProps<{
     };
     alertBudgets?: Budget[];
     activeDelegations?: ActiveDelegation[];
+    recentDisbursements?: DisbursementRequest[];
     pipeline?: Array<{
         level_order: number;
         level_name: string;
@@ -208,6 +209,7 @@ const hasBarData = computed(() =>
                 <p class="text-sm text-muted-foreground mt-1">
                     <template v-if="role === 'admin'">Vue d'ensemble de toutes les commandes</template>
                     <template v-else-if="role === 'validateur'">Commandes en attente de votre validation</template>
+                    <template v-else-if="role === 'caissier'">Paiements en attente de traitement</template>
                     <template v-else>Suivi de vos commandes d'achat</template>
                 </p>
             </div>
@@ -317,6 +319,37 @@ const hasBarData = computed(() =>
                         </div>
                         <div v-else class="flex h-56 items-center justify-center text-sm text-muted-foreground">
                             Aucune activité sur cette période
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DD stats (admin) -->
+                <div v-if="(stats.dd_total ?? 0) > 0" class="rounded-2xl border bg-card p-4 shadow-sm">
+                    <div class="mb-3 flex items-center gap-2">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50">
+                            <Banknote class="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <h3 class="font-semibold text-foreground text-sm">Demandes de décaissement</h3>
+                        <Link :href="route('disbursement-requests.index')" class="ml-auto text-xs text-primary hover:underline flex items-center gap-1">
+                            Voir tout <ArrowRight class="h-3 w-3" />
+                        </Link>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                        <div class="rounded-xl border bg-muted/30 p-3 text-center">
+                            <p class="text-xl font-bold text-foreground">{{ stats.dd_total }}</p>
+                            <p class="text-xs text-muted-foreground mt-0.5">Total</p>
+                        </div>
+                        <div class="rounded-xl border bg-amber-50 p-3 text-center">
+                            <p class="text-xl font-bold text-amber-700">{{ stats.dd_pending ?? 0 }}</p>
+                            <p class="text-xs text-amber-600 mt-0.5">En circuit</p>
+                        </div>
+                        <div class="rounded-xl border bg-emerald-50 p-3 text-center">
+                            <p class="text-xl font-bold text-emerald-700">{{ stats.dd_approved ?? 0 }}</p>
+                            <p class="text-xs text-emerald-600 mt-0.5">Approuvées</p>
+                        </div>
+                        <div class="rounded-xl border bg-red-50 p-3 text-center">
+                            <p class="text-xl font-bold text-red-700">{{ stats.dd_rejected ?? 0 }}</p>
+                            <p class="text-xs text-red-600 mt-0.5">Refusées</p>
                         </div>
                     </div>
                 </div>
@@ -619,6 +652,223 @@ const hasBarData = computed(() =>
                         Valider <ArrowRight class="h-3.5 w-3.5" />
                     </Link>
                 </div>
+
+                <!-- DD en attente (validateur) -->
+                <div v-if="(stats.dd_pending_my_level ?? 0) > 0" class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 flex items-center justify-between gap-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <Banknote class="h-4 w-4 text-indigo-600 shrink-0" />
+                        <p class="text-sm font-medium text-indigo-800">
+                            <span class="font-bold">{{ stats.dd_pending_my_level }}</span> demande{{ stats.dd_pending_my_level > 1 ? 's' : '' }} de décaissement à valider à votre niveau
+                        </p>
+                    </div>
+                    <Link :href="route('disbursement-validations.index')" class="text-sm font-semibold text-indigo-700 flex items-center gap-1 hover:gap-2 transition-all shrink-0">
+                        Valider <ArrowRight class="h-3.5 w-3.5" />
+                    </Link>
+                </div>
+            </template>
+
+            <!-- ===== CAISSIER ===== -->
+            <template v-else-if="role === 'caissier'">
+
+                <!-- Boutique card -->
+                <div v-if="boutique" class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+                    <div class="flex items-center gap-4">
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50">
+                            <Store class="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Votre boutique</p>
+                            <p class="text-base font-semibold text-foreground">{{ boutique.name }}</p>
+                            <p class="text-xs text-muted-foreground">
+                                {{ boutique.code }}<template v-if="boutique.city"> · {{ boutique.city }}</template>
+                            </p>
+                        </div>
+                        <div v-if="(stats.total_to_pay ?? 0) + (stats.dd_to_pay ?? 0) > 0" class="shrink-0 text-right">
+                            <p class="text-xs text-muted-foreground">Total à décaisser</p>
+                            <p class="text-lg font-bold text-amber-600">{{ formatAmount((stats.total_to_pay ?? 0) + (stats.dd_to_pay ?? 0)) }}</p>
+                        </div>
+                        <div v-else class="shrink-0 text-right">
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+                                <CheckCircle2 class="h-3.5 w-3.5" /> Tout réglé
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cartes prioritaires : à traiter -->
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                    <Link
+                        :href="route('decaissements.index')"
+                        class="group flex items-center gap-4 rounded-2xl border-2 p-5 shadow-sm transition-all hover:shadow-md"
+                        :class="(stats.unpaid ?? 0) > 0 ? 'border-orange-200 bg-gradient-to-br from-orange-50 to-amber-50' : 'border-border bg-card'"
+                    >
+                        <div
+                            class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+                            :class="(stats.unpaid ?? 0) > 0 ? 'bg-orange-100' : 'bg-muted'"
+                        >
+                            <ShoppingCart class="h-6 w-6" :class="(stats.unpaid ?? 0) > 0 ? 'text-orange-600' : 'text-muted-foreground'" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-semibold uppercase tracking-wide" :class="(stats.unpaid ?? 0) > 0 ? 'text-orange-600' : 'text-muted-foreground'">Bons de commande</p>
+                            <p class="text-3xl font-bold" :class="(stats.unpaid ?? 0) > 0 ? 'text-orange-700' : 'text-foreground'">{{ stats.unpaid ?? 0 }}</p>
+                            <p class="text-sm font-medium" :class="(stats.unpaid ?? 0) > 0 ? 'text-orange-600' : 'text-muted-foreground'">
+                                <template v-if="(stats.unpaid ?? 0) > 0">{{ formatAmount(stats.total_to_pay ?? 0) }} à régler</template>
+                                <template v-else>Tout est réglé ✓</template>
+                            </p>
+                        </div>
+                        <ArrowRight class="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                    </Link>
+
+                    <Link
+                        :href="route('caissier.demandes.index')"
+                        class="group flex items-center gap-4 rounded-2xl border-2 p-5 shadow-sm transition-all hover:shadow-md"
+                        :class="(stats.dd_unpaid ?? 0) > 0 ? 'border-indigo-200 bg-gradient-to-br from-indigo-50 to-indigo-100/50' : 'border-border bg-card'"
+                    >
+                        <div
+                            class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+                            :class="(stats.dd_unpaid ?? 0) > 0 ? 'bg-indigo-100' : 'bg-muted'"
+                        >
+                            <Banknote class="h-6 w-6" :class="(stats.dd_unpaid ?? 0) > 0 ? 'text-indigo-600' : 'text-muted-foreground'" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-xs font-semibold uppercase tracking-wide" :class="(stats.dd_unpaid ?? 0) > 0 ? 'text-indigo-600' : 'text-muted-foreground'">Décaissements</p>
+                            <p class="text-3xl font-bold" :class="(stats.dd_unpaid ?? 0) > 0 ? 'text-indigo-700' : 'text-foreground'">{{ stats.dd_unpaid ?? 0 }}</p>
+                            <p class="text-sm font-medium" :class="(stats.dd_unpaid ?? 0) > 0 ? 'text-indigo-600' : 'text-muted-foreground'">
+                                <template v-if="(stats.dd_unpaid ?? 0) > 0">{{ formatAmount(stats.dd_to_pay ?? 0) }} à décaisser</template>
+                                <template v-else>Aucun en attente ✓</template>
+                            </p>
+                        </div>
+                        <ArrowRight class="h-5 w-5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
+                    </Link>
+                </div>
+
+                <!-- Stats secondaires (totaux / payés) -->
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+                    <div class="rounded-2xl border bg-card p-4 shadow-sm">
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="text-xs text-muted-foreground">BC approuvés</span>
+                            <FileText class="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p class="text-2xl font-bold text-foreground">{{ stats.approved_total ?? 0 }}</p>
+                        <p class="mt-0.5 text-xs text-muted-foreground">total</p>
+                    </div>
+                    <div class="rounded-2xl border bg-emerald-50 p-4 shadow-sm">
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="text-xs text-emerald-700">BC payés</span>
+                            <CheckCircle2 class="h-4 w-4 text-emerald-600" />
+                        </div>
+                        <p class="text-2xl font-bold text-emerald-700">{{ stats.paid ?? 0 }}</p>
+                        <p class="mt-0.5 text-xs text-emerald-600">{{ formatAmountShort(stats.total_paid_bc ?? 0) }} FCFA</p>
+                    </div>
+                    <div class="rounded-2xl border bg-card p-4 shadow-sm">
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="text-xs text-muted-foreground">DD approuvées</span>
+                            <Banknote class="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p class="text-2xl font-bold text-foreground">{{ stats.dd_total ?? 0 }}</p>
+                        <p class="mt-0.5 text-xs text-muted-foreground">total</p>
+                    </div>
+                    <div class="rounded-2xl border bg-emerald-50 p-4 shadow-sm">
+                        <div class="mb-2 flex items-center justify-between">
+                            <span class="text-xs text-emerald-700">DD payées</span>
+                            <CheckCircle2 class="h-4 w-4 text-emerald-600" />
+                        </div>
+                        <p class="text-2xl font-bold text-emerald-700">{{ stats.dd_paid ?? 0 }}</p>
+                        <p class="mt-0.5 text-xs text-emerald-600">{{ formatAmountShort(stats.dd_paid_amount ?? 0) }} FCFA</p>
+                    </div>
+                </div>
+
+                <!-- Listes côte à côte -->
+                <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+
+                    <!-- Bons de commande à régler -->
+                    <div class="rounded-2xl border bg-card shadow-sm">
+                        <div class="flex items-center justify-between border-b px-4 py-4 sm:px-5">
+                            <h2 class="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <ShoppingCart class="h-4 w-4 text-muted-foreground" />
+                                Bons à régler
+                            </h2>
+                            <Link :href="route('decaissements.index')" class="flex items-center gap-1 text-xs text-primary hover:underline">
+                                Tout voir <ArrowRight class="h-3 w-3" />
+                            </Link>
+                        </div>
+                        <template v-if="recentOrders && recentOrders.length > 0">
+                            <div class="divide-y">
+                                <Link
+                                    v-for="order in recentOrders"
+                                    :key="order.id"
+                                    :href="route('purchase-orders.show', order.uuid)"
+                                    class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30 sm:px-5"
+                                >
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-50">
+                                        <ShoppingCart class="h-4 w-4 text-orange-600" />
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate text-sm font-medium text-foreground">{{ order.title }}</p>
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ order.reference }}<template v-if="order.fournisseur"> · {{ order.fournisseur.name }}</template>
+                                        </p>
+                                    </div>
+                                    <div class="shrink-0 text-right">
+                                        <p class="text-sm font-semibold text-orange-600">{{ formatAmountShort(Number(order.amount)) }}</p>
+                                        <p class="text-xs text-muted-foreground">FCFA</p>
+                                    </div>
+                                </Link>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div class="flex flex-col items-center gap-2 py-10 text-center">
+                                <CheckCircle2 class="h-8 w-8 text-emerald-200" />
+                                <p class="text-sm text-muted-foreground">Tout est à jour</p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <!-- Décaissements à traiter -->
+                    <div class="rounded-2xl border bg-card shadow-sm">
+                        <div class="flex items-center justify-between border-b px-4 py-4 sm:px-5">
+                            <h2 class="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                <Banknote class="h-4 w-4 text-muted-foreground" />
+                                Décaissements à traiter
+                            </h2>
+                            <Link :href="route('caissier.demandes.index')" class="flex items-center gap-1 text-xs text-primary hover:underline">
+                                Tout voir <ArrowRight class="h-3 w-3" />
+                            </Link>
+                        </div>
+                        <template v-if="recentDisbursements && recentDisbursements.length > 0">
+                            <div class="divide-y">
+                                <Link
+                                    v-for="dd in recentDisbursements"
+                                    :key="dd.id"
+                                    :href="route('disbursement-requests.show', dd.uuid)"
+                                    class="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30 sm:px-5"
+                                >
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
+                                        <Banknote class="h-4 w-4 text-indigo-600" />
+                                    </div>
+                                    <div class="min-w-0 flex-1">
+                                        <p class="truncate text-sm font-medium text-foreground">{{ dd.title }}</p>
+                                        <p class="text-xs text-muted-foreground">
+                                            {{ dd.reference }}<template v-if="dd.nature_operation"> · {{ dd.nature_operation.name }}</template>
+                                        </p>
+                                    </div>
+                                    <div class="shrink-0 text-right">
+                                        <p class="text-sm font-semibold text-indigo-600">{{ formatAmountShort(Number(dd.amount)) }}</p>
+                                        <p class="text-xs text-muted-foreground">FCFA</p>
+                                    </div>
+                                </Link>
+                            </div>
+                        </template>
+                        <template v-else>
+                            <div class="flex flex-col items-center gap-2 py-10 text-center">
+                                <CheckCircle2 class="h-8 w-8 text-emerald-200" />
+                                <p class="text-sm text-muted-foreground">Aucun en attente</p>
+                            </div>
+                        </template>
+                    </div>
+
+                </div>
+
             </template>
 
             <!-- ===== DEMANDEUR ===== -->
@@ -691,6 +941,37 @@ const hasBarData = computed(() =>
                         </div>
                         <p class="text-2xl font-bold text-amber-700">{{ formatAmount(stats.budget_pending ?? 0) }}</p>
                         <p class="text-xs text-amber-600 mt-1.5">{{ stats.pending }} commandes en attente</p>
+                    </div>
+                </div>
+
+                <!-- Demandes de décaissement (demandeur) -->
+                <div class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
+                    <div class="mb-3 flex items-center gap-2">
+                        <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-50">
+                            <Banknote class="h-4 w-4 text-indigo-600" />
+                        </div>
+                        <h3 class="font-semibold text-foreground">Demandes de décaissement</h3>
+                        <Link :href="route('disbursement-requests.index')" class="ml-auto text-xs text-primary hover:underline flex items-center gap-1">
+                            Voir tout <ArrowRight class="h-3 w-3" />
+                        </Link>
+                    </div>
+                    <div class="grid grid-cols-3 gap-3">
+                        <div class="rounded-xl border bg-muted/30 p-3 text-center">
+                            <p class="text-xl font-bold text-foreground">{{ stats.dd_total ?? 0 }}</p>
+                            <p class="text-xs text-muted-foreground mt-0.5">Total</p>
+                        </div>
+                        <div class="rounded-xl border bg-amber-50 p-3 text-center">
+                            <p class="text-xl font-bold text-amber-700">{{ stats.dd_pending ?? 0 }}</p>
+                            <p class="text-xs text-amber-600 mt-0.5">En circuit</p>
+                        </div>
+                        <div class="rounded-xl border bg-emerald-50 p-3 text-center">
+                            <p class="text-xl font-bold text-emerald-700">{{ stats.dd_approved ?? 0 }}</p>
+                            <p class="text-xs text-emerald-600 mt-0.5">Approuvées</p>
+                        </div>
+                    </div>
+                    <div v-if="(stats.dd_budget_approved ?? 0) > 0" class="mt-3 rounded-xl bg-indigo-50 px-4 py-2.5 text-sm">
+                        <span class="text-indigo-600 font-medium">{{ formatAmount(stats.dd_budget_approved ?? 0) }}</span>
+                        <span class="text-indigo-400 ml-1.5">décaissés approuvés</span>
                     </div>
                 </div>
 

@@ -3,7 +3,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type Pret } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { ArrowRight, Building2, HandCoins, RotateCcw, SlidersHorizontal, X } from 'lucide-vue-next';
+import { ArrowRight, Building2, Download, HandCoins, RotateCcw, SlidersHorizontal, X } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -26,6 +26,16 @@ watch([() => localFilters.value.statut, () => localFilters.value.boutique_id], a
 function apply() { router.get(route('caisse.prets.index'), localFilters.value, { preserveState: true, replace: true }); }
 function clear() { localFilters.value = { statut: '', boutique_id: '' }; }
 const hasFilters = computed(() => localFilters.value.statut || localFilters.value.boutique_id);
+
+function exportUrl() {
+    const params = new URLSearchParams();
+    Object.entries(localFilters.value).forEach(([key, value]) => {
+        if (value) params.set(key, String(value));
+    });
+
+    const query = params.toString();
+    return query ? `${route('caisse.prets.export')}?${query}` : route('caisse.prets.export');
+}
 
 const statutConfig: Record<string, { bg: string; text: string; dot: string }> = {
     draft:    { bg: 'bg-gray-50',   text: 'text-gray-600',   dot: 'bg-gray-400' },
@@ -54,10 +64,19 @@ const formatAmount = (v: string | number) =>
                     <h1 class="text-2xl font-bold text-foreground">Prêts</h1>
                     <p class="mt-1 text-sm text-muted-foreground">Suivi des demandes et remboursements</p>
                 </div>
-                <Link :href="route('caisse.prets.create')"
-                    class="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
-                    <HandCoins class="h-4 w-4" /> Nouveau prêt
-                </Link>
+                <div class="flex items-center gap-2">
+                    <a
+                        :href="exportUrl()"
+                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                    >
+                        <Download class="h-4 w-4" />
+                        Export Excel
+                    </a>
+                    <Link :href="route('caisse.prets.create')"
+                        class="flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+                        <HandCoins class="h-4 w-4" /> Nouveau prêt
+                    </Link>
+                </div>
             </div>
 
             <!-- Filtres -->

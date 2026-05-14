@@ -11,13 +11,69 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class PretValidationController extends Controller
 {
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $query = $this->buildIndexQuery($request, $user);
 
+        return Inertia::render('PretValidations/Index', [
+            'prets'      => $query->paginate(10)->withQueryString(),
+            'boutiques'  => Boutique::where('is_active', true)->orderBy('name')->get(),
+            'levelsCount'=> ValidationLevel::count(),
+            'filters'    => ['boutique_id' => $request->string('boutique_id')->toString()],
+        ]);
+    }
+
+    public function export(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $prets = $this->buildIndexQuery($request, $request->user())->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Validations prets');
+
+        $headers = ['Agent', 'Matricule', 'Boutique', 'Montant demandé', 'Motif', 'Niveau courant', 'Soumis le'];
+        foreach ($headers as $col => $header) {
+            $cell = Coordinate::stringFromColumnIndex($col + 1) . '1';
+            $sheet->setCellValue($cell, $header);
+            $sheet->getStyle($cell)->getFont()->setBold(true);
+            $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EA580C');
+            $sheet->getStyle($cell)->getFont()->getColor()->setRGB('FFFFFF');
+        }
+
+        foreach ($prets as $row => $pret) {
+            $values = [
+                trim(($pret->agent?->prenom ?? '') . ' ' . ($pret->agent?->nom ?? '')),
+                $pret->agent?->matricule ?? '',
+                $pret->agent?->boutique?->name ?? '',
+                (float) $pret->montant_demande,
+                $pret->motif ?? '',
+                $pret->current_level_order ? 'Niveau ' . $pret->current_level_order : '',
+                $pret->submitted_at?->format('d/m/Y') ?? '',
+            ];
+            foreach ($values as $col => $value) {
+                $sheet->setCellValue(Coordinate::stringFromColumnIndex($col + 1) . ($row + 2), $value);
+            }
+        }
+
+        foreach (range(1, count($headers)) as $column) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($column))->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        return response()->streamDownload(fn () => $writer->save('php://output'), 'validations-prets-' . now()->format('Y-m-d') . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function buildIndexQuery(Request $request, $user)
+    {
         $query = Pret::where('statut', 'pending')
             ->with(['agent.boutique', 'validationLogs'])
             ->latest('submitted_at');
@@ -32,12 +88,7 @@ class PretValidationController extends Controller
             $query->whereHas('agent', fn ($q) => $q->where('boutique_id', $request->integer('boutique_id')));
         }
 
-        return Inertia::render('PretValidations/Index', [
-            'prets'      => $query->paginate(10)->withQueryString(),
-            'boutiques'  => Boutique::where('is_active', true)->orderBy('name')->get(),
-            'levelsCount'=> ValidationLevel::count(),
-            'filters'    => ['boutique_id' => $request->string('boutique_id')->toString()],
-        ]);
+        return $query;
     }
 
     public function show(Pret $pret): Response

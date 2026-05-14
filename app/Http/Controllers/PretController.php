@@ -12,27 +12,91 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class PretController extends Controller
 {
     public function index(Request $request): Response
     {
         $user = $request->user();
-
-        $query = Pret::with(['agent.boutique', 'modeReglement'])
-            ->when($user->isCaissier() && $user->boutique_id, fn ($q) => $q->whereHas('agent', fn ($a) => $a->where('boutique_id', $user->boutique_id)))
-            ->when($request->filled('statut'), fn ($q) => $q->where('statut', $request->string('statut')->toString()))
-            ->when($request->filled('boutique_id'), fn ($q) => $q->whereHas('agent', fn ($a) => $a->where('boutique_id', $request->integer('boutique_id'))))
-            ->latest();
+        $query = $this->buildIndexQuery($request, $user);
 
         return Inertia::render('Caisse/Prets/Index', [
             'prets'     => $query->paginate(15)->withQueryString(),
             'boutiques' => $user->isAdmin() ? Boutique::where('is_active', true)->orderBy('name')->get() : [],
-            'filters'   => [
-                'statut'      => $request->string('statut')->toString(),
-                'boutique_id' => $request->string('boutique_id')->toString(),
-            ],
+            'filters'   => $this->getFilters($request),
         ]);
+    }
+
+    public function export(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $prets = $this->buildIndexQuery($request, $request->user())->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Prets');
+
+        $headers = ['Agent', 'Matricule', 'Boutique', 'Montant demandé', 'Montant accordé', 'Statut', 'Mode', 'Créé le'];
+        foreach ($headers as $col => $header) {
+            $cell = Coordinate::stringFromColumnIndex($col + 1) . '1';
+            $sheet->setCellValue($cell, $header);
+            $sheet->getStyle($cell)->getFont()->setBold(true);
+            $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('EA580C');
+            $sheet->getStyle($cell)->getFont()->getColor()->setRGB('FFFFFF');
+        }
+
+        $labels = [
+            'draft' => 'Brouillon',
+            'pending' => 'En validation',
+            'approved' => 'Approuvé',
+            'rejected' => 'Rejeté',
+            'decaisse' => 'Décaissé',
+            'solde' => 'Soldé',
+        ];
+
+        foreach ($prets as $row => $pret) {
+            $values = [
+                trim(($pret->agent?->prenom ?? '') . ' ' . ($pret->agent?->nom ?? '')),
+                $pret->agent?->matricule ?? '',
+                $pret->agent?->boutique?->name ?? '',
+                (float) $pret->montant_demande,
+                (float) ($pret->montant_accorde ?? 0),
+                $labels[$pret->statut] ?? $pret->statut,
+                $pret->modeReglement?->name ?? '',
+                $pret->created_at?->format('d/m/Y') ?? '',
+            ];
+            foreach ($values as $col => $value) {
+                $sheet->setCellValue(Coordinate::stringFromColumnIndex($col + 1) . ($row + 2), $value);
+            }
+        }
+
+        foreach (range(1, count($headers)) as $column) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($column))->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        return response()->streamDownload(fn () => $writer->save('php://output'), 'prets-' . now()->format('Y-m-d') . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function buildIndexQuery(Request $request, $user)
+    {
+        return Pret::with(['agent.boutique', 'modeReglement'])
+            ->when($user->isCaissier() && $user->boutique_id, fn ($q) => $q->whereHas('agent', fn ($a) => $a->where('boutique_id', $user->boutique_id)))
+            ->when($request->filled('statut'), fn ($q) => $q->where('statut', $request->string('statut')->toString()))
+            ->when($request->filled('boutique_id'), fn ($q) => $q->whereHas('agent', fn ($a) => $a->where('boutique_id', $request->integer('boutique_id'))))
+            ->latest();
+    }
+
+    private function getFilters(Request $request): array
+    {
+        return [
+            'statut'      => $request->string('statut')->toString(),
+            'boutique_id' => $request->string('boutique_id')->toString(),
+        ];
     }
 
     public function create(Request $request): Response

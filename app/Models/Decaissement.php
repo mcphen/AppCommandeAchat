@@ -9,6 +9,7 @@ class Decaissement extends Model
 {
     protected $fillable = [
         'purchase_order_id',
+        'disbursement_request_id',
         'recorded_by',
         'montant',
         'mode_reglement_id',
@@ -25,6 +26,11 @@ class Decaissement extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function disbursementRequest(): BelongsTo
+    {
+        return $this->belongsTo(DisbursementRequest::class);
     }
 
     public function recorder(): BelongsTo

@@ -6,6 +6,7 @@ use App\Models\Article;
 use App\Models\Boutique;
 use App\Models\Budget;
 use App\Models\Category;
+use App\Models\DisbursementRequest;
 use App\Models\Fournisseur;
 use App\Models\PurchaseOrder;
 use App\Models\User;
@@ -44,12 +45,19 @@ class DashboardController extends Controller
     {
         $budgetService = app(BudgetService::class);
         $stats = [
-            'total'           => PurchaseOrder::count(),
-            'pending'         => PurchaseOrder::where('status', 'pending')->count(),
-            'approved'        => PurchaseOrder::where('status', 'approved')->count(),
-            'rejected'        => PurchaseOrder::where('status', 'rejected')->count(),
-            'budget_approved' => (int) PurchaseOrder::where('status', 'approved')->sum('amount'),
-            'budget_pending'  => (int) PurchaseOrder::where('status', 'pending')->sum('amount'),
+            'total'            => PurchaseOrder::count(),
+            'pending'          => PurchaseOrder::where('status', 'pending')->count(),
+            'approved'         => PurchaseOrder::where('status', 'approved')->count(),
+            'rejected'         => PurchaseOrder::where('status', 'rejected')->count(),
+            'budget_approved'  => (int) PurchaseOrder::where('status', 'approved')->sum('amount'),
+            'budget_pending'   => (int) PurchaseOrder::where('status', 'pending')->sum('amount'),
+            // Demandes de décaissement
+            'dd_total'         => DisbursementRequest::count(),
+            'dd_pending'       => DisbursementRequest::where('status', 'pending')->count(),
+            'dd_approved'      => DisbursementRequest::where('status', 'approved')->count(),
+            'dd_rejected'      => DisbursementRequest::where('status', 'rejected')->count(),
+            'dd_budget_approved' => (int) DisbursementRequest::where('status', 'approved')->sum('amount'),
+            'dd_budget_pending'  => (int) DisbursementRequest::where('status', 'pending')->sum('amount'),
         ];
 
         $recentOrders = PurchaseOrder::with(['user', 'boutique'])
@@ -97,6 +105,10 @@ class DashboardController extends Controller
 
         $myApprovedLogs = $user->validationLogs()->where('action', 'approved');
 
+        $ddPendingLevel = DisbursementRequest::where('status', 'pending')
+            ->when($levelOrder, fn ($q) => $q->where('current_level_order', $levelOrder))
+            ->count();
+
         $stats = [
             'pending'               => (clone $pendingQuery)->count(),
             'budget_pending'        => (int) (clone $pendingQuery)->sum('amount'),
@@ -109,6 +121,10 @@ class DashboardController extends Controller
             'global_rejected'       => PurchaseOrder::where('status', 'rejected')->count(),
             'global_budget_approved'=> (int) PurchaseOrder::where('status', 'approved')->sum('amount'),
             'global_pending'        => PurchaseOrder::where('status', 'pending')->count(),
+            // Demandes de décaissement
+            'dd_pending_my_level'   => $ddPendingLevel,
+            'dd_pending'            => DisbursementRequest::where('status', 'pending')->count(),
+            'dd_approved'           => DisbursementRequest::where('status', 'approved')->count(),
         ];
 
         $recentOrders = PurchaseOrder::with(['user', 'boutique'])
@@ -146,13 +162,18 @@ class DashboardController extends Controller
     private function demandeurDashboard(User $user): Response
     {
         $stats = [
-            'total'           => $user->purchaseOrders()->count(),
-            'draft'           => $user->purchaseOrders()->where('status', 'draft')->count(),
-            'pending'         => $user->purchaseOrders()->where('status', 'pending')->count(),
-            'approved'        => $user->purchaseOrders()->where('status', 'approved')->count(),
-            'rejected'        => $user->purchaseOrders()->where('status', 'rejected')->count(),
-            'budget_approved' => (int) $user->purchaseOrders()->where('status', 'approved')->sum('amount'),
-            'budget_pending'  => (int) $user->purchaseOrders()->where('status', 'pending')->sum('amount'),
+            'total'              => $user->purchaseOrders()->count(),
+            'draft'              => $user->purchaseOrders()->where('status', 'draft')->count(),
+            'pending'            => $user->purchaseOrders()->where('status', 'pending')->count(),
+            'approved'           => $user->purchaseOrders()->where('status', 'approved')->count(),
+            'rejected'           => $user->purchaseOrders()->where('status', 'rejected')->count(),
+            'budget_approved'    => (int) $user->purchaseOrders()->where('status', 'approved')->sum('amount'),
+            'budget_pending'     => (int) $user->purchaseOrders()->where('status', 'pending')->sum('amount'),
+            // Demandes de décaissement
+            'dd_total'           => $user->disbursementRequests()->count(),
+            'dd_pending'         => $user->disbursementRequests()->where('status', 'pending')->count(),
+            'dd_approved'        => $user->disbursementRequests()->where('status', 'approved')->count(),
+            'dd_budget_approved' => (int) $user->disbursementRequests()->where('status', 'approved')->sum('amount'),
         ];
 
         $recentOrders = $user->purchaseOrders()
@@ -180,24 +201,45 @@ class DashboardController extends Controller
         $baseQuery = PurchaseOrder::where('status', 'approved')
             ->when($boutiqueId, fn ($q) => $q->where('boutique_id', $boutiqueId));
 
+        $ddBase = DisbursementRequest::where('status', 'approved')
+            ->when($boutiqueId, fn ($q) => $q->where('boutique_id', $boutiqueId));
+
         $stats = [
             'approved_total'  => (clone $baseQuery)->count(),
             'unpaid'          => (clone $baseQuery)->whereNull('payment_status')->count(),
             'partially_paid'  => (clone $baseQuery)->where('payment_status', 'partially_paid')->count(),
             'paid'            => (clone $baseQuery)->where('payment_status', 'paid')->count(),
             'total_to_pay'    => (int) (clone $baseQuery)->whereNull('payment_status')->sum('amount'),
+            'total_paid_bc'   => (int) (clone $baseQuery)->where('payment_status', 'paid')->sum('amount'),
+            // Demandes de décaissement
+            'dd_total'        => (clone $ddBase)->count(),
+            'dd_unpaid'       => (clone $ddBase)->whereNull('payment_status')->count(),
+            'dd_paid'         => (clone $ddBase)->where('payment_status', 'paid')->count(),
+            'dd_to_pay'       => (int) (clone $ddBase)->whereNull('payment_status')->sum('amount'),
+            'dd_paid_amount'  => (int) (clone $ddBase)->where('payment_status', 'paid')->sum('amount'),
         ];
 
+        // Bons de commande non payés à traiter
         $recentOrders = (clone $baseQuery)
+            ->whereNull('payment_status')
             ->with(['boutique', 'fournisseur'])
             ->latest()
-            ->limit(8)
+            ->limit(5)
+            ->get();
+
+        // Demandes de décaissement non payées à traiter
+        $recentDisbursements = (clone $ddBase)
+            ->whereNull('payment_status')
+            ->with(['boutique', 'natureOperation'])
+            ->latest()
+            ->limit(5)
             ->get();
 
         return Inertia::render('Dashboard', [
-            'stats'        => $stats,
-            'recentOrders' => $recentOrders,
-            'boutique'     => $user->boutique,
+            'stats'               => $stats,
+            'recentOrders'        => $recentOrders,
+            'recentDisbursements' => $recentDisbursements,
+            'boutique'            => $user->boutique,
         ]);
     }
 

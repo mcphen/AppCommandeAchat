@@ -3,7 +3,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOrder, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Building2, Calendar, CheckSquare, Clock, Eye, FileText, Filter, RotateCcw } from 'lucide-vue-next';
+import { Building2, Calendar, CheckSquare, Clock, Download, Eye, FileText, Filter, RotateCcw } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -57,6 +57,13 @@ const resetFilters = () => {
 };
 
 const hasActiveFilters = computed(() => !!props.filters.boutique_id);
+
+const exportUrl = computed(() => {
+    const params = new URLSearchParams();
+    if (props.filters.boutique_id) params.set('boutique_id', props.filters.boutique_id);
+    const query = params.toString();
+    return query ? `${route('validations.export')}?${query}` : route('validations.export');
+});
 </script>
 
 <template>
@@ -76,6 +83,16 @@ const hasActiveFilters = computed(() => !!props.filters.boutique_id);
                     <span class="text-sm font-semibold text-amber-700">{{ orders.total }}</span>
                     <span class="hidden text-sm font-semibold text-amber-700 sm:inline">en attente</span>
                 </div>
+            </div>
+
+            <div class="flex justify-end">
+                <a
+                    :href="exportUrl"
+                    class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                    <Download class="h-4 w-4" />
+                    Export Excel
+                </a>
             </div>
 
             <div class="rounded-2xl border bg-card p-4 shadow-sm">

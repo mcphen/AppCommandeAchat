@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountingController;
+use App\Http\Controllers\Admin\NatureOperationController;
 use App\Http\Controllers\DecaissementController;
 use App\Http\Controllers\CaisseController;
 use App\Http\Controllers\TransactionEpargneController;
@@ -26,6 +27,8 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\DelegationController;
 use App\Http\Controllers\OrderCommentController;
+use App\Http\Controllers\DisbursementRequestController;
+use App\Http\Controllers\DisbursementValidationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PurchaseOrderController;
@@ -63,6 +66,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Tableau de bord réceptions / livraisons
         Route::get('receptions', [ReceptionController::class, 'index'])
             ->name('receptions.index');
+        Route::get('receptions/export/excel', [ReceptionController::class, 'export'])
+            ->name('receptions.export');
     });
 
     // Commentaires & discussion (tous rôles authentifiés)
@@ -88,6 +93,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Téléchargement PDF et pièces jointes (tous les rôles authentifiés)
     Route::get('purchase-orders/{purchase_order}/pdf', [PurchaseOrderController::class, 'downloadPdf'])
         ->name('purchase-orders.pdf');
+    Route::get('disbursement-requests/{disbursement_request}/pdf', [DisbursementRequestController::class, 'downloadPdf'])
+        ->name('disbursement-requests.pdf');
+    Route::get('disbursement-requests/{disbursement_request}/attachments/{attachment}', [DisbursementRequestController::class, 'downloadAttachment'])
+        ->name('disbursement-requests.attachments.download');
     Route::get('purchase-orders/export/{format}', [PurchaseOrderController::class, 'export'])
         ->name('purchase-orders.export')
         ->where('format', 'csv|excel|pdf');
@@ -97,7 +106,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Validations (Validateur + Admin)
     Route::middleware('role:validateur,admin')->group(function () {
         Route::get('/validations', [ValidationController::class, 'index'])->name('validations.index');
+        Route::get('/validations/export/excel', [ValidationController::class, 'exportIndex'])->name('validations.export');
         Route::get('/validations/historique', [ValidationController::class, 'history'])->name('validations.history');
+        Route::get('/validations/historique/export/excel', [ValidationController::class, 'exportHistory'])->name('validations.history.export');
         Route::get('/validations/historique/{purchase_order}', [ValidationController::class, 'showFromHistory'])->name('validations.history.show');
         Route::get('/validations/{purchase_order}', [ValidationController::class, 'show'])->name('validations.show');
         Route::post('/validations/{purchase_order}/approve', [ValidationController::class, 'approve'])->name('validations.approve');
@@ -122,9 +133,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Caisse épargne & prêts (Caissier + Admin)
     Route::middleware('role:caissier,admin')->prefix('caisse')->name('caisse.')->group(function () {
         Route::get('/', [CaisseController::class, 'index'])->name('index');
+        Route::get('/export/excel', [CaisseController::class, 'export'])->name('export');
         Route::get('/agents/{agent}', [CaisseController::class, 'showAgent'])->name('agents.show');
         Route::post('/agents/{agent}/transactions', [TransactionEpargneController::class, 'store'])->name('transactions.store');
         Route::get('/prets', [PretController::class, 'index'])->name('prets.index');
+        Route::get('/prets/export/excel', [PretController::class, 'export'])->name('prets.export');
         Route::get('/prets/create', [PretController::class, 'create'])->name('prets.create');
         Route::post('/prets', [PretController::class, 'store'])->name('prets.store');
         Route::get('/prets/{pret}', [PretController::class, 'show'])->name('prets.show');
@@ -136,6 +149,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Validation des prêts (Validateur + Admin)
     Route::middleware('role:validateur,admin')->group(function () {
         Route::get('/pret-validations', [PretValidationController::class, 'index'])->name('pret-validations.index');
+        Route::get('/pret-validations/export/excel', [PretValidationController::class, 'export'])->name('pret-validations.export');
         Route::get('/pret-validations/{pret}', [PretValidationController::class, 'show'])->name('pret-validations.show');
         Route::post('/pret-validations/{pret}/approve', [PretValidationController::class, 'approve'])->name('pret-validations.approve');
         Route::post('/pret-validations/{pret}/reject', [PretValidationController::class, 'reject'])->name('pret-validations.reject');
@@ -144,9 +158,40 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Décaissements (Caissier + Admin)
     Route::middleware('role:caissier,admin')->group(function () {
         Route::get('/decaissements', [DecaissementController::class, 'index'])->name('decaissements.index');
+        Route::get('/decaissements/export/excel', [DecaissementController::class, 'export'])->name('decaissements.export');
         Route::get('/decaissements/{purchase_order}/pdf', [DecaissementController::class, 'downloadPdf'])->name('decaissements.pdf');
         Route::get('/decaissements/{purchase_order}', [DecaissementController::class, 'show'])->name('decaissements.show');
         Route::post('/decaissements/{purchase_order}', [DecaissementController::class, 'store'])->name('decaissements.store');
+
+        // Caissier — Demandes de décaissement
+        Route::get('/caissier/demandes-decaissement', [DecaissementController::class, 'indexDemandes'])->name('caissier.demandes.index');
+        Route::get('/caissier/demandes-decaissement/{disbursement_request}', [DecaissementController::class, 'showDemande'])->name('caissier.demandes.show');
+        Route::post('/caissier/demandes-decaissement/{disbursement_request}', [DecaissementController::class, 'storeDemande'])->name('caissier.demandes.store');
+    });
+
+    // Demandes de décaissement (Demandeur + Admin)
+    Route::middleware('role:demandeur,admin')->group(function () {
+        Route::get('disbursement-requests/export/excel', [DisbursementRequestController::class, 'export'])
+            ->name('disbursement-requests.export');
+        Route::post('disbursement-requests/nature-operations', [DisbursementRequestController::class, 'storeNatureOperation'])
+            ->name('disbursement-requests.nature-operations.store');
+        Route::resource('disbursement-requests', DisbursementRequestController::class);
+        Route::post('disbursement-requests/{disbursement_request}/submit', [DisbursementRequestController::class, 'submit'])
+            ->name('disbursement-requests.submit');
+        Route::post('disbursement-requests/{disbursement_request}/cancel', [DisbursementRequestController::class, 'cancel'])
+            ->name('disbursement-requests.cancel');
+    });
+
+    // Validation des demandes de décaissement (Validateur + Admin)
+    Route::middleware('role:validateur,admin')->group(function () {
+        Route::get('/disbursement-validations', [DisbursementValidationController::class, 'index'])->name('disbursement-validations.index');
+        Route::get('/disbursement-validations/export/excel', [DisbursementValidationController::class, 'exportIndex'])->name('disbursement-validations.export');
+        Route::get('/disbursement-validations/historique', [DisbursementValidationController::class, 'history'])->name('disbursement-validations.history');
+        Route::get('/disbursement-validations/historique/export/excel', [DisbursementValidationController::class, 'exportHistory'])->name('disbursement-validations.history.export');
+        Route::get('/disbursement-validations/historique/{disbursement_request}', [DisbursementValidationController::class, 'showFromHistory'])->name('disbursement-validations.history.show');
+        Route::get('/disbursement-validations/{disbursement_request}', [DisbursementValidationController::class, 'show'])->name('disbursement-validations.show');
+        Route::post('/disbursement-validations/{disbursement_request}/approve', [DisbursementValidationController::class, 'approve'])->name('disbursement-validations.approve');
+        Route::post('/disbursement-validations/{disbursement_request}/reject', [DisbursementValidationController::class, 'reject'])->name('disbursement-validations.reject');
     });
 
     // Analytique (Admin uniquement)
@@ -182,6 +227,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('articles/import/confirm', [ArticleController::class, 'importConfirm'])->name('articles.import.confirm');
         Route::resource('articles', ArticleController::class)->except(['show']);
         Route::resource('budgets', BudgetController::class)->except(['show']);
+        Route::resource('nature-operations', NatureOperationController::class)->only(['index', 'store', 'update', 'destroy']);
         Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');
         Route::get('accounting/export/{format}', [AccountingController::class, 'export'])->name('accounting.export')->where('format', 'fec|csv');
 

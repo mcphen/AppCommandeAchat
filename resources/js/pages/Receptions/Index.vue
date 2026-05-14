@@ -5,7 +5,7 @@ import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOr
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ArrowRight, Building2, CheckCircle2, ClipboardCheck, Clock,
-    Package, RotateCcw, Search, SlidersHorizontal, Truck, X,
+    Download, Package, RotateCcw, Search, SlidersHorizontal, Truck, X,
 } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
 
@@ -43,6 +43,16 @@ function applyFilters() {
 }
 function clearFilters() {
     localFilters.value = { delivery_status: '', boutique_id: '', search: '' };
+}
+
+function exportUrl() {
+    const params = new URLSearchParams();
+    Object.entries(localFilters.value).forEach(([key, value]) => {
+        if (value) params.set(key, String(value));
+    });
+
+    const query = params.toString();
+    return query ? `${route('receptions.export')}?${query}` : route('receptions.export');
 }
 
 const hasActiveFilters = computed(() =>
@@ -83,6 +93,13 @@ const globalProgress = (order: PurchaseOrder): number => {
                     <h1 class="text-2xl font-bold text-foreground">Réceptions & Livraisons</h1>
                     <p class="mt-1 text-sm text-muted-foreground">Suivi de l'état de réception des bons de commande approuvés</p>
                 </div>
+                <a
+                    :href="exportUrl()"
+                    class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                >
+                    <Download class="h-4 w-4" />
+                    Export Excel
+                </a>
             </div>
 
             <!-- KPI cards -->

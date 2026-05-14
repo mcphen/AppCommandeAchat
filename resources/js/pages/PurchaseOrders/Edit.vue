@@ -151,16 +151,35 @@ const form = useForm({
 const existingAttachments = ref(props.order.attachments ?? []);
 const dragOver = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
+const uploadError = ref('');
+const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
 const markDelete = (id: number) => {
     existingAttachments.value = existingAttachments.value.filter(a => a.id !== id);
     form.deleted_attachment_ids.push(id);
 };
 const addFiles = (files: FileList | File[]) => {
-    form.attachments = [...form.attachments, ...Array.from(files).filter(f => f.type === 'application/pdf')];
+    const oversizedFiles: string[] = [];
+    const acceptedFiles = Array.from(files).filter((file) => {
+        if (file.size > MAX_FILE_SIZE_BYTES) {
+            oversizedFiles.push(`${file.name} (${formatSize(file.size)})`);
+            return false;
+        }
+
+        return file.type === 'application/pdf';
+    });
+
+    form.attachments = [...form.attachments, ...acceptedFiles];
+    uploadError.value = oversizedFiles.length > 0
+        ? `Fichier${oversizedFiles.length > 1 ? 's' : ''} refusé${oversizedFiles.length > 1 ? 's' : ''} : ${oversizedFiles.join(', ')}. Taille maximale : 10 Mo par fichier.`
+        : '';
 };
 const onDrop = (e: DragEvent) => { dragOver.value = false; if (e.dataTransfer?.files) addFiles(e.dataTransfer.files); };
-const onFileChange = (e: Event) => { const input = e.target as HTMLInputElement; if (input.files) addFiles(input.files); };
+const onFileChange = (e: Event) => {
+    const input = e.target as HTMLInputElement;
+    if (input.files) addFiles(input.files);
+    input.value = '';
+};
 const removeNewFile = (i: number) => { form.attachments = form.attachments.filter((_, idx) => idx !== i); };
 const formatSize = (b: number) => b >= 1048576 ? (b / 1048576).toFixed(1) + ' MB' : (b / 1024).toFixed(0) + ' KB';
 
@@ -399,7 +418,11 @@ const submit = () => {
                     </div>
 
                     <div class="relative rounded-xl border-2 border-dashed p-6 text-center cursor-pointer transition-colors"
-                        :class="dragOver ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50 hover:bg-muted/20'"
+                        :class="uploadError
+                            ? 'border-red-300 bg-red-50/60'
+                            : dragOver
+                                ? 'border-primary bg-primary/5'
+                                : 'border-border hover:border-primary/50 hover:bg-muted/20'"
                         @dragover.prevent="dragOver = true" @dragleave="dragOver = false" @drop.prevent="onDrop" @click="fileInput?.click()">
                         <input ref="fileInput" type="file" accept=".pdf" multiple class="hidden" @change="onFileChange" />
                         <div class="flex flex-col items-center gap-2">
@@ -407,6 +430,11 @@ const submit = () => {
                             <p class="text-sm text-muted-foreground">Ajouter des fichiers PDF</p>
                         </div>
                     </div>
+
+                    <p v-if="uploadError" class="flex items-start gap-2 text-xs text-red-600">
+                        <AlertTriangle class="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{{ uploadError }}</span>
+                    </p>
 
                     <div v-if="form.attachments.length > 0" class="flex flex-col gap-2">
                         <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Nouveaux fichiers</p>

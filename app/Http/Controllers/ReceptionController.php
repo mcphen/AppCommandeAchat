@@ -12,12 +12,82 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class ReceptionController extends Controller
 {
     public function index(Request $request): Response
     {
         $user  = auth()->user();
+        $query = $this->buildIndexQuery($request, $user);
+
+        $orders = $query->paginate(15)->withQueryString();
+
+        return Inertia::render('Receptions/Index', [
+            'orders'    => $orders,
+            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'filters'   => $this->getFilters($request),
+            'stats' => [
+                'ordered'            => $this->countForUser($user, 'ordered'),
+                'partially_received' => $this->countForUser($user, 'partially_received'),
+                'received'           => $this->countForUser($user, 'received'),
+            ],
+        ]);
+    }
+
+    public function export(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $orders = $this->buildIndexQuery($request, $request->user())->get();
+
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Receptions');
+
+        $headers = ['BC', 'Titre', 'Boutique', 'Fournisseur', 'Montant (XOF)', 'Statut livraison', 'Progression', 'Commandée le', 'Clôturée le'];
+        foreach ($headers as $col => $header) {
+            $cell = Coordinate::stringFromColumnIndex($col + 1) . '1';
+            $sheet->setCellValue($cell, $header);
+            $sheet->getStyle($cell)->getFont()->setBold(true);
+            $sheet->getStyle($cell)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4F46E5');
+            $sheet->getStyle($cell)->getFont()->getColor()->setRGB('FFFFFF');
+        }
+
+        $statusLabels = ['ordered' => 'Commandée', 'partially_received' => 'Reçue partiellement', 'received' => 'Reçue entièrement'];
+        foreach ($orders as $row => $order) {
+            $lines = $order->lines ?? collect();
+            $orderedQty = $lines->sum(fn ($line) => (float) $line->quantity);
+            $receivedQty = $lines->sum(fn ($line) => (float) ($line->quantity_received_total ?? 0));
+            $progress = $orderedQty > 0 ? min(100, round(($receivedQty / $orderedQty) * 100)) : ($order->delivery_status === 'received' ? 100 : 0);
+            $values = [
+                $order->order_number ?? '',
+                $order->title,
+                $order->boutique?->name ?? '',
+                $order->fournisseur?->name ?? '',
+                (float) $order->amount,
+                $statusLabels[$order->delivery_status] ?? $order->delivery_status,
+                $progress . '%',
+                $order->ordered_at?->format('d/m/Y') ?? '',
+                $order->fully_received_at?->format('d/m/Y') ?? '',
+            ];
+            foreach ($values as $col => $value) {
+                $sheet->setCellValue(Coordinate::stringFromColumnIndex($col + 1) . ($row + 2), $value);
+            }
+        }
+
+        foreach (range(1, count($headers)) as $column) {
+            $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($column))->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        return response()->streamDownload(fn () => $writer->save('php://output'), 'receptions-livraisons-' . now()->format('Y-m-d') . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    }
+
+    private function buildIndexQuery(Request $request, $user)
+    {
         $query = PurchaseOrder::with([
                 'boutique',
                 'fournisseur',
@@ -28,7 +98,6 @@ class ReceptionController extends Controller
             ->whereNotNull('delivery_status')
             ->latest('ordered_at');
 
-        // Un demandeur voit les commandes de tous les demandeurs de sa boutique
         if (! $user->isAdmin()) {
             if ($user->isDemandeur() && $user->boutique_id) {
                 $boutiqueUserIds = \App\Models\User::where('boutique_id', $user->boutique_id)->pluck('id');
@@ -54,22 +123,16 @@ class ReceptionController extends Controller
             });
         }
 
-        $orders = $query->paginate(15)->withQueryString();
+        return $query;
+    }
 
-        return Inertia::render('Receptions/Index', [
-            'orders'    => $orders,
-            'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'filters'   => [
-                'delivery_status' => $request->string('delivery_status')->toString(),
-                'boutique_id'     => $request->string('boutique_id')->toString(),
-                'search'          => $request->string('search')->toString(),
-            ],
-            'stats' => [
-                'ordered'            => $this->countForUser($user, 'ordered'),
-                'partially_received' => $this->countForUser($user, 'partially_received'),
-                'received'           => $this->countForUser($user, 'received'),
-            ],
-        ]);
+    private function getFilters(Request $request): array
+    {
+        return [
+            'delivery_status' => $request->string('delivery_status')->toString(),
+            'boutique_id'     => $request->string('boutique_id')->toString(),
+            'search'          => $request->string('search')->toString(),
+        ];
     }
 
     private function countForUser($user, string $status): int

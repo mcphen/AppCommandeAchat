@@ -38,7 +38,8 @@ return [
     'twilio' => [
         'sid'           => env('TWILIO_SID'),
         'token'         => env('TWILIO_AUTH_TOKEN'),
-        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM', '+221773325158'),
+        'whatsapp_from'  => env('TWILIO_WHATSAPP_FROM', '+221773325158'),
+        'dev_redirect'   => env('WHATSAPP_DEV_REDIRECT'),
         'templates'     => [
             'order_submitted'         => env('TWILIO_TPL_ORDER_SUBMITTED'),
             'order_approved_at_level' => env('TWILIO_TPL_ORDER_APPROVED_LEVEL'),

@@ -15,10 +15,16 @@ class WhatsAppChannel
             return;
         }
 
-        $phone = $notifiable->routeNotificationFor('whatsapp', $notification);
+        // En local, rediriger toutes les notifs vers le numéro de dev (même si le destinataire n'a pas de phone)
+        $devRedirect = config('services.twilio.dev_redirect');
+        if ($devRedirect && app()->environment('local')) {
+            $phone = $devRedirect;
+        } else {
+            $phone = $notifiable->routeNotificationFor('whatsapp', $notification);
 
-        if (! $phone) {
-            return;
+            if (! $phone) {
+                return;
+            }
         }
 
         $payload = $notification->toWhatsApp($notifiable);

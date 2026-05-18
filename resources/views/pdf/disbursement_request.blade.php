@@ -147,11 +147,7 @@
         <div class="ref">{{ $order->reference }}</div>
     </div>
     <div class="header-right">
-        <div class="company">{{ $companyName }}</div>
-        @if($companyAddress)<div>{{ $companyAddress }}</div>@endif
-        @if($companyPhone)<div>Tél : {{ $companyPhone }}</div>@endif
-        @if($companyEmail)<div>{{ $companyEmail }}</div>@endif
-        @if($companyNif)<div>NINEA : {{ $companyNif }}</div>@endif
+       
         <div style="margin-top:4px; color:#555;">Généré le {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</div>
     </div>
 </div>
@@ -163,8 +159,7 @@
         <tr>
             <td class="lbl">Référence</td>
             <td class="val">{{ $order->reference }}</td>
-            <td class="lbl">Statut</td>
-            <td class="val">{{ $statusLabels[$order->status] ?? $order->status }}</td>
+            
         </tr>
         <tr>
             <td class="lbl">Désignation</td>
@@ -177,8 +172,7 @@
         <tr>
             <td class="lbl">Date de création</td>
             <td class="val">{{ \Carbon\Carbon::parse($order->created_at)->format('d/m/Y') }}</td>
-            <td class="lbl">Soumis le</td>
-            <td class="val">{{ $order->submitted_at ? \Carbon\Carbon::parse($order->submitted_at)->format('d/m/Y') : '—' }}</td>
+            
         </tr>
         <tr>
             <td class="lbl">Demandeur</td>

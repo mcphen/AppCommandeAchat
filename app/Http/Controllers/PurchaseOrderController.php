@@ -13,6 +13,7 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderAttachment;
 use App\Models\PurchaseOrderLine;
 use App\Models\ValidationLevel;
+use App\Helpers\PdfHelper;
 use App\Notifications\OrderSubmittedNotification;
 use App\Services\AccountingService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -555,27 +556,11 @@ class PurchaseOrderController extends Controller
         $levels   = ValidationLevel::orderBy('order')->get();
         $settings = AppSetting::allAsArray();
 
-        // Logo en base64 pour DomPDF
-        $logoBase64 = null;
-        if (! empty($settings['company_logo'])) {
-            $absPath = storage_path('app/public/' . $settings['company_logo']);
-            if (file_exists($absPath)) {
-                $mime       = mime_content_type($absPath);
-                $logoBase64 = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absPath));
-            }
-        }
-        if (! $logoBase64) {
-            $fallback = public_path('logo_scn.jpg');
-            if (file_exists($fallback)) {
-                $logoBase64 = 'data:image/jpeg;base64,' . base64_encode(file_get_contents($fallback));
-            }
-        }
-
         $pdf = Pdf::loadView('pdf.purchase_order', [
             'order'    => $purchaseOrder,
             'levels'   => $levels,
             'company'  => $settings,
-            'logoB64'  => $logoBase64,
+            'logoB64'  => PdfHelper::logoBase64($settings['company_logo'] ?? null),
         ])->setPaper('a4', 'portrait');
 
         $filename = 'commande-' . $purchaseOrder->id . '-' . str($purchaseOrder->title)->slug() . '.pdf';

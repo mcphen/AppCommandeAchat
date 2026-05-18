@@ -60,7 +60,7 @@ const navGroups = computed<NavGroup[]>(() => {
 
     /* ── Décaissements ── */
     const decItems: NavEntry[] = [];
-    if (r === 'demandeur' || r === 'admin')
+    if (r === 'demandeur' || r === 'validateur' || r === 'admin')
         decItems.push({ type: 'link', title: 'Demandes décaissement', href: route('disbursement-requests.index'), icon: Banknote });
     if (r === 'admin')
         decItems.push({ type: 'link', title: 'Natures opérations', href: route('admin.nature-operations.index'), icon: Tag });

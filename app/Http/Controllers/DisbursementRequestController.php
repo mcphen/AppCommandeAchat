@@ -35,8 +35,8 @@ class DisbursementRequestController extends Controller
         $orders = $query->paginate(15)->withQueryString();
 
         $demandeurs = $user->isAdmin()
-            ? User::whereHas('role', fn ($q) => $q->where('slug', 'demandeur'))->orderBy('name')->get(['id', 'name'])
-            : ($user->isDemandeur() && $user->boutique_id
+            ? User::whereHas('role', fn ($q) => $q->whereIn('slug', ['demandeur', 'validateur']))->orderBy('name')->get(['id', 'name'])
+            : (($user->isDemandeur() || $user->isValidateur()) && $user->boutique_id
                 ? User::where('boutique_id', $user->boutique_id)->orderBy('name')->get(['id', 'name'])
                 : []);
 
@@ -64,7 +64,7 @@ class DisbursementRequestController extends Controller
         $query = DisbursementRequest::with(['boutique', 'user', 'natureOperation', 'validationLogs.validationLevel'])->latest();
 
         if (! $user->isAdmin()) {
-            if ($user->isDemandeur() && $user->boutique_id) {
+            if (($user->isDemandeur() || $user->isValidateur()) && $user->boutique_id) {
                 $boutiqueUserIds = User::where('boutique_id', $user->boutique_id)->pluck('id');
                 $query->whereIn('user_id', $boutiqueUserIds);
             } else {

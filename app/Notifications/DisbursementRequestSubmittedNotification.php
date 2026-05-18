@@ -35,7 +35,7 @@ class DisbursementRequestSubmittedNotification extends Notification
         return [
             'template_sid' => config('services.twilio.templates.dr_submitted'),
             'variables'    => [
-                '1' => $this->disbursementRequest->title,
+                '1' => $this->disbursementRequest->title . ' | ' . $this->disbursementRequest->natureOperation->name,
                 '2' => $this->disbursementRequest->user->name,
                 '3' => number_format($this->disbursementRequest->amount, 0, ',', ' ') . ' FCFA',
                 '4' => $this->level->name,

@@ -169,8 +169,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/caissier/demandes-decaissement/{disbursement_request}', [DecaissementController::class, 'storeDemande'])->name('caissier.demandes.store');
     });
 
-    // Demandes de décaissement (Demandeur + Admin)
-    Route::middleware('role:demandeur,admin')->group(function () {
+    // Demandes de décaissement (Demandeur + Validateur + Admin)
+    Route::middleware('role:demandeur,validateur,admin')->group(function () {
         Route::get('disbursement-requests/export/excel', [DisbursementRequestController::class, 'export'])
             ->name('disbursement-requests.export');
         Route::post('disbursement-requests/nature-operations', [DisbursementRequestController::class, 'storeNatureOperation'])

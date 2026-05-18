@@ -15,16 +15,18 @@ class WhatsAppChannel
             return;
         }
 
-        // En local, rediriger toutes les notifs vers le numéro de dev (même si le destinataire n'a pas de phone)
         $devRedirect = config('services.twilio.dev_redirect');
         if ($devRedirect && app()->environment('local')) {
-            $phone = $devRedirect;
+            // En local, envoyer à tous les numéros de dev (liste séparée par virgules)
+            $phones = array_map('trim', explode(',', $devRedirect));
         } else {
             $phone = $notifiable->routeNotificationFor('whatsapp', $notification);
 
             if (! $phone) {
                 return;
             }
+
+            $phones = [$phone];
         }
 
         $payload = $notification->toWhatsApp($notifiable);
@@ -38,6 +40,8 @@ class WhatsAppChannel
             $params['body'] = is_array($payload) ? ($payload['fallback'] ?? '') : $payload;
         }
 
-        $this->twilio->messages->create('whatsapp:' . $phone, $params);
+        foreach ($phones as $phone) {
+            $this->twilio->messages->create('whatsapp:' . $phone, $params);
+        }
     }
 }

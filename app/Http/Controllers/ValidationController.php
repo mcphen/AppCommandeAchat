@@ -238,7 +238,9 @@ class ValidationController extends Controller
         $user         = auth()->user();
         $currentLevel = ValidationLevel::where('order', $purchaseOrder->current_level_order)->firstOrFail();
 
-        DB::transaction(function () use ($purchaseOrder, $user, $currentLevel) {
+        $notifications = [];
+
+        DB::transaction(function () use ($purchaseOrder, $user, $currentLevel, &$notifications) {
             ValidationLog::create([
                 'purchase_order_id'   => $purchaseOrder->id,
                 'validation_level_id' => $currentLevel->id,
@@ -254,9 +256,8 @@ class ValidationController extends Controller
                     'current_level_order' => $nextLevel->order,
                 ]);
 
-                // Notifier les validateurs du prochain niveau
                 foreach ($nextLevel->validators as $validator) {
-                    $validator->notify(new OrderApprovedAtLevelNotification($purchaseOrder, $currentLevel, $nextLevel));
+                    $notifications[] = [$validator, new OrderApprovedAtLevelNotification($purchaseOrder, $currentLevel, $nextLevel)];
                 }
             } else {
                 $purchaseOrder->update([
@@ -264,19 +265,25 @@ class ValidationController extends Controller
                     'current_level_order' => null,
                 ]);
 
-                // Notifier le demandeur
-                $purchaseOrder->user->notify(new OrderFinallyApprovedNotification($purchaseOrder));
+                $notifications[] = [$purchaseOrder->user, new OrderFinallyApprovedNotification($purchaseOrder)];
 
-                // Notifier les caissiers de la boutique concernée
                 $caissiers = User::whereHas('role', fn ($q) => $q->where('slug', 'caissier'))
                     ->when($purchaseOrder->boutique_id, fn ($q) => $q->where('boutique_id', $purchaseOrder->boutique_id))
                     ->get();
 
                 foreach ($caissiers as $caissier) {
-                    $caissier->notify(new DecaissementPretNotification($purchaseOrder));
+                    $notifications[] = [$caissier, new DecaissementPretNotification($purchaseOrder)];
                 }
             }
         });
+
+        foreach ($notifications as [$notifiable, $notification]) {
+            try {
+                $notifiable->notify($notification);
+            } catch (\Throwable) {
+                // WhatsApp failure must not block the approval
+            }
+        }
 
         return redirect()->route('validations.index')
             ->with('success', 'Commande approuvée avec succès.');
@@ -289,7 +296,10 @@ class ValidationController extends Controller
         $user         = auth()->user();
         $currentLevel = ValidationLevel::where('order', $purchaseOrder->current_level_order)->firstOrFail();
 
-        DB::transaction(function () use ($request, $purchaseOrder, $user, $currentLevel) {
+        $notifiable    = null;
+        $notification  = null;
+
+        DB::transaction(function () use ($request, $purchaseOrder, $user, $currentLevel, &$notifiable, &$notification) {
             ValidationLog::create([
                 'purchase_order_id'   => $purchaseOrder->id,
                 'validation_level_id' => $currentLevel->id,
@@ -304,8 +314,15 @@ class ValidationController extends Controller
                 'current_level_order' => null,
             ]);
 
-            $purchaseOrder->user->notify(new OrderRejectedNotification($purchaseOrder, $currentLevel, $request->comment));
+            $notifiable   = $purchaseOrder->user;
+            $notification = new OrderRejectedNotification($purchaseOrder, $currentLevel, $request->comment);
         });
+
+        try {
+            $notifiable?->notify($notification);
+        } catch (\Throwable) {
+            // WhatsApp failure must not block the rejection
+        }
 
         return redirect()->route('validations.index')
             ->with('success', 'Commande refusée.');

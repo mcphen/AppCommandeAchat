@@ -237,7 +237,9 @@ class DisbursementValidationController extends Controller
         $user         = auth()->user();
         $currentLevel = ValidationLevel::where('order', $disbursementRequest->current_level_order)->firstOrFail();
 
-        DB::transaction(function () use ($disbursementRequest, $user, $currentLevel) {
+        $notifications = [];
+
+        DB::transaction(function () use ($disbursementRequest, $user, $currentLevel, &$notifications) {
             ValidationLog::create([
                 'validationable_type'  => DisbursementRequest::class,
                 'validationable_id'    => $disbursementRequest->id,
@@ -253,18 +255,16 @@ class DisbursementValidationController extends Controller
                 $disbursementRequest->update(['current_level_order' => $nextLevel->order]);
 
                 foreach ($nextLevel->validators as $validator) {
-                    $validator->notify(new DisbursementRequestApprovedAtLevelNotification(
+                    $notifications[] = [$validator, new DisbursementRequestApprovedAtLevelNotification(
                         $disbursementRequest, $currentLevel, $nextLevel
-                    ));
+                    )];
                 }
             } else {
-                // Dernier niveau : approuver et décaisser automatiquement
                 $disbursementRequest->update([
                     'status'              => 'approved',
                     'current_level_order' => null,
                 ]);
 
-                // Décaissement automatique
                 $defaultMode = ModeReglement::first();
                 Decaissement::create([
                     'purchase_order_id'  => null,
@@ -277,11 +277,17 @@ class DisbursementValidationController extends Controller
                     'recorded_by'        => $user->id,
                 ]);
 
-                $disbursementRequest->user->notify(
-                    new DisbursementRequestFinallyApprovedNotification($disbursementRequest)
-                );
+                $notifications[] = [$disbursementRequest->user, new DisbursementRequestFinallyApprovedNotification($disbursementRequest)];
             }
         });
+
+        foreach ($notifications as [$notifiable, $notification]) {
+            try {
+                $notifiable->notify($notification);
+            } catch (\Throwable) {
+                // WhatsApp failure must not block the approval
+            }
+        }
 
         return redirect()->route('disbursement-validations.index')
             ->with('success', 'Demande de décaissement approuvée.');
@@ -296,7 +302,10 @@ class DisbursementValidationController extends Controller
         $user         = auth()->user();
         $currentLevel = ValidationLevel::where('order', $disbursementRequest->current_level_order)->firstOrFail();
 
-        DB::transaction(function () use ($request, $disbursementRequest, $user, $currentLevel) {
+        $notifiable   = null;
+        $notification = null;
+
+        DB::transaction(function () use ($request, $disbursementRequest, $user, $currentLevel, &$notifiable, &$notification) {
             ValidationLog::create([
                 'validationable_type' => DisbursementRequest::class,
                 'validationable_id'   => $disbursementRequest->id,
@@ -312,10 +321,15 @@ class DisbursementValidationController extends Controller
                 'current_level_order' => null,
             ]);
 
-            $disbursementRequest->user->notify(
-                new DisbursementRequestRejectedNotification($disbursementRequest, $currentLevel, $request->comment)
-            );
+            $notifiable   = $disbursementRequest->user;
+            $notification = new DisbursementRequestRejectedNotification($disbursementRequest, $currentLevel, $request->comment);
         });
+
+        try {
+            $notifiable?->notify($notification);
+        } catch (\Throwable) {
+            // WhatsApp failure must not block the rejection
+        }
 
         return redirect()->route('disbursement-validations.index')
             ->with('success', 'Demande de décaissement refusée.');

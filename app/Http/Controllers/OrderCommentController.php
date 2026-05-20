@@ -32,7 +32,9 @@ class OrderCommentController extends Controller
             abort_unless($purchaseOrder->isPending(), 422, 'Impossible de demander une révision sur cette commande.');
         }
 
-        DB::transaction(function () use ($request, $purchaseOrder, $user, $data) {
+        $notifications = [];
+
+        DB::transaction(function () use ($request, $purchaseOrder, $user, $data, &$notifications) {
             $attachmentPath = null;
             $attachmentName = null;
             $attachmentSize = null;
@@ -56,16 +58,19 @@ class OrderCommentController extends Controller
 
             if ($data['type'] === 'revision_request') {
                 $purchaseOrder->update(['status' => 'needs_revision']);
-
-                // Notifier le demandeur
-                $purchaseOrder->user->notify(
-                    new OrderRevisionRequestedNotification($purchaseOrder, $comment->load('user'))
-                );
+                $notifications[] = [$purchaseOrder->user, new OrderRevisionRequestedNotification($purchaseOrder, $comment->load('user'))];
             } else {
-                // Notifier les parties impliquées (sauf l'auteur du commentaire)
-                $this->notifyParties($purchaseOrder, $comment->load('user'), $user->id);
+                $notifications = $this->buildNotifyParties($purchaseOrder, $comment->load('user'), $user->id);
             }
         });
+
+        foreach ($notifications as [$notifiable, $notification]) {
+            try {
+                $notifiable->notify($notification);
+            } catch (\Throwable) {
+                // WhatsApp failure must not block comment/revision submission
+            }
+        }
 
         return back()->with('success', 'Message envoyé.');
     }
@@ -117,25 +122,26 @@ class OrderCommentController extends Controller
         );
     }
 
-    private function notifyParties(PurchaseOrder $purchaseOrder, OrderComment $comment, int $authorId): void
+    private function buildNotifyParties(PurchaseOrder $purchaseOrder, OrderComment $comment, int $authorId): array
     {
+        $pairs   = [];
         $notified = collect();
 
-        // Demandeur (si ce n'est pas lui l'auteur)
         if ($purchaseOrder->user_id !== $authorId) {
-            $purchaseOrder->user->notify(new OrderCommentAddedNotification($purchaseOrder, $comment));
+            $pairs[] = [$purchaseOrder->user, new OrderCommentAddedNotification($purchaseOrder, $comment)];
             $notified->push($purchaseOrder->user_id);
         }
 
-        // Validateurs du niveau courant (si la commande est en pending)
         if ($purchaseOrder->isPending() && $purchaseOrder->current_level_order) {
             $level = ValidationLevel::where('order', $purchaseOrder->current_level_order)->first();
             foreach ($level?->validators ?? [] as $validator) {
                 if ($validator->id !== $authorId && ! $notified->contains($validator->id)) {
-                    $validator->notify(new OrderCommentAddedNotification($purchaseOrder, $comment));
+                    $pairs[] = [$validator, new OrderCommentAddedNotification($purchaseOrder, $comment)];
                     $notified->push($validator->id);
                 }
             }
         }
+
+        return $pairs;
     }
 }

@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\DisbursementRequest;
 use App\Models\ValidationLevel;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class DisbursementRequestRejectedNotification extends Notification
@@ -16,7 +17,11 @@ class DisbursementRequestRejectedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'whatsapp'];
+        $channels = ['database', 'mail'];
+        if ($notifiable->whatsapp_notifications) {
+            $channels[] = 'whatsapp';
+        }
+        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -34,6 +39,19 @@ class DisbursementRequestRejectedNotification extends Notification
             'dr_id' => $this->disbursementRequest->id,
             'color' => 'red',
         ];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage)
+            ->subject("Votre demande de décaissement a été refusée — {$this->disbursementRequest->title}")
+            ->greeting("Bonjour {$notifiable->name},")
+            ->line("Votre demande de décaissement a été **refusée** au niveau **{$this->level->name}**.")
+            ->line("**Demande :** {$this->disbursementRequest->title}")
+            ->line("**Montant :** " . number_format($this->disbursementRequest->amount, 0, ',', ' ') . ' FCFA')
+            ->when($this->comment, fn ($m) => $m->line("**Motif :** {$this->comment}"))
+            ->action('Voir la demande', route('disbursement-requests.show', $this->disbursementRequest))
+            ->line('Vous pouvez modifier votre demande et la re-soumettre.');
     }
 
     public function toWhatsApp(object $notifiable): array

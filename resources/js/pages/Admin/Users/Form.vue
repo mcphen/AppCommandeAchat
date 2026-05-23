@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type Role, type User, type ValidationLevel } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { ArrowLeft, Loader2, Save } from 'lucide-vue-next';
+import { ArrowLeft, Loader2, Save, MessageCircle } from 'lucide-vue-next';
 import { computed, watch } from 'vue';
 
 const props = defineProps<{
@@ -111,7 +111,38 @@ watch(needsBoutique, (value) => {
                                 :class="{ 'border-red-400': form.errors.phone }"
                             />
                             <p v-if="form.errors.phone" class="text-xs text-red-500">{{ form.errors.phone }}</p>
-                            <p class="text-xs text-muted-foreground">Format international requis, ex : +221771234567. Les notifications seront envoyées par WhatsApp.</p>
+                            <p class="text-xs text-muted-foreground">Format international requis, ex : +221771234567.</p>
+                        </div>
+
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-medium text-foreground">Notifications WhatsApp</label>
+                            <button
+                                type="button"
+                                @click="form.whatsapp_notifications = !form.whatsapp_notifications"
+                                :class="[
+                                    'relative inline-flex h-10 w-full items-center gap-3 rounded-xl border px-4 text-sm font-medium transition-colors',
+                                    form.whatsapp_notifications
+                                        ? 'border-green-300 bg-green-50 text-green-700'
+                                        : 'border-input bg-background text-muted-foreground hover:bg-muted'
+                                ]"
+                            >
+                                <span :class="[
+                                    'flex h-5 w-9 shrink-0 items-center rounded-full p-0.5 transition-colors',
+                                    form.whatsapp_notifications ? 'bg-green-500' : 'bg-muted-foreground/30'
+                                ]">
+                                    <span :class="[
+                                        'h-4 w-4 rounded-full bg-white shadow transition-transform',
+                                        form.whatsapp_notifications ? 'translate-x-4' : 'translate-x-0'
+                                    ]" />
+                                </span>
+                                <MessageCircle class="h-4 w-4 shrink-0" />
+                                <span>{{ form.whatsapp_notifications ? 'WhatsApp activé' : 'Email uniquement' }}</span>
+                            </button>
+                            <p class="text-xs text-muted-foreground">
+                                {{ form.whatsapp_notifications
+                                    ? 'Cet utilisateur recevra les notifications par email ET WhatsApp.'
+                                    : 'Cet utilisateur recevra uniquement les notifications par email (économique).' }}
+                            </p>
                         </div>
                     </div>
 

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\DisbursementRequest;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
 class DisbursementRequestFinallyApprovedNotification extends Notification
@@ -11,7 +12,11 @@ class DisbursementRequestFinallyApprovedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'whatsapp'];
+        $channels = ['database', 'mail'];
+        if ($notifiable->whatsapp_notifications) {
+            $channels[] = 'whatsapp';
+        }
+        return $channels;
     }
 
     public function toDatabase(object $notifiable): array
@@ -24,6 +29,18 @@ class DisbursementRequestFinallyApprovedNotification extends Notification
             'dr_id' => $this->disbursementRequest->id,
             'color' => 'emerald',
         ];
+    }
+
+    public function toMail(object $notifiable): MailMessage
+    {
+        return (new MailMessage)
+            ->subject("Votre demande de décaissement a été approuvée — {$this->disbursementRequest->title}")
+            ->greeting("Bonjour {$notifiable->name},")
+            ->line("Bonne nouvelle ! Votre demande de décaissement a été **entièrement approuvée** par tous les niveaux de validation.")
+            ->line("**Demande :** {$this->disbursementRequest->title}")
+            ->line("**Montant :** " . number_format($this->disbursementRequest->amount, 0, ',', ' ') . ' FCFA')
+            ->action('Voir la demande', route('disbursement-requests.show', $this->disbursementRequest))
+            ->line('Le décaissement a été enregistré automatiquement.');
     }
 
     public function toWhatsApp(object $notifiable): array

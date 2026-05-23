@@ -12,7 +12,11 @@ class DelegationReceivedNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'whatsapp'];
+        $channels = ['database', 'mail'];
+        if ($notifiable->whatsapp_notifications) {
+            $channels[] = 'whatsapp';
+        }
+        return $channels;
     }
 
     public function toDatabase(object $notifiable): array

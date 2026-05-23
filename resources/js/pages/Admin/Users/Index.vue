@@ -3,7 +3,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type PaginatedData, type User } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Pencil, Trash2, Users, Shield, CheckSquare, ShoppingCart } from 'lucide-vue-next';
+import { Plus, Pencil, Trash2, Users, Shield, CheckSquare, ShoppingCart, MessageCircle, Mail } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -70,6 +70,7 @@ const deleteUser = async (user: User) => {
                                     <th class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Role</th>
                                     <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell sm:px-6">Boutique</th>
                                     <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell sm:px-6">Niveau</th>
+                                    <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell sm:px-6">Notif.</th>
                                     <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell sm:px-6">Cree le</th>
                                     <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Actions</th>
                                 </tr>
@@ -108,6 +109,21 @@ const deleteUser = async (user: User) => {
                                             <span class="text-xs text-muted-foreground">(N{{ user.validation_level.order }})</span>
                                         </span>
                                         <span v-else class="text-xs text-muted-foreground">-</span>
+                                    </td>
+                                    <td class="hidden px-4 py-4 lg:table-cell sm:px-6">
+                                        <span
+                                            :title="user.whatsapp_notifications ? 'Email + WhatsApp' : 'Email uniquement'"
+                                            :class="[
+                                                'inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-medium',
+                                                user.whatsapp_notifications
+                                                    ? 'bg-green-50 text-green-700'
+                                                    : 'bg-muted text-muted-foreground'
+                                            ]"
+                                        >
+                                            <MessageCircle v-if="user.whatsapp_notifications" class="h-3 w-3" />
+                                            <Mail v-else class="h-3 w-3" />
+                                            {{ user.whatsapp_notifications ? 'Email + WA' : 'Email' }}
+                                        </span>
                                     </td>
                                     <td class="hidden px-4 py-4 text-sm text-muted-foreground xl:table-cell sm:px-6">
                                         {{ formatDate(user.created_at) }}

@@ -236,6 +236,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('settings', [AppSettingController::class, 'index'])->name('settings.index');
         Route::patch('settings/mail', [AppSettingController::class, 'updateMail'])->name('settings.mail');
         Route::patch('settings/company', [AppSettingController::class, 'updateCompany'])->name('settings.company');
+        Route::post('settings/logo', [AppSettingController::class, 'updateLogo'])->name('settings.logo.update');
         Route::delete('settings/logo', [AppSettingController::class, 'deleteLogo'])->name('settings.logo.delete');
         Route::post('settings/test-mail', [AppSettingController::class, 'testMail'])->name('settings.test-mail');
 

@@ -57,25 +57,28 @@ class AppSettingController extends Controller
             'company_website' => ['nullable', 'url', 'max:255'],
             'company_nif'     => ['nullable', 'string', 'max:100'],
             'company_rccm'    => ['nullable', 'string', 'max:100'],
-            'company_logo'    => ['nullable', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048'],
         ]);
-
-        if ($request->hasFile('company_logo')) {
-            // Supprimer l'ancien logo si existant
-            $oldLogo = AppSetting::get('company_logo');
-            if ($oldLogo) {
-                Storage::disk('public')->delete($oldLogo);
-            }
-
-            $data['company_logo'] = $request->file('company_logo')
-                ->store('company', 'public');
-        } else {
-            unset($data['company_logo']);
-        }
 
         AppSetting::setMany($data);
 
         return back()->with('success', 'Identité de l\'entreprise enregistrée.');
+    }
+
+    public function updateLogo(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'company_logo' => ['required', 'image', 'mimes:png,jpg,jpeg,webp,svg', 'max:2048'],
+        ]);
+
+        $oldLogo = AppSetting::get('company_logo');
+        if ($oldLogo) {
+            Storage::disk('public')->delete($oldLogo);
+        }
+
+        $path = $request->file('company_logo')->store('company', 'public');
+        AppSetting::set('company_logo', $path);
+
+        return back()->with('success', 'Logo enregistré avec succès.');
     }
 
     public function deleteLogo(): RedirectResponse

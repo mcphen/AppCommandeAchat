@@ -33,28 +33,21 @@ const activeTab = ref<'company' | 'mail'>('company');
 const logoPreview = ref<string | null>(props.logoUrl);
 const logoInput = ref<HTMLInputElement | null>(null);
 
-const companyForm = useForm({
-    company_name: s.company_name ?? '',
-    company_address: s.company_address ?? '',
-    company_phone: s.company_phone ?? '',
-    company_email: s.company_email ?? '',
-    company_website: s.company_website ?? '',
-    company_nif: s.company_nif ?? '',
-    company_rccm: s.company_rccm ?? '',
-    company_logo: null as File | null,
-});
-
+const logoForm = useForm({ company_logo: null as File | null });
 const onLogoChange = (e: Event) => {
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
-    companyForm.company_logo = file;
+    logoForm.company_logo = file;
     logoPreview.value = URL.createObjectURL(file);
 };
-
-const submitCompany = () => {
-    companyForm.patch(route('admin.settings.company'), {
+const submitLogo = () => {
+    logoForm.post(route('admin.settings.logo.update'), {
         forceFormData: true,
         preserveScroll: true,
+        onSuccess: () => {
+            logoForm.reset();
+            if (logoInput.value) logoInput.value.value = '';
+        },
     });
 };
 
@@ -64,10 +57,23 @@ const removeLogo = () => {
         preserveScroll: true,
         onSuccess: () => {
             logoPreview.value = null;
-            companyForm.company_logo = null;
             if (logoInput.value) logoInput.value.value = '';
         },
     });
+};
+
+const companyForm = useForm({
+    company_name: s.company_name ?? '',
+    company_address: s.company_address ?? '',
+    company_phone: s.company_phone ?? '',
+    company_email: s.company_email ?? '',
+    company_website: s.company_website ?? '',
+    company_nif: s.company_nif ?? '',
+    company_rccm: s.company_rccm ?? '',
+});
+
+const submitCompany = () => {
+    companyForm.patch(route('admin.settings.company'), { preserveScroll: true });
 };
 
 const mailForm = useForm({
@@ -197,7 +203,7 @@ const sendTest = () => {
                                 </div>
                             </div>
 
-                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
+                            <form @submit.prevent="submitLogo" class="flex flex-col gap-4 sm:flex-row sm:items-start">
                                 <div class="shrink-0">
                                     <div
                                         v-if="logoPreview"
@@ -211,7 +217,7 @@ const sendTest = () => {
                                             class="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white transition hover:bg-red-600"
                                             title="Supprimer le logo"
                                         >
-                                            x
+                                            ×
                                         </button>
                                     </div>
                                     <div
@@ -241,9 +247,17 @@ const sendTest = () => {
                                         @change="onLogoChange"
                                     />
                                     <p class="text-xs text-muted-foreground">PNG, SVG ou JPG - max 2 Mo. Fond transparent recommande.</p>
-                                    <InputError :message="companyForm.errors.company_logo" />
+                                    <InputError :message="logoForm.errors.company_logo" />
+                                    <Button
+                                        v-if="logoForm.company_logo"
+                                        type="submit"
+                                        size="sm"
+                                        :disabled="logoForm.processing"
+                                    >
+                                        {{ logoForm.processing ? 'Envoi...' : 'Enregistrer le logo' }}
+                                    </Button>
                                 </div>
-                            </div>
+                            </form>
                         </div>
                     </div>
 

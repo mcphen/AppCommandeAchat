@@ -5,10 +5,15 @@ namespace App\Notifications;
 use App\Models\DisbursementRequest;
 use App\Models\ValidationLevel;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\InteractsWithQueue;
 
-class DisbursementRequestApprovedAtLevelNotification extends Notification
+class DisbursementRequestApprovedAtLevelNotification extends Notification implements ShouldQueue
 {
+    use Queueable, InteractsWithQueue;
+
     public function __construct(
         private readonly DisbursementRequest $disbursementRequest,
         private readonly ValidationLevel $currentLevel,

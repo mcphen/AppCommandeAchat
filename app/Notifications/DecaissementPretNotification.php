@@ -4,10 +4,15 @@ namespace App\Notifications;
 
 use App\Models\PurchaseOrder;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\InteractsWithQueue;
 
-class DecaissementPretNotification extends Notification
+class DecaissementPretNotification extends Notification implements ShouldQueue
 {
+    use Queueable, InteractsWithQueue;
+
     public function __construct(private readonly PurchaseOrder $order) {}
 
     public function via(object $notifiable): array

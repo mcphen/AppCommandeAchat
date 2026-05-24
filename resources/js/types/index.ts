@@ -27,6 +27,17 @@ export interface AppNotification {
     created_at: string;
 }
 
+export interface CompanyData {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    email: string | null;
+    website: string | null;
+    nif: string | null;
+    rccm: string | null;
+    logoUrl: string | null;
+}
+
 export interface SharedData {
     [key: string]: unknown;
     name: string;
@@ -37,6 +48,7 @@ export interface SharedData {
     pending_validations_count: number;
     pending_dd_count: number;
     show_onboarding: boolean;
+    company: CompanyData;
     ziggy: {
         location: string;
         url: string;

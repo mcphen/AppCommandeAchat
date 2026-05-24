@@ -53,10 +53,21 @@ class PurchaseOrder extends Model
                 $order->uuid = Str::uuid()->toString();
             }
 
-            // Référence de type DA-YYYY-NNNNN (Demande d'Achat)
+            // Référence de type DA-CODEBOUTIQUE-YYYY-NNNNN (Demande d'Achat)
             if (empty($order->reference)) {
-                $year   = now()->year;
-                $prefix = 'DA-' . $year . '-';
+                $year         = now()->year;
+                $boutiqueCode = 'NA';
+
+                if (! empty($order->boutique_id)) {
+                    $boutiqueCode = (string) (Boutique::query()->whereKey($order->boutique_id)->value('code') ?? $order->boutique_id);
+                }
+
+                $boutiqueCode = Str::upper((string) preg_replace('/[^A-Za-z0-9]/', '', $boutiqueCode));
+                if ($boutiqueCode === '') {
+                    $boutiqueCode = 'NA';
+                }
+
+                $prefix = 'DA-' . $boutiqueCode . '-' . $year . '-';
                 $last   = static::withTrashed()
                     ->where('reference', 'like', $prefix . '%')
                     ->max('reference');

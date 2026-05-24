@@ -20,6 +20,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\FournisseurArticleController;
 use App\Http\Controllers\Admin\FournisseurController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\WhatsAppNotificationSettingsController;
 use App\Http\Controllers\Admin\WhatsAppTestController;
 use App\Http\Controllers\Admin\ValidationLevelController;
 use App\Http\Controllers\AttachmentController;
@@ -237,6 +238,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('settings/company', [AppSettingController::class, 'updateCompany'])->name('settings.company');
         Route::delete('settings/logo', [AppSettingController::class, 'deleteLogo'])->name('settings.logo.delete');
         Route::post('settings/test-mail', [AppSettingController::class, 'testMail'])->name('settings.test-mail');
+
+        // Paramètres notifications WhatsApp
+        Route::get('notifications/whatsapp', [WhatsAppNotificationSettingsController::class, 'index'])->name('notifications.whatsapp');
+        Route::patch('notifications/whatsapp', [WhatsAppNotificationSettingsController::class, 'update'])->name('notifications.whatsapp.update');
 
         // Test WhatsApp
         Route::get('whatsapp/test', [WhatsAppTestController::class, 'send'])->name('whatsapp.test');

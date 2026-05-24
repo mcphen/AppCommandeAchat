@@ -1,10 +1,17 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
+import { type SharedData } from '@/types';
+import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
 
 defineProps<{
     title?: string;
     description?: string;
 }>();
+
+const page = usePage<SharedData>();
+const company = computed(() => page.props.company);
+const logoSrc = computed(() => company.value?.logoUrl ?? '/logo_scn.jpg');
+const companyName = computed(() => company.value?.name ?? 'SCN');
 </script>
 
 <template>
@@ -13,8 +20,8 @@ defineProps<{
             <div class="flex flex-col gap-8">
                 <div class="flex flex-col items-center gap-4">
                     <Link :href="route('login')" class="flex flex-col items-center gap-3 font-medium">
-                        <img src="/logo_scn.jpg" alt="SCN" class="h-20 w-20 rounded-full object-cover shadow-lg ring-4 ring-white/60" />
-                        <span class="text-xl font-bold tracking-tight text-foreground">SCN</span>
+                        <img :src="logoSrc" :alt="companyName" class="h-20 w-20 rounded-full object-cover shadow-lg ring-4 ring-white/60" />
+                        <span class="text-xl font-bold tracking-tight text-foreground">{{ companyName }}</span>
                     </Link>
                     <div class="space-y-1.5 text-center">
                         <h1 class="text-xl font-semibold text-foreground">{{ title }}</h1>

@@ -4,10 +4,15 @@ namespace App\Notifications;
 
 use App\Models\ValidationDelegation;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\InteractsWithQueue;
 
-class DelegationReceivedNotification extends Notification
+class DelegationReceivedNotification extends Notification implements ShouldQueue
 {
+    use Queueable, InteractsWithQueue;
+
     public function __construct(private readonly ValidationDelegation $delegation) {}
 
     public function via(object $notifiable): array

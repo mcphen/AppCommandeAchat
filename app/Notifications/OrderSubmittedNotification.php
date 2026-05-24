@@ -5,10 +5,15 @@ namespace App\Notifications;
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
+use Illuminate\Queue\InteractsWithQueue;
 
-class OrderSubmittedNotification extends Notification
+class OrderSubmittedNotification extends Notification implements ShouldQueue
 {
+    use Queueable, InteractsWithQueue;
+
 
     public function __construct(
         private readonly PurchaseOrder $order,

@@ -48,8 +48,19 @@ class DisbursementRequest extends Model
             }
 
             if (empty($dr->reference)) {
-                $year   = now()->year;
-                $prefix = 'DD-' . $year . '-';
+                $year         = now()->year;
+                $boutiqueCode = 'NA';
+
+                if (! empty($dr->boutique_id)) {
+                    $boutiqueCode = (string) (Boutique::query()->whereKey($dr->boutique_id)->value('code') ?? $dr->boutique_id);
+                }
+
+                $boutiqueCode = Str::upper((string) preg_replace('/[^A-Za-z0-9]/', '', $boutiqueCode));
+                if ($boutiqueCode === '') {
+                    $boutiqueCode = 'NA';
+                }
+
+                $prefix = 'DD-' . $boutiqueCode . '-' . $year . '-';
                 $last   = static::withTrashed()
                     ->where('reference', 'like', $prefix . '%')
                     ->max('reference');

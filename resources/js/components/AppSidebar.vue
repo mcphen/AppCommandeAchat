@@ -12,7 +12,7 @@ import {
     FolderTree, Truck, Package, ClipboardCheck, PiggyBank,
     BarChart2, UserCheck, BookOpen, SlidersHorizontal,
     Banknote, Wallet, HandCoins, UserCircle, History, Tag,
-    ChevronDown, Landmark, CreditCard,
+    ChevronDown, Landmark, CreditCard, MessageCircle,
 } from 'lucide-vue-next';
 import { computed, onMounted, ref, watch } from 'vue';
 
@@ -125,6 +125,7 @@ const navGroups = computed<NavGroup[]>(() => {
             { type: 'link', title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings },
             { type: 'link', title: 'Budgets',               href: route('admin.budgets.index'),           icon: PiggyBank },
             { type: 'link', title: 'Comptabilité',          href: route('admin.accounting.index'),        icon: BookOpen },
+            { type: 'link', title: 'Notifications WhatsApp', href: route('admin.notifications.whatsapp'),   icon: MessageCircle },
             { type: 'link', title: 'Configuration',         href: route('admin.settings.index'),          icon: SlidersHorizontal },
         ]});
 
@@ -160,11 +161,12 @@ watch(() => page.url, autoOpenGroup);
             <div class="flex items-center justify-between gap-2 px-1 py-1 group-data-[collapsible=icon]:justify-center">
                 <Link :href="route('dashboard')" class="flex min-w-0 items-center gap-3">
                     <img
-                        src="/logo_scn.jpg" alt="SCN"
+                        :src="page.props.company?.logoUrl ?? '/logo_scn.jpg'"
+                        :alt="page.props.company?.name ?? 'SCN'"
                         class="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-sidebar-primary/30 shadow-sm"
                     />
                     <div class="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-                        <span class="font-bold text-sm text-sidebar-foreground tracking-wide">SCN</span>
+                        <span class="font-bold text-sm text-sidebar-foreground tracking-wide">{{ page.props.company?.name ?? 'SCN' }}</span>
                         <span class="text-[11px] text-sidebar-foreground/40 font-medium">Gestion des commandes</span>
                     </div>
                 </Link>

@@ -19,14 +19,14 @@ class AppSettingSeeder extends Seeder
             'company_nif'     => 'SN-DKR-2002-B-12345',
             'company_rccm'    => 'RCCM SN-DKR-2002-B-12345',
 
-            // ── Configuration e-mail (mode log par défaut – à ajuster en prod) ─
-            'mail_mailer'       => 'log',
-            'mail_host'         => 'smtp.scndienne.sn',
-            'mail_port'         => 587,
-            'mail_encryption'   => 'tls',
+            // ── Configuration e-mail ──────────────────────────────────────────
+            'mail_mailer'       => 'smtp',
+            'mail_host'         => 'smtp.gmail.com',
+            'mail_port'         => 465,
+            'mail_encryption'   => 'ssl',
             'mail_username'     => 'no-reply@scndienne.sn',
             'mail_from_address' => 'no-reply@scndienne.sn',
-            'mail_from_name'    => 'SCN – Gestion des Achats',
+            'mail_from_name'    => 'AchatPro',
         ];
 
         foreach ($settings as $key => $value) {

@@ -5,14 +5,12 @@ namespace App\Notifications;
 use App\Models\OrderComment;
 use App\Models\PurchaseOrder;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class OrderRevisionRequestedNotification extends Notification implements ShouldQueue
+class OrderRevisionRequestedNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(
         private readonly PurchaseOrder $order,
@@ -61,12 +59,12 @@ class OrderRevisionRequestedNotification extends Notification implements ShouldQ
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Révision demandée — {$this->order->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("{$this->comment->user->name} vous demande de réviser la commande **{$this->order->title}** avant de prendre une décision de validation.")
             ->line("**Message :** {$this->comment->content}")
             ->action('Voir la commande', route('purchase-orders.show', $this->order))
-            ->line('Vous pouvez modifier votre commande et la re-soumettre depuis cette page.');
+            ->line('Vous pouvez modifier votre commande et la re-soumettre depuis cette page.'));
     }
 }

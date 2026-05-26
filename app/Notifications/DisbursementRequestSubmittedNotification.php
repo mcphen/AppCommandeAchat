@@ -5,14 +5,12 @@ namespace App\Notifications;
 use App\Models\DisbursementRequest;
 use App\Models\ValidationLevel;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class DisbursementRequestSubmittedNotification extends Notification implements ShouldQueue
+class DisbursementRequestSubmittedNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(
         private readonly DisbursementRequest $disbursementRequest,
@@ -42,7 +40,7 @@ class DisbursementRequestSubmittedNotification extends Notification implements S
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Nouvelle demande de décaissement à valider — {$this->disbursementRequest->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Une nouvelle demande de décaissement requiert votre validation au niveau **{$this->level->name}**.")
@@ -50,7 +48,7 @@ class DisbursementRequestSubmittedNotification extends Notification implements S
             ->line("**Montant :** " . number_format($this->disbursementRequest->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Demandeur :** {$this->disbursementRequest->user->name}")
             ->action('Voir et valider', route('disbursement-validations.show', $this->disbursementRequest))
-            ->line('Merci de traiter cette demande dans les meilleurs délais.');
+            ->line('Merci de traiter cette demande dans les meilleurs délais.'));
     }
 
     public function toWhatsApp(object $notifiable): array

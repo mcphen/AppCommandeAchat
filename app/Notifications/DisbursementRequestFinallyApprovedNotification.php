@@ -4,14 +4,12 @@ namespace App\Notifications;
 
 use App\Models\DisbursementRequest;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class DisbursementRequestFinallyApprovedNotification extends Notification implements ShouldQueue
+class DisbursementRequestFinallyApprovedNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(private readonly DisbursementRequest $disbursementRequest) {}
 
@@ -38,14 +36,14 @@ class DisbursementRequestFinallyApprovedNotification extends Notification implem
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Votre demande de décaissement a été approuvée — {$this->disbursementRequest->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Bonne nouvelle ! Votre demande de décaissement a été **entièrement approuvée** par tous les niveaux de validation.")
             ->line("**Demande :** {$this->disbursementRequest->title}")
             ->line("**Montant :** " . number_format($this->disbursementRequest->amount, 0, ',', ' ') . ' FCFA')
             ->action('Voir la demande', route('disbursement-requests.show', $this->disbursementRequest))
-            ->line('Le décaissement a été enregistré automatiquement.');
+            ->line('Le décaissement a été enregistré automatiquement.'));
     }
 
     public function toWhatsApp(object $notifiable): array

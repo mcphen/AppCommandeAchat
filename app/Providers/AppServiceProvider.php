@@ -4,6 +4,9 @@ namespace App\Providers;
 
 use App\Channels\WhatsAppChannel;
 use Illuminate\Notifications\ChannelManager;
+use Illuminate\Notifications\Events\NotificationFailed;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 use Twilio\Rest\Client as TwilioClient;
@@ -26,6 +29,14 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->make(ChannelManager::class)->extend('whatsapp', function ($app) {
             return new WhatsAppChannel($app->make(TwilioClient::class));
+        });
+
+        $this->app->make('events')->listen(NotificationFailed::class, function (NotificationFailed $event) {
+            Log::error('NotificationFailed', [
+                'channel'  => $event->channel,
+                'notifiable' => get_class($event->notifiable) . '#' . $event->notifiable->getKey(),
+                'error'    => $event->data['exception'] ?? 'unknown',
+            ]);
         });
     }
 
@@ -76,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
             if (isset($settings['mail_from_name'])) {
                 config(['mail.from.name' => $settings['mail_from_name']]);
             }
+
         } catch (\Exception) {
             // Ne pas bloquer l'app si la DB est inaccessible
         }

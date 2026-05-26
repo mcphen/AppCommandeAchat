@@ -5,14 +5,12 @@ namespace App\Notifications;
 use App\Models\DisbursementRequest;
 use App\Models\ValidationLevel;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class DisbursementRequestRejectedNotification extends Notification implements ShouldQueue
+class DisbursementRequestRejectedNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(
         private readonly DisbursementRequest $disbursementRequest,
@@ -48,7 +46,7 @@ class DisbursementRequestRejectedNotification extends Notification implements Sh
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Votre demande de décaissement a été refusée — {$this->disbursementRequest->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Votre demande de décaissement a été **refusée** au niveau **{$this->level->name}**.")
@@ -56,7 +54,7 @@ class DisbursementRequestRejectedNotification extends Notification implements Sh
             ->line("**Montant :** " . number_format($this->disbursementRequest->amount, 0, ',', ' ') . ' FCFA')
             ->when($this->comment, fn ($m) => $m->line("**Motif :** {$this->comment}"))
             ->action('Voir la demande', route('disbursement-requests.show', $this->disbursementRequest))
-            ->line('Vous pouvez modifier votre demande et la re-soumettre.');
+            ->line('Vous pouvez modifier votre demande et la re-soumettre.'));
     }
 
     public function toWhatsApp(object $notifiable): array

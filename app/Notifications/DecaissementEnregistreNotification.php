@@ -5,14 +5,12 @@ namespace App\Notifications;
 use App\Models\Decaissement;
 use App\Models\PurchaseOrder;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class DecaissementEnregistreNotification extends Notification implements ShouldQueue
+class DecaissementEnregistreNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(
         private readonly PurchaseOrder $order,
@@ -51,7 +49,7 @@ class DecaissementEnregistreNotification extends Notification implements ShouldQ
             ? "Reste à décaisser : **" . number_format($reste, 0, ',', ' ') . " FCFA**"
             : "La commande est **entièrement décaissée**.";
 
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Décaissement enregistré — {$this->order->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Un décaissement a été enregistré sur la commande **{$this->order->title}**.")
@@ -59,7 +57,7 @@ class DecaissementEnregistreNotification extends Notification implements ShouldQ
             ->line("**Par :** {$this->decaissement->recorder->name}")
             ->line("**Date :** {$this->decaissement->decaissement_date}")
             ->line($statut)
-            ->action('Voir la commande', route('decaissements.show', $this->order));
+            ->action('Voir la commande', route('decaissements.show', $this->order)));
     }
 
     public function toWhatsApp(object $notifiable): array

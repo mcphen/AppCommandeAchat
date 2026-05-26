@@ -4,14 +4,12 @@ namespace App\Notifications;
 
 use App\Models\PurchaseOrder;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class DecaissementPretNotification extends Notification implements ShouldQueue
+class DecaissementPretNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(private readonly PurchaseOrder $order) {}
 
@@ -39,14 +37,14 @@ class DecaissementPretNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Décaissement à effectuer — {$this->order->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("La commande **{$this->order->title}** a été approuvée par tous les niveaux de validation.")
             ->line("**Montant à décaisser :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Demandeur :** {$this->order->user->name}")
             ->action('Procéder au décaissement', route('decaissements.show', $this->order))
-            ->line('Merci de traiter ce décaissement dans les meilleurs délais.');
+            ->line('Merci de traiter ce décaissement dans les meilleurs délais.'));
     }
 
     public function toWhatsApp(object $notifiable): array

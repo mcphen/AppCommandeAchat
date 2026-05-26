@@ -4,14 +4,12 @@ namespace App\Notifications;
 
 use App\Models\PurchaseOrder;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class OrderFinallyApprovedNotification extends Notification implements ShouldQueue
+class OrderFinallyApprovedNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
 
     public function __construct(private readonly PurchaseOrder $order) {}
@@ -57,13 +55,13 @@ class OrderFinallyApprovedNotification extends Notification implements ShouldQue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Votre commande a été approuvée — {$this->order->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("Bonne nouvelle ! Votre commande d'achat a été **entièrement approuvée** par tous les niveaux de validation.")
             ->line("**Commande :** {$this->order->title}")
             ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->action('Voir la commande', route('purchase-orders.show', $this->order))
-            ->line('Vous pouvez maintenant procéder à l\'achat.');
+            ->line('Vous pouvez maintenant procéder à l\'achat.'));
     }
 }

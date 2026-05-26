@@ -5,14 +5,12 @@ namespace App\Notifications;
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class OrderApprovedAtLevelNotification extends Notification implements ShouldQueue
+class OrderApprovedAtLevelNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
 
     public function __construct(
@@ -66,7 +64,7 @@ class OrderApprovedAtLevelNotification extends Notification implements ShouldQue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Commande en attente de votre validation — {$this->order->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("La commande suivante a été approuvée au niveau **{$this->approvedLevel->name}** et requiert maintenant votre validation au niveau **{$this->nextLevel->name}**.")
@@ -74,6 +72,6 @@ class OrderApprovedAtLevelNotification extends Notification implements ShouldQue
             ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Demandeur :** {$this->order->user->name}")
             ->action('Voir et valider', route('validations.show', $this->order))
-            ->line('Merci de traiter cette demande dans les meilleurs délais.');
+            ->line('Merci de traiter cette demande dans les meilleurs délais.'));
     }
 }

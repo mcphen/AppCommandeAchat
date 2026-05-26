@@ -5,14 +5,12 @@ namespace App\Notifications;
 use App\Models\DisbursementRequest;
 use App\Models\ValidationLevel;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class DisbursementRequestApprovedAtLevelNotification extends Notification implements ShouldQueue
+class DisbursementRequestApprovedAtLevelNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(
         private readonly DisbursementRequest $disbursementRequest,
@@ -43,7 +41,7 @@ class DisbursementRequestApprovedAtLevelNotification extends Notification implem
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Demande de décaissement en attente de votre validation — {$this->disbursementRequest->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("La demande suivante a été approuvée au niveau **{$this->currentLevel->name}** et requiert maintenant votre validation au niveau **{$this->nextLevel->name}**.")
@@ -51,7 +49,7 @@ class DisbursementRequestApprovedAtLevelNotification extends Notification implem
             ->line("**Montant :** " . number_format($this->disbursementRequest->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Demandeur :** {$this->disbursementRequest->user->name}")
             ->action('Voir et valider', route('disbursement-validations.show', $this->disbursementRequest))
-            ->line('Merci de traiter cette demande dans les meilleurs délais.');
+            ->line('Merci de traiter cette demande dans les meilleurs délais.'));
     }
 
     public function toWhatsApp(object $notifiable): array

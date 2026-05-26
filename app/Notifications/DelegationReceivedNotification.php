@@ -4,14 +4,12 @@ namespace App\Notifications;
 
 use App\Models\ValidationDelegation;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class DelegationReceivedNotification extends Notification implements ShouldQueue
+class DelegationReceivedNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(private readonly ValidationDelegation $delegation) {}
 
@@ -56,13 +54,13 @@ class DelegationReceivedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Délégation de validation — {$this->delegation->validationLevel->name}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("{$this->delegation->delegator->name} vous a délégué ses droits de validation pour le niveau **{$this->delegation->validationLevel->name}**.")
             ->line("**Période :** du {$this->delegation->starts_at->format('d/m/Y')} au {$this->delegation->ends_at->format('d/m/Y')}")
             ->when($this->delegation->reason, fn ($m) => $m->line("**Motif :** {$this->delegation->reason}"))
             ->action('Voir mes délégations', route('delegations.index'))
-            ->line('Durant cette période, vous pourrez valider les commandes à ce niveau en son nom.');
+            ->line('Durant cette période, vous pourrez valider les commandes à ce niveau en son nom.'));
     }
 }

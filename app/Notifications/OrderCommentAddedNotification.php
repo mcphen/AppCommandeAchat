@@ -5,14 +5,12 @@ namespace App\Notifications;
 use App\Models\OrderComment;
 use App\Models\PurchaseOrder;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use App\Notifications\Concerns\CcAdmin;
 use Illuminate\Notifications\Notification;
-use Illuminate\Queue\InteractsWithQueue;
 
-class OrderCommentAddedNotification extends Notification implements ShouldQueue
+class OrderCommentAddedNotification extends Notification
 {
-    use Queueable, InteractsWithQueue;
+    use CcAdmin;
 
     public function __construct(
         private readonly PurchaseOrder $order,
@@ -61,11 +59,11 @@ class OrderCommentAddedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        return (new MailMessage)
+        return $this->withAdminCc((new MailMessage)
             ->subject("Nouveau message — {$this->order->title}")
             ->greeting("Bonjour {$notifiable->name},")
             ->line("{$this->comment->user->name} a laissé un message sur la commande **{$this->order->title}**.")
             ->line("**Message :** {$this->comment->content}")
-            ->action('Voir la discussion', route('purchase-orders.show', $this->order));
+            ->action('Voir la discussion', route('purchase-orders.show', $this->order)));
     }
 }

@@ -46,23 +46,16 @@
         .attachments-list li { margin-bottom: 3px; color: #111; }
 
         /* Signatures */
-        .sig-section { margin-top: 24px; }
-        .sig-table { width: 100%; border-collapse: collapse; }
-        .sig-table td { text-align: center; width: 33.33%; padding: 0 8px; vertical-align: top; }
-        .sig-box { border-top: 1px solid #111; margin-top: 28px; padding-top: 4px; font-size: 9px; color: #111; font-weight: bold; }
-
-        /* Cases de signature manuelle (validation) */
-        .manual-sig-row { width: 100%; border-collapse: collapse; margin-top: 14px; }
-        .manual-sig-row td { width: 50%; padding: 0 12px; text-align: center; vertical-align: top; }
-        .manual-sig-label { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #111; margin-bottom: 4px; }
-        .manual-sig-area { border: 1px solid #555; height: 55px; margin-top: 4px; }
-        .manual-sig-name { border-top: 1px solid #555; margin-top: 4px; padding-top: 3px; font-size: 8px; color: #444; min-height: 14px; }
+        .sig-section { margin-top: 20px; }
+        .sig-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+        .sig-table td { text-align: center; padding: 0 6px; vertical-align: top; }
+        .sig-label { font-size: 8px; font-weight: bold; text-transform: uppercase; color: #111; margin-bottom: 3px; }
+        .sig-area { border: 1px solid #555; height: 52px; margin-top: 3px; }
+        .sig-name { border-top: 1px solid #555; margin-top: 4px; padding-top: 3px; font-size: 8px; color: #444; min-height: 13px; }
 
         /* Footer */
         .footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid #cfcfcf; display: flex; justify-content: space-between; font-size: 8px; color: #555; }
 
-        /* Stamp area */
-        .stamp-area { border: 1px dashed #999; height: 50px; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -226,22 +219,6 @@
     @endif
 </div>
 
-{{-- ──────────── SIGNATURES VALIDATION ──────────── --}}
-<table class="manual-sig-row">
-    <tr>
-        <td>
-            <div class="manual-sig-label">Bénéficiaire</div>
-            <div class="manual-sig-area"></div>
-            <div class="manual-sig-name">&nbsp;</div>
-        </td>
-        <td>
-            <div class="manual-sig-label">Demandeur</div>
-            <div class="manual-sig-area"></div>
-            <div class="manual-sig-name">{{ $order->user?->name ?? '—' }}</div>
-        </td>
-    </tr>
-</table>
-
 {{-- ──────────── PIÈCES JOINTES ──────────── --}}
 @if($order->attachments && $order->attachments->count())
 <div class="section">
@@ -274,25 +251,43 @@
 
 {{-- ──────────── SIGNATURES ──────────── --}}
 <div class="sig-section">
+
+    {{-- Ligne 1 : niveaux du circuit de validation --}}
+    @if(isset($levels) && $levels->count())
     <table class="sig-table">
         <tr>
-            <td>
-                <div style="font-size:9px; color:#111; text-align:center; font-weight:bold;">LE DEMANDEUR</div>
-                <div class="stamp-area"></div>
-                <div class="sig-box">{{ $order->user?->name ?? '—' }}</div>
+            @foreach($levels as $level)
+            <td style="width: {{ round(100 / $levels->count(), 2) }}%">
+                <div class="sig-label">{{ $level->name }}</div>
+                <div class="sig-area"></div>
+                <div class="sig-name">&nbsp;</div>
             </td>
-            <td>
-                <div style="font-size:9px; color:#111; text-align:center; font-weight:bold;">VISA HIÉRARCHIQUE</div>
-                <div class="stamp-area"></div>
-                <div class="sig-box">&nbsp;</div>
+            @endforeach
+        </tr>
+    </table>
+    @endif
+
+    {{-- Ligne 2 : Caissier, Bénéficiaire, Demandeur --}}
+    <table class="sig-table">
+        <tr>
+            <td style="width:33.33%">
+                <div class="sig-label">Caissier</div>
+                <div class="sig-area"></div>
+                <div class="sig-name">&nbsp;</div>
             </td>
-            <td>
-                <div style="font-size:9px; color:#111; text-align:center; font-weight:bold;">LE CAISSIER / COMPTABLE</div>
-                <div class="stamp-area"></div>
-                <div class="sig-box">&nbsp;</div>
+            <td style="width:33.33%">
+                <div class="sig-label">Bénéficiaire</div>
+                <div class="sig-area"></div>
+                <div class="sig-name">&nbsp;</div>
+            </td>
+            <td style="width:33.33%">
+                <div class="sig-label">Demandeur</div>
+                <div class="sig-area"></div>
+                <div class="sig-name">{{ $order->user?->name ?? '—' }}</div>
             </td>
         </tr>
     </table>
+
 </div>
 
 {{-- ──────────── FOOTER ──────────── --}}

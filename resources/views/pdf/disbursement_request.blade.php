@@ -51,6 +51,13 @@
         .sig-table td { text-align: center; width: 33.33%; padding: 0 8px; vertical-align: top; }
         .sig-box { border-top: 1px solid #111; margin-top: 28px; padding-top: 4px; font-size: 9px; color: #111; font-weight: bold; }
 
+        /* Cases de signature manuelle (validation) */
+        .manual-sig-row { width: 100%; border-collapse: collapse; margin-top: 14px; }
+        .manual-sig-row td { width: 50%; padding: 0 12px; text-align: center; vertical-align: top; }
+        .manual-sig-label { font-size: 9px; font-weight: bold; text-transform: uppercase; color: #111; margin-bottom: 4px; }
+        .manual-sig-area { border: 1px solid #555; height: 55px; margin-top: 4px; }
+        .manual-sig-name { border-top: 1px solid #555; margin-top: 4px; padding-top: 3px; font-size: 8px; color: #444; min-height: 14px; }
+
         /* Footer */
         .footer { margin-top: 18px; padding-top: 8px; border-top: 1px solid #cfcfcf; display: flex; justify-content: space-between; font-size: 8px; color: #555; }
 
@@ -218,6 +225,22 @@
         </div>
     @endif
 </div>
+
+{{-- ──────────── SIGNATURES VALIDATION ──────────── --}}
+<table class="manual-sig-row">
+    <tr>
+        <td>
+            <div class="manual-sig-label">Bénéficiaire</div>
+            <div class="manual-sig-area"></div>
+            <div class="manual-sig-name">&nbsp;</div>
+        </td>
+        <td>
+            <div class="manual-sig-label">Demandeur</div>
+            <div class="manual-sig-area"></div>
+            <div class="manual-sig-name">{{ $order->user?->name ?? '—' }}</div>
+        </td>
+    </tr>
+</table>
 
 {{-- ──────────── PIÈCES JOINTES ──────────── --}}
 @if($order->attachments && $order->attachments->count())

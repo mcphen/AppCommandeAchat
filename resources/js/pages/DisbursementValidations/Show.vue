@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type DisbursementRequest, type ValidationLevel } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Download, Loader2, Paperclip, XCircle } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Download, FileDown, Loader2, Paperclip, XCircle } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 
@@ -127,6 +127,17 @@ const submitReject = () => {
                         <p v-if="readOnly" class="mt-2 text-xs font-medium text-amber-600">Mode lecture seule — historique de validation</p>
                     </div>
                 </div>
+
+                <!-- Bouton PDF -->
+                <a
+                    :href="route('disbursement-requests.pdf', order.uuid)"
+                    target="_blank"
+                    class="inline-flex shrink-0 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700"
+                    title="Télécharger le PDF"
+                >
+                    <FileDown class="h-4 w-4" />
+                    <span class="hidden sm:inline">PDF</span>
+                </a>
             </div>
 
             <div class="grid grid-cols-1 gap-5 lg:grid-cols-3">

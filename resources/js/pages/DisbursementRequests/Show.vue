@@ -4,7 +4,7 @@ import { type BreadcrumbItem, type Company, type DisbursementRequest, type Share
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertCircle, ArrowLeft, Banknote, Building2, Calendar,
-    CheckCircle2, ChevronDown, Download, FileDown, FileText, Landmark, Paperclip,
+    Check, CheckCircle2, ChevronDown, Download, FileDown, FileText, Landmark, Loader2, Paperclip,
     Pencil, Send, Tag, User, X, XCircle,
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
@@ -28,10 +28,12 @@ const isAdmin = computed(() => user.value?.role?.slug === 'admin');
 
 // Assignation entreprise (admin seulement)
 const companyForm = useForm({ company_id: props.order.company_id ? String(props.order.company_id) : '' });
+const editingCompany = ref(false);
 const savingCompany = ref(false);
 const assignCompany = () => {
     savingCompany.value = true;
     companyForm.patch(route('disbursement-requests.assign-company', { disbursement_request: props.order.uuid }), {
+        onSuccess: () => { editingCompany.value = false; },
         onFinish: () => { savingCompany.value = false; },
     });
 };
@@ -263,16 +265,67 @@ const deleteOrder = async () => {
                                 </div>
                             </div>
 
-                            <div v-if="order.company" class="flex items-center gap-3">
-                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50">
+                            <!-- Entreprise — lecture + inline edit admin -->
+                            <div v-if="order.company || (isAdmin && companies.length > 0)" class="flex items-start gap-3">
+                                <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-50">
                                     <Landmark class="h-4 w-4 text-purple-600" />
                                 </div>
-                                <div>
+                                <div class="min-w-0 flex-1">
                                     <p class="text-xs text-muted-foreground">Entreprise</p>
-                                    <p class="text-sm font-medium text-foreground">
-                                        {{ order.company.name }}
-                                        <span v-if="order.company.code" class="text-muted-foreground">({{ order.company.code }})</span>
-                                    </p>
+
+                                    <!-- Mode lecture -->
+                                    <template v-if="!editingCompany">
+                                        <div class="flex items-center gap-2">
+                                            <p class="text-sm font-medium text-foreground">
+                                                <template v-if="order.company">
+                                                    {{ order.company.name }}
+                                                    <span v-if="order.company.code" class="text-muted-foreground">({{ order.company.code }})</span>
+                                                </template>
+                                                <span v-else class="text-muted-foreground italic">Non assignée</span>
+                                            </p>
+                                            <button
+                                                v-if="isAdmin && companies.length > 0"
+                                                @click="editingCompany = true"
+                                                class="rounded-md p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                                                title="Changer l'entreprise"
+                                            >
+                                                <Pencil class="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    </template>
+
+                                    <!-- Mode édition -->
+                                    <template v-else>
+                                        <div class="mt-1 flex items-center gap-2">
+                                            <div class="relative flex-1">
+                                                <select
+                                                    v-model="companyForm.company_id"
+                                                    class="h-8 w-full appearance-none rounded-lg border border-input bg-background px-2 pr-7 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                                >
+                                                    <option value="">— Aucune —</option>
+                                                    <option v-for="c in companies" :key="c.id" :value="String(c.id)">
+                                                        {{ c.name }}<template v-if="c.code"> · {{ c.code }}</template>
+                                                    </option>
+                                                </select>
+                                                <ChevronDown class="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                                            </div>
+                                            <button
+                                                :disabled="savingCompany"
+                                                @click="assignCompany"
+                                                class="inline-flex h-8 items-center gap-1 rounded-lg bg-primary px-2.5 text-xs font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+                                            >
+                                                <Loader2 v-if="savingCompany" class="h-3.5 w-3.5 animate-spin" />
+                                                <Check v-else class="h-3.5 w-3.5" />
+                                                OK
+                                            </button>
+                                            <button
+                                                @click="editingCompany = false; companyForm.reset()"
+                                                class="inline-flex h-8 items-center rounded-lg border px-2 text-xs text-muted-foreground transition-colors hover:bg-muted"
+                                            >
+                                                <X class="h-3.5 w-3.5" />
+                                            </button>
+                                        </div>
+                                    </template>
                                 </div>
                             </div>
 
@@ -405,32 +458,6 @@ const deleteOrder = async () => {
                         </div>
                     </div>
 
-                    <!-- Entreprise (admin) -->
-                    <div v-if="isAdmin && companies.length > 0" class="rounded-2xl border bg-card p-5 shadow-sm">
-                        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Entreprise émettrice</h2>
-                        <div class="flex gap-2">
-                            <div class="relative flex-1">
-                                <select
-                                    v-model="companyForm.company_id"
-                                    class="h-10 w-full appearance-none rounded-xl border border-input bg-background px-3 pr-8 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                >
-                                    <option value="">— Aucune —</option>
-                                    <option v-for="c in companies" :key="c.id" :value="String(c.id)">
-                                        {{ c.name }}<template v-if="c.code"> · {{ c.code }}</template>
-                                    </option>
-                                </select>
-                                <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                            </div>
-                            <button
-                                :disabled="savingCompany"
-                                class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
-                                @click="assignCompany"
-                            >
-                                <Landmark class="h-4 w-4" />
-                                OK
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

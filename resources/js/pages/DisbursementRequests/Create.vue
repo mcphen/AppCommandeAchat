@@ -244,14 +244,20 @@ const submit = (andSubmit: boolean) => {
             </div>
 
             <!-- Entreprise émettrice -->
-            <div v-if="props.companies.length > 0" class="rounded-2xl border bg-card p-5 shadow-sm">
+            <div class="rounded-2xl border bg-card p-5 shadow-sm">
                 <div class="flex items-start gap-3">
                     <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50">
                         <Building2 class="h-5 w-5 text-purple-600" />
                     </div>
                     <div class="flex-1 min-w-0">
                         <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Entreprise émettrice</p>
-                        <template v-if="props.companies.length === 1">
+                        <template v-if="props.companies.length === 0">
+                            <p class="mt-1 text-sm text-muted-foreground italic">
+                                Aucune entreprise configurée —
+                                <a :href="route('admin.companies.index')" class="text-primary underline-offset-2 hover:underline">en créer une</a>
+                            </p>
+                        </template>
+                        <template v-else-if="props.companies.length === 1">
                             <p class="text-base font-semibold text-foreground">{{ props.companies[0].name }}</p>
                         </template>
                         <template v-else>

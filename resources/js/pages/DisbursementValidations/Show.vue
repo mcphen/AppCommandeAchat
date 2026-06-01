@@ -208,14 +208,14 @@ const submitReject = () => {
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="font-medium text-sm">{{ level.name }}</p>
-                                    <template v-if="getLogForLevel(level.order) as log">
+                                    <template v-if="getLogForLevel(level.order)">
                                         <p class="text-xs text-muted-foreground mt-0.5">
-                                            {{ log.user?.name ?? '?' }} ·
-                                            {{ new Date(log.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) }}
+                                            {{ getLogForLevel(level.order)?.user?.name ?? '?' }} ·
+                                            {{ new Date(getLogForLevel(level.order)!.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) }}
                                         </p>
-                                        <p v-if="log.comment" class="mt-1 text-xs rounded bg-muted p-2">{{ log.comment }}</p>
+                                        <p v-if="getLogForLevel(level.order)?.comment" class="mt-1 text-xs rounded bg-muted p-2">{{ getLogForLevel(level.order)?.comment }}</p>
                                     </template>
-                                    <p v-else-if="levelStatus(level.order) === 'current'" class="text-xs text-amber-600 mt-0.5">En cours</p>
+                                    <p v-else-if="levelStatus(level.order) === 'current'" class="text-xs text-amber-600 mt-0.5">En cours d'examen</p>
                                     <p v-else class="text-xs text-muted-foreground mt-0.5">En attente</p>
                                 </div>
                             </div>

@@ -250,17 +250,62 @@
 </div>
 
 {{-- ──────────── SIGNATURES ──────────── --}}
+@php
+    $sigCols = collect();
+
+    foreach ($levels as $level) {
+        $log = $order->validationLogs
+            ->where('action', 'approved')
+            ->firstWhere('validation_level_id', $level->id);
+
+        $sigImg = null;
+        if ($log && $log->user?->signature_path) {
+            $absPath = storage_path('app/public/' . $log->user->signature_path);
+            if (file_exists($absPath)) {
+                $mime   = mime_content_type($absPath);
+                $sigImg = 'data:' . $mime . ';base64,' . base64_encode(file_get_contents($absPath));
+            }
+        }
+
+        $sigCols->push([
+            'label'   => $level->name,
+            'name'    => $log ? ($log->user?->name ?? '—') : null,
+            'date'    => $log ? \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') : null,
+            'img'     => $sigImg,
+            'pending' => !$log,
+        ]);
+    }
+
+    $colPct = $sigCols->count() > 0 ? floor(100 / $sigCols->count()) : 100;
+@endphp
+
 <div class="sig-section">
 
-    {{-- Ligne 1 : niveaux du circuit de validation --}}
-    @if(isset($levels) && $levels->count())
-    <table class="sig-table">
+    {{-- Ligne 1 : niveaux du circuit de validation avec signatures réelles --}}
+    @if($sigCols->count())
+    <table style="width:100%; border-collapse:collapse; margin-bottom:12px;">
         <tr>
-            @foreach($levels as $level)
-            <td style="width: {{ round(100 / $levels->count(), 2) }}%">
-                <div class="sig-label">{{ $level->name }}</div>
-                <div class="sig-area"></div>
-                <div class="sig-name">&nbsp;</div>
+            @foreach($sigCols as $col)
+            <td style="width:{{ $colPct }}%; text-align:center; font-size:8px; font-weight:bold; text-transform:uppercase; padding-bottom:3px;">
+                <span style="text-decoration:underline;">{{ $col['label'] }}</span>
+            </td>
+            @endforeach
+        </tr>
+        <tr>
+            @foreach($sigCols as $col)
+            <td style="width:{{ $colPct }}%; text-align:center; vertical-align:bottom; border-top:1px solid #555; padding-top:6px; height:60px;">
+                @if($col['img'])
+                    <img src="{{ $col['img'] }}" style="max-height:36px; max-width:80px; object-fit:contain; display:block; margin:0 auto 3px;" />
+                @endif
+                @if($col['name'])
+                    <div style="font-size:8px; font-weight:600; color:#222;">{{ $col['name'] }}</div>
+                @endif
+                @if($col['date'])
+                    <div style="font-size:7px; color:#888; margin-top:2px;">{{ $col['date'] }}</div>
+                @endif
+                @if($col['pending'])
+                    <div style="font-size:7px; color:#aaa; margin-top:14px; font-style:italic;">En attente</div>
+                @endif
             </td>
             @endforeach
         </tr>

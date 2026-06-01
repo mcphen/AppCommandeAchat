@@ -1,13 +1,14 @@
 ﻿<script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type Boutique, type BreadcrumbItem, type DisbursementRequest, type DisbursementRequestAttachment, type NatureOperation, type SharedData } from '@/types';
+import { type Boutique, type BreadcrumbItem, type Company, type DisbursementRequest, type DisbursementRequestAttachment, type NatureOperation, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, ChevronDown, FileText, Loader2, Pencil, Send, Store, Upload, X } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, Building2, ChevronDown, FileText, Loader2, Pencil, Send, Store, Upload, X } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const props = defineProps<{
     order: DisbursementRequest;
     boutiques: Boutique[];
+    companies: Company[];
     natureOperations: NatureOperation[];
 }>();
 
@@ -27,6 +28,7 @@ const form = useForm({
     description:         props.order.description ?? '',
     amount:              String(props.order.amount),
     boutique_id:         props.order.boutique_id ? String(props.order.boutique_id) : '',
+    company_id:          props.order.company_id ? String(props.order.company_id) : (props.companies.length === 1 ? String(props.companies[0].id) : ''),
     attachments:         [] as File[],
     deleted_attachment_ids: [] as number[],
     and_submit:          false,
@@ -168,6 +170,33 @@ const submit = (andSubmit: boolean) => {
                                 <ChevronDown class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             </div>
                             <p v-if="form.errors.boutique_id" class="mt-1 text-xs text-red-500">{{ form.errors.boutique_id }}</p>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Entreprise émettrice -->
+            <div v-if="props.companies.length > 0" class="rounded-2xl border bg-card p-5 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50">
+                        <Building2 class="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Entreprise émettrice</p>
+                        <template v-if="props.companies.length === 1">
+                            <p class="text-base font-semibold text-foreground">{{ props.companies[0].name }}</p>
+                        </template>
+                        <template v-else>
+                            <div class="relative mt-2">
+                                <select v-model="form.company_id"
+                                    class="h-10 w-full appearance-none rounded-xl border border-input bg-background px-4 pr-10 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    :class="{ 'border-red-400': form.errors.company_id }">
+                                    <option value="">— Choisir une entreprise —</option>
+                                    <option v-for="c in props.companies" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+                                </select>
+                                <ChevronDown class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            </div>
+                            <p v-if="form.errors.company_id" class="mt-1 text-xs text-red-500">{{ form.errors.company_id }}</p>
                         </template>
                     </div>
                 </div>

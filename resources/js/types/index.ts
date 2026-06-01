@@ -81,6 +81,21 @@ export interface Boutique {
     is_active: boolean;
 }
 
+export interface Company {
+    id: number;
+    name: string;
+    code?: string | null;
+    address?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    website?: string | null;
+    nif?: string | null;
+    rccm?: string | null;
+    logo?: string | null;
+    logo_url?: string | null;
+    is_active: boolean;
+}
+
 export interface User {
     id: number;
     name: string;
@@ -258,6 +273,7 @@ export interface DisbursementRequest {
     reference: string;
     user_id: number;
     boutique_id?: number | null;
+    company_id?: number | null;
     nature_operation_id: number;
     title: string;
     description?: string | null;
@@ -268,6 +284,7 @@ export interface DisbursementRequest {
     submitted_at?: string | null;
     user?: User;
     boutique?: Boutique | null;
+    company?: Company | null;
     nature_operation?: NatureOperation;
     attachments?: DisbursementRequestAttachment[];
     validation_logs?: ValidationLog[];

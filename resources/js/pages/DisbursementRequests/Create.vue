@@ -1,9 +1,9 @@
 ﻿<script setup lang="ts">
 import axios from 'axios';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type Boutique, type BreadcrumbItem, type NatureOperation, type SharedData } from '@/types';
+import { type Boutique, type BreadcrumbItem, type Company, type NatureOperation, type SharedData } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { AlertCircle, AlertTriangle, ArrowLeft, ChevronDown, FileText, Loader2, Plus, Send, Store, Upload, X } from 'lucide-vue-next';
+import { AlertCircle, AlertTriangle, ArrowLeft, Building2, ChevronDown, FileText, Loader2, Plus, Send, Store, Upload, X } from 'lucide-vue-next';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -15,6 +15,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const props = defineProps<{
     boutique?: Boutique | null;
     boutiques: Boutique[];
+    companies: Company[];
     natureOperations: NatureOperation[];
 }>();
 
@@ -28,6 +29,7 @@ const form = useForm({
     description: '',
     amount: '',
     boutique_id: props.boutique?.id ? String(props.boutique.id) : '',
+    company_id: props.companies.length === 1 ? String(props.companies[0].id) : '',
     attachments: [] as File[],
     and_submit: false as boolean,
 });
@@ -236,6 +238,33 @@ const submit = (andSubmit: boolean) => {
                                 <ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                             </div>
                             <p v-if="form.errors.boutique_id" class="text-xs text-red-500 mt-1">{{ form.errors.boutique_id }}</p>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Entreprise émettrice -->
+            <div v-if="props.companies.length > 0" class="rounded-2xl border bg-card p-5 shadow-sm">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-50">
+                        <Building2 class="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Entreprise émettrice</p>
+                        <template v-if="props.companies.length === 1">
+                            <p class="text-base font-semibold text-foreground">{{ props.companies[0].name }}</p>
+                        </template>
+                        <template v-else>
+                            <div class="relative mt-2">
+                                <select v-model="form.company_id"
+                                    class="h-10 w-full rounded-xl border border-input bg-background px-4 pr-10 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors appearance-none"
+                                    :class="{ 'border-red-400': form.errors.company_id }">
+                                    <option value="">— Choisir une entreprise —</option>
+                                    <option v-for="c in props.companies" :key="c.id" :value="String(c.id)">{{ c.name }}</option>
+                                </select>
+                                <ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                            </div>
+                            <p v-if="form.errors.company_id" class="text-xs text-red-500 mt-1">{{ form.errors.company_id }}</p>
                         </template>
                     </div>
                 </div>

@@ -147,7 +147,11 @@
         <div class="ref">{{ $order->reference }}</div>
     </div>
     <div class="header-right">
-       
+        <div class="company">{{ $companyName }}</div>
+        @if($companyAddress)<div>{{ $companyAddress }}</div>@endif
+        @if($companyPhone)<div>Tél : {{ $companyPhone }}</div>@endif
+        @if($companyEmail)<div>{{ $companyEmail }}</div>@endif
+        @if($companyNif)<div>NIF : {{ $companyNif }}</div>@endif
         <div style="margin-top:4px; color:#555;">Généré le {{ \Carbon\Carbon::now()->format('d/m/Y H:i') }}</div>
     </div>
 </div>

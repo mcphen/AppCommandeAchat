@@ -1,14 +1,14 @@
 ﻿<script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem, type DisbursementRequest, type SharedData, type ValidationLevel } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { type BreadcrumbItem, type Company, type DisbursementRequest, type SharedData, type ValidationLevel } from '@/types';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     AlertCircle, ArrowLeft, Banknote, Building2, Calendar,
-    CheckCircle2, Download, FileDown, FileText, Paperclip,
+    CheckCircle2, ChevronDown, Download, FileDown, FileText, Landmark, Paperclip,
     Pencil, Send, Tag, User, X, XCircle,
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
@@ -19,11 +19,22 @@ const breadcrumbs: BreadcrumbItem[] = [
 const props = defineProps<{
     order: DisbursementRequest;
     levels: ValidationLevel[];
+    companies: Company[];
 }>();
 
 const page = usePage<SharedData>();
 const user = computed(() => page.props.auth.user);
 const isAdmin = computed(() => user.value?.role?.slug === 'admin');
+
+// Assignation entreprise (admin seulement)
+const companyForm = useForm({ company_id: props.order.company_id ? String(props.order.company_id) : '' });
+const savingCompany = ref(false);
+const assignCompany = () => {
+    savingCompany.value = true;
+    companyForm.patch(route('disbursement-requests.assign-company', { disbursement_request: props.order.uuid }), {
+        onFinish: () => { savingCompany.value = false; },
+    });
+};
 const isOwner = computed(() => user.value?.id === props.order.user_id);
 
 const canEdit   = computed(() => (isOwner.value || isAdmin.value) && (props.order.status === 'draft' || props.order.status === 'needs_revision'));
@@ -252,6 +263,19 @@ const deleteOrder = async () => {
                                 </div>
                             </div>
 
+                            <div v-if="order.company" class="flex items-center gap-3">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50">
+                                    <Landmark class="h-4 w-4 text-purple-600" />
+                                </div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Entreprise</p>
+                                    <p class="text-sm font-medium text-foreground">
+                                        {{ order.company.name }}
+                                        <span v-if="order.company.code" class="text-muted-foreground">({{ order.company.code }})</span>
+                                    </p>
+                                </div>
+                            </div>
+
                             <div v-if="order.nature_operation" class="flex items-center gap-3">
                                 <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50">
                                     <Tag class="h-4 w-4 text-orange-600" />
@@ -378,6 +402,33 @@ const deleteOrder = async () => {
                                 <p class="text-xs text-muted-foreground">par {{ log.user?.name }} · {{ formatDateShort(log.created_at) }}</p>
                                 <p v-if="log.comment" class="mt-2 border-t border-current/10 pt-2 text-xs italic text-foreground/80">"{{ log.comment }}"</p>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Entreprise (admin) -->
+                    <div v-if="isAdmin && companies.length > 0" class="rounded-2xl border bg-card p-5 shadow-sm">
+                        <h2 class="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Entreprise émettrice</h2>
+                        <div class="flex gap-2">
+                            <div class="relative flex-1">
+                                <select
+                                    v-model="companyForm.company_id"
+                                    class="h-10 w-full appearance-none rounded-xl border border-input bg-background px-3 pr-8 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                >
+                                    <option value="">— Aucune —</option>
+                                    <option v-for="c in companies" :key="c.id" :value="String(c.id)">
+                                        {{ c.name }}<template v-if="c.code"> · {{ c.code }}</template>
+                                    </option>
+                                </select>
+                                <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            </div>
+                            <button
+                                :disabled="savingCompany"
+                                class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 disabled:opacity-50"
+                                @click="assignCompany"
+                            >
+                                <Landmark class="h-4 w-4" />
+                                OK
+                            </button>
                         </div>
                     </div>
                 </div>

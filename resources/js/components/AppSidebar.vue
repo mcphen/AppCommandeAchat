@@ -121,6 +121,7 @@ const navGroups = computed<NavGroup[]>(() => {
         groups.push({ key: 'admin', title: 'Administration', icon: Shield, items: [
             { type: 'link', title: 'Agents',                href: route('admin.agents.index'),            icon: UserCircle },
             { type: 'link', title: 'Boutiques',             href: route('admin.boutiques.index'),         icon: Building2 },
+            { type: 'link', title: 'Entreprises',           href: route('admin.companies.index'),         icon: Landmark },
             { type: 'link', title: 'Utilisateurs',          href: route('admin.users.index'),             icon: Users },
             { type: 'link', title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings },
             { type: 'link', title: 'Budgets',               href: route('admin.budgets.index'),           icon: PiggyBank },

@@ -19,6 +19,7 @@ class DisbursementRequest extends Model
         'reference',
         'user_id',
         'boutique_id',
+        'company_id',
         'nature_operation_id',
         'title',
         'description',
@@ -78,6 +79,11 @@ class DisbursementRequest extends Model
     public function boutique(): BelongsTo
     {
         return $this->belongsTo(Boutique::class);
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     public function natureOperation(): BelongsTo

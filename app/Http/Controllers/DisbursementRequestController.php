@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Boutique;
 use App\Models\AppSetting;
+use App\Models\Company;
 use App\Models\DisbursementRequest;
 use App\Models\DisbursementRequestAttachment;
 use App\Models\NatureOperation;
@@ -187,6 +188,7 @@ class DisbursementRequestController extends Controller
         return Inertia::render('DisbursementRequests/Create', [
             'boutique'         => $user->boutique,
             'boutiques'        => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'companies'        => Company::active()->orderBy('name')->get(['id', 'name', 'logo']),
             'natureOperations' => NatureOperation::active()->orderBy('name')->get(['id', 'name', 'description']),
         ]);
     }
@@ -222,6 +224,7 @@ class DisbursementRequestController extends Controller
             'description'         => 'nullable|string|max:5000',
             'amount'              => 'required|numeric|min:1',
             'boutique_id'         => 'nullable|exists:boutiques,id',
+            'company_id'          => 'nullable|exists:companies,id',
             'attachments.*'       => 'nullable|file|max:10240',
         ]);
 
@@ -232,6 +235,7 @@ class DisbursementRequestController extends Controller
             $dr = DisbursementRequest::create([
                 'user_id'             => auth()->id(),
                 'boutique_id'         => $boutique?->id,
+                'company_id'          => $validated['company_id'] ?? null,
                 'nature_operation_id' => $validated['nature_operation_id'],
                 'title'               => $validated['title'],
                 'description'         => $validated['description'] ?? null,
@@ -259,6 +263,7 @@ class DisbursementRequestController extends Controller
         $disbursementRequest->load([
             'user',
             'boutique',
+            'company',
             'natureOperation',
             'attachments',
             'validationLogs.validationLevel',
@@ -269,9 +274,23 @@ class DisbursementRequestController extends Controller
         $levels = ValidationLevel::orderBy('order')->get();
 
         return Inertia::render('DisbursementRequests/Show', [
-            'order'  => $disbursementRequest,
-            'levels' => $levels,
+            'order'     => $disbursementRequest,
+            'levels'    => $levels,
+            'companies' => Company::active()->orderBy('name')->get(['id', 'name', 'code']),
         ]);
+    }
+
+    public function assignCompany(Request $request, DisbursementRequest $disbursementRequest): RedirectResponse
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $validated = $request->validate([
+            'company_id' => 'nullable|exists:companies,id',
+        ]);
+
+        $disbursementRequest->update(['company_id' => $validated['company_id']]);
+
+        return back()->with('success', 'Entreprise mise à jour.');
     }
 
     public function edit(DisbursementRequest $disbursementRequest): Response
@@ -283,11 +302,12 @@ class DisbursementRequestController extends Controller
             403
         );
 
-        $disbursementRequest->load(['attachments', 'boutique', 'natureOperation']);
+        $disbursementRequest->load(['attachments', 'boutique', 'natureOperation', 'company']);
 
         return Inertia::render('DisbursementRequests/Edit', [
             'order'            => $disbursementRequest,
             'boutiques'        => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'companies'        => Company::active()->orderBy('name')->get(['id', 'name', 'logo']),
             'natureOperations' => NatureOperation::active()->orderBy('name')->get(['id', 'name', 'description']),
         ]);
     }
@@ -306,6 +326,7 @@ class DisbursementRequestController extends Controller
             'title'                  => 'required|string|max:255',
             'description'            => 'nullable|string|max:5000',
             'amount'                 => 'required|numeric|min:1',
+            'company_id'             => 'nullable|exists:companies,id',
             'attachments.*'          => 'nullable|file|max:10240',
             'deleted_attachment_ids' => 'nullable|array',
             'deleted_attachment_ids.*' => 'integer',
@@ -317,6 +338,7 @@ class DisbursementRequestController extends Controller
                 'title'               => $validated['title'],
                 'description'         => $validated['description'] ?? null,
                 'amount'              => $validated['amount'],
+                'company_id'          => $validated['company_id'] ?? null,
             ]);
 
             if ($request->deleted_attachment_ids) {
@@ -418,20 +440,39 @@ class DisbursementRequestController extends Controller
         $disbursementRequest->load([
             'user',
             'boutique',
+            'company',
             'natureOperation',
             'attachments',
             'validationLogs.validationLevel',
             'validationLogs.user',
         ]);
 
-        $levels   = \App\Models\ValidationLevel::orderBy('order')->get();
-        $settings = AppSetting::allAsArray();
+        $levels = \App\Models\ValidationLevel::orderBy('order')->get();
+
+        // Priorité : entreprise liée à la demande → sinon paramètres globaux
+        $requestCompany = $disbursementRequest->company;
+        if ($requestCompany) {
+            $companyData = [
+                'company_name'    => $requestCompany->name,
+                'company_address' => $requestCompany->address,
+                'company_phone'   => $requestCompany->phone,
+                'company_email'   => $requestCompany->email,
+                'company_nif'     => $requestCompany->nif,
+                'company_rccm'    => $requestCompany->rccm,
+                'company_logo'    => $requestCompany->logo,
+            ];
+            $logoB64 = PdfHelper::logoBase64($requestCompany->logo);
+        } else {
+            $settings    = AppSetting::allAsArray();
+            $companyData = $settings;
+            $logoB64     = PdfHelper::logoBase64($settings['company_logo'] ?? null);
+        }
 
         $pdf = Pdf::loadView('pdf.disbursement_request', [
             'order'   => $disbursementRequest,
             'levels'  => $levels,
-            'company' => $settings,
-            'logoB64' => PdfHelper::logoBase64($settings['company_logo'] ?? null),
+            'company' => $companyData,
+            'logoB64' => $logoB64,
         ])->setPaper('a4', 'portrait');
 
         $filename = 'decaissement-' . $disbursementRequest->reference . '.pdf';

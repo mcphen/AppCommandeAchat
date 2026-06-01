@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AccountingController;
+use App\Http\Controllers\Admin\CompanyController;
 use App\Http\Controllers\Admin\NatureOperationController;
 use App\Http\Controllers\DecaissementController;
 use App\Http\Controllers\CaisseController;
@@ -181,6 +182,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('disbursement-requests.submit');
         Route::post('disbursement-requests/{disbursement_request}/cancel', [DisbursementRequestController::class, 'cancel'])
             ->name('disbursement-requests.cancel');
+        Route::patch('disbursement-requests/{disbursement_request}/company', [DisbursementRequestController::class, 'assignCompany'])
+            ->name('disbursement-requests.assign-company');
     });
 
     // Validation des demandes de décaissement (Validateur + Admin)
@@ -203,6 +206,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Administration (Admin uniquement)
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('boutiques', BoutiqueController::class)->except(['show']);
+        Route::resource('companies', CompanyController::class)->except(['create', 'edit', 'show']);
+        Route::post('companies/{company}/logo', [CompanyController::class, 'updateLogo'])->name('companies.logo.update');
+        Route::delete('companies/{company}/logo', [CompanyController::class, 'deleteLogo'])->name('companies.logo.delete');
         Route::resource('users', AdminUserController::class)->except(['show']);
         Route::resource('validation-levels', ValidationLevelController::class)->except(['show']);
         Route::resource('categories', CategoryController::class)->except(['show']);

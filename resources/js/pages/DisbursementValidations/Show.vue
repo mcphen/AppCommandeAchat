@@ -2,7 +2,7 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type BreadcrumbItem, type DisbursementRequest, type ValidationLevel } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Loader2, Paperclip, XCircle } from 'lucide-vue-next';
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, Download, Loader2, Paperclip, XCircle } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 
@@ -179,12 +179,19 @@ const submitReject = () => {
                             </h2>
                         </div>
                         <ul class="divide-y divide-gray-100">
-                            <li v-for="att in order.attachments" :key="att.id" class="flex items-center gap-3 px-5 py-3 text-sm">
-                                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
-                                    <Paperclip class="h-4 w-4" />
-                                </div>
-                                <span class="flex-1 truncate font-medium text-gray-800">{{ att.file_name }}</span>
-                                <span class="text-xs font-medium text-gray-400">{{ formatSize(att.file_size) }}</span>
+                            <li v-for="att in order.attachments" :key="att.id">
+                                <a
+                                    :href="route('disbursement-requests.attachments.download', { disbursement_request: order.uuid, attachment: att.id })"
+                                    target="_blank"
+                                    class="flex items-center gap-3 px-5 py-3 text-sm transition-colors hover:bg-indigo-50 group"
+                                >
+                                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100">
+                                        <Paperclip class="h-4 w-4" />
+                                    </div>
+                                    <span class="flex-1 truncate font-medium text-gray-800 group-hover:text-indigo-700 group-hover:underline">{{ att.file_name }}</span>
+                                    <span class="text-xs font-medium text-gray-400">{{ formatSize(att.file_size) }}</span>
+                                    <Download class="h-4 w-4 shrink-0 text-gray-300 group-hover:text-indigo-500" />
+                                </a>
                             </li>
                         </ul>
                     </div>

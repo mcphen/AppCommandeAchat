@@ -297,9 +297,9 @@
         </tr>
         <tr>
             @foreach($sigCols as $col)
-            <td style="width:{{ $colPct }}%; text-align:center; vertical-align:bottom; border-top:1px solid #555; padding-top:6px; height:120px;">
+            <td style="width:{{ $colPct }}%; text-align:center; vertical-align:bottom; border-top:1px solid #555; padding-top:6px; height:160px;">
                 @if($col['img'])
-                    <img src="{{ $col['img'] }}" style="max-height:85px; max-width:150px; object-fit:contain; display:block; margin:0 auto 3px;" />
+                    <img src="{{ $col['img'] }}" style="max-height:120px; max-width:190px; object-fit:contain; display:block; margin:0 auto 3px;" />
                 @endif
                 @if($col['name'])
                     <div style="font-size:8px; font-weight:600; color:#222;">{{ $col['name'] }}</div>

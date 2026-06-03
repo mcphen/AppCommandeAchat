@@ -481,14 +481,14 @@ const submitOrder = async (order: DisbursementRequest) => {
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b bg-muted/20">
-                                <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Demande</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground md:table-cell">Boutique</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">Nature</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">Montant</th>
-                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</th>
-                                <th v-if="canSeeBoutiqueUsers" class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">Demandeur</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">Date</th>
-                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                                <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Demande</th>
+                                <th class="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground md:table-cell">Boutique</th>
+                                <th class="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">Nature</th>
+                                <th class="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">Montant</th>
+                                <th class="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</th>
+                                <th v-if="canSeeBoutiqueUsers" class="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">Demandeur</th>
+                                <th class="hidden px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground 2xl:table-cell">Date</th>
+                                <th class="sticky right-0 bg-card px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]">Actions</th>
                             </tr>
                         </thead>
 
@@ -499,10 +499,10 @@ const submitOrder = async (order: DisbursementRequest) => {
                                 class="transition-colors hover:bg-muted/20"
                                 :class="order.status === 'cancelled' ? 'opacity-60 bg-red-50/40' : ''"
                             >
-                                <td class="px-5 py-4">
+                                <td class="px-4 py-3">
                                     <div class="flex items-center gap-3">
                                         <div
-                                            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
                                             :class="order.status === 'cancelled' ? 'bg-red-100 text-red-400' : 'bg-primary/10 text-primary'"
                                         >
                                             <FileText class="h-4 w-4" />
@@ -513,29 +513,29 @@ const submitOrder = async (order: DisbursementRequest) => {
                                                 :class="order.status === 'cancelled' ? 'line-through text-muted-foreground' : ''"
                                             >{{ order.title }}</p>
                                             <p v-if="order.reference" class="font-mono text-xs text-muted-foreground">{{ order.reference }}</p>
-                                            <p v-if="order.status === 'cancelled'" class="mt-0.5 text-xs font-semibold text-red-600">Demande annulée</p>
+                                            <p v-if="order.status === 'cancelled'" class="mt-0.5 text-xs font-semibold text-red-600">Annulée</p>
                                         </div>
                                     </div>
                                 </td>
 
-                                <td class="hidden px-4 py-4 md:table-cell">
-                                    <div class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                                        <Building2 class="h-3.5 w-3.5" />
+                                <td class="hidden px-3 py-3 md:table-cell">
+                                    <div class="inline-flex items-center gap-1.5 rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                        <Building2 class="h-3 w-3" />
                                         {{ order.boutique?.name ?? 'Non renseignée' }}
                                     </div>
                                 </td>
 
-                                <td class="hidden px-4 py-4 text-muted-foreground lg:table-cell">
+                                <td class="hidden px-3 py-3 text-xs text-muted-foreground xl:table-cell">
                                     {{ order.nature_operation?.name ?? '—' }}
                                 </td>
 
-                                <td class="hidden px-4 py-4 font-medium text-foreground lg:table-cell">
-                                    <span :class="order.status === 'cancelled' ? 'line-through text-muted-foreground' : ''">
+                                <td class="hidden px-3 py-3 font-medium text-foreground lg:table-cell">
+                                    <span class="text-sm" :class="order.status === 'cancelled' ? 'line-through text-muted-foreground' : ''">
                                         {{ formatAmount(order.amount) }}
                                     </span>
                                 </td>
 
-                                <td class="px-4 py-4">
+                                <td class="px-3 py-3">
                                     <span
                                         class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
                                         :class="statusConfig[order.status]?.classes ?? 'bg-muted text-muted-foreground'"
@@ -545,58 +545,56 @@ const submitOrder = async (order: DisbursementRequest) => {
                                     </span>
                                 </td>
 
-                                <td v-if="canSeeBoutiqueUsers" class="hidden px-4 py-4 xl:table-cell">
+                                <td v-if="canSeeBoutiqueUsers" class="hidden px-3 py-3 xl:table-cell">
                                     <div v-if="order.user" class="flex items-center gap-2">
-                                        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
+                                        <div class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-violet-100 text-xs font-semibold text-violet-700">
                                             {{ order.user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase() }}
                                         </div>
-                                        <span class="truncate text-sm text-foreground">{{ order.user.name }}</span>
+                                        <span class="truncate text-xs text-foreground">{{ order.user.name }}</span>
                                     </div>
                                     <span v-else class="text-xs text-muted-foreground">—</span>
                                 </td>
 
-                                <td class="hidden px-4 py-4 text-muted-foreground xl:table-cell">{{ formatDate(order.created_at) }}</td>
+                                <td class="hidden px-3 py-3 text-xs text-muted-foreground 2xl:table-cell">{{ formatDate(order.created_at) }}</td>
 
-                                <td class="px-5 py-4 text-right">
-                                    <div class="flex flex-wrap items-center justify-end gap-2">
+                                <td class="sticky right-0 bg-card px-3 py-3 text-right shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)]"
+                                    :class="order.status === 'cancelled' ? 'bg-red-50/40' : ''"
+                                >
+                                    <div class="flex items-center justify-end gap-1.5">
                                         <Link
                                             :href="route('disbursement-requests.show', { disbursement_request: order.uuid })"
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
+                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-blue-700 transition-colors hover:bg-blue-100"
                                             title="Voir"
                                         >
                                             <Eye class="h-3.5 w-3.5" />
-                                            <span class="hidden 2xl:inline">Voir</span>
                                         </Link>
 
                                         <template v-if="canEdit(order) || canSubmit(order) || canDelete(order)">
                                             <Link
                                                 v-if="canEdit(order)"
                                                 :href="route('disbursement-requests.edit', { disbursement_request: order.uuid })"
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-amber-200 bg-amber-50 text-amber-700 transition-colors hover:bg-amber-100"
                                                 title="Modifier"
                                             >
                                                 <Pencil class="h-3.5 w-3.5" />
-                                                <span class="hidden 2xl:inline">Modifier</span>
                                             </Link>
 
                                             <button
                                                 v-if="canSubmit(order)"
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition-colors hover:bg-emerald-100"
                                                 title="Soumettre"
                                                 @click="submitOrder(order)"
                                             >
                                                 <Send class="h-3.5 w-3.5" />
-                                                <span class="hidden 2xl:inline">Soumettre</span>
                                             </button>
 
                                             <button
                                                 v-if="canDelete(order)"
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100"
                                                 title="Supprimer"
                                                 @click="confirmDelete(order)"
                                             >
                                                 <Trash2 class="h-3.5 w-3.5" />
-                                                <span class="hidden 2xl:inline">Supprimer</span>
                                             </button>
                                         </template>
                                     </div>

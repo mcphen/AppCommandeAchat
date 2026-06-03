@@ -387,9 +387,9 @@
     {{-- Espace signature + image + nom --}}
     <tr>
         @foreach($sigCols as $col)
-        <td style="width:{{ $colPct }}%; text-align:center; vertical-align:bottom; border-top:1px solid #bbb; padding-top:8px; height:95px;">
+        <td style="width:{{ $colPct }}%; text-align:center; vertical-align:bottom; border-top:1px solid #bbb; padding-top:8px; height:125px;">
             @if($col['img'])
-                <img src="{{ $col['img'] }}" style="max-height:65px; max-width:120px; object-fit:contain; display:block; margin:0 auto 4px;" />
+                <img src="{{ $col['img'] }}" style="max-height:90px; max-width:160px; object-fit:contain; display:block; margin:0 auto 4px;" />
             @endif
             @if($col['name'])
                 <div style="font-size:9px; font-weight:600; color:#222;">{{ $col['name'] }}</div>

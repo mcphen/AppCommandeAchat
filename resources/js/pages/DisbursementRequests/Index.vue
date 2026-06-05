@@ -32,6 +32,8 @@ const props = defineProps<{
 const page = usePage<SharedData>();
 const user = computed(() => page.props.auth.user);
 const isAdmin = computed(() => user.value?.role?.slug === 'admin');
+// Vrai si l'utilisateur est rattaché à une boutique (le backend ne lui passe pas la liste des boutiques)
+const hasBoutique = computed(() => !isAdmin.value && props.boutiques.length === 0);
 const canSeeBoutiqueUsers = computed(() => props.demandeurs.length > 1);
 
 const showFilters = ref(
@@ -161,22 +163,22 @@ const submitOrder = async (order: DisbursementRequest) => {
                         {{ isAdmin ? 'Pilotage des décaissements' : 'Suivi des décaissements' }}
                     </p>
                     <h1 class="mt-1 text-2xl font-bold text-foreground">
-                        {{ isAdmin ? 'Demandes de décaissement du groupe' : (canSeeBoutiqueUsers ? 'Demandes de décaissement de ma boutique' : 'Mes demandes de décaissement') }}
+                        {{ isAdmin ? 'Demandes de décaissement du groupe' : (hasBoutique ? 'Demandes de décaissement de ma boutique' : 'Toutes les demandes de décaissement') }}
                     </h1>
                     <p class="mt-1 text-sm text-muted-foreground">
                         {{
                             isAdmin
                                 ? 'Visualisez les demandes du groupe, leur circuit de validation et leur niveau de progression.'
-                                : (canSeeBoutiqueUsers
+                                : (hasBoutique
                                     ? 'Visualisez les demandes de tous les demandeurs de votre boutique pour éviter les doublons.'
-                                    : 'Retrouvez vos demandes de décaissement, leurs statuts et les actions utiles depuis une seule page.')
+                                    : 'Visualisez l\'ensemble des demandes de décaissement toutes boutiques confondues.')
                         }}
                     </p>
                 </div>
 
                 <div class="inline-flex items-center gap-2 self-start rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary">
                     <ShieldCheck class="h-4 w-4" />
-                    {{ isAdmin ? 'Vue administration' : 'Vue demandeur' }}
+                    {{ isAdmin ? 'Vue administration' : (hasBoutique ? 'Vue boutique' : 'Vue globale') }}
                 </div>
             </div>
 
@@ -319,7 +321,7 @@ const submitOrder = async (order: DisbursementRequest) => {
                 >
                     <div v-if="showFilters" class="space-y-4 px-5 py-4">
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                            <div>
+                            <div v-if="boutiques.length > 0">
                                 <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Boutique</label>
                                 <select
                                     v-model="localFilters.boutique_id"

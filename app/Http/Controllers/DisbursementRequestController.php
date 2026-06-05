@@ -36,16 +36,20 @@ class DisbursementRequestController extends Controller
 
         $orders = $query->paginate(15)->withQueryString();
 
-        $demandeurs = $user->isAdmin()
+        // Admin et utilisateurs sans boutique voient tous les demandeurs ; boutique = filtre par boutique
+        $demandeurs = ($user->isAdmin() || ! $user->boutique_id)
             ? User::whereHas('role', fn ($q) => $q->whereIn('slug', ['demandeur', 'validateur']))->orderBy('name')->get(['id', 'name'])
-            : (($user->isDemandeur() || $user->isValidateur()) && $user->boutique_id
-                ? User::where('boutique_id', $user->boutique_id)->orderBy('name')->get(['id', 'name'])
-                : []);
+            : User::where('boutique_id', $user->boutique_id)->orderBy('name')->get(['id', 'name']);
+
+        // Seuls les utilisateurs sans boutique (et l'admin) peuvent filtrer par boutique
+        $boutiques = (! $user->boutique_id)
+            ? Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name'])
+            : [];
 
         return Inertia::render('DisbursementRequests/Index', [
             'orders'          => $orders,
             'natureOperations' => NatureOperation::active()->orderBy('name')->get(['id', 'name']),
-            'boutiques'       => $user->isAdmin() ? Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name']) : [],
+            'boutiques'       => $boutiques,
             'demandeurs'      => $demandeurs,
             'levelsCount'     => ValidationLevel::count(),
             'filters'         => $this->getFilters($request),
@@ -66,12 +70,12 @@ class DisbursementRequestController extends Controller
         $query = DisbursementRequest::with(['boutique', 'user', 'natureOperation', 'validationLogs.validationLevel'])->latest();
 
         if (! $user->isAdmin()) {
-            if (($user->isDemandeur() || $user->isValidateur()) && $user->boutique_id) {
+            if ($user->boutique_id) {
+                // Utilisateur rattaché à une boutique : restreint aux demandes de sa boutique
                 $boutiqueUserIds = User::where('boutique_id', $user->boutique_id)->pluck('id');
                 $query->whereIn('user_id', $boutiqueUserIds);
-            } else {
-                $query->where('user_id', $user->id);
             }
+            // Utilisateur sans boutique (non-admin) : voit toutes les demandes
         }
 
         if ($request->filled('boutique_id')) {
@@ -86,7 +90,7 @@ class DisbursementRequestController extends Controller
             $query->where('status', $request->string('status'));
         }
 
-        if ($request->filled('user_id') && ($user->isAdmin() || ($user->isDemandeur() && $user->boutique_id))) {
+        if ($request->filled('user_id')) {
             $query->where('user_id', $request->integer('user_id'));
         }
 

@@ -65,9 +65,11 @@
     $companyRccm    = $company['company_rccm']       ?? '';
 
     $orderNumber = $order->order_number ?? ('#'.str_pad($order->id, 5, '0', STR_PAD_LEFT));
-    $orderDate   = $order->ordered_at
-        ? \Carbon\Carbon::parse($order->ordered_at)->format('d/m/Y')
-        : \Carbon\Carbon::parse($order->created_at)->format('d/m/Y');
+    $orderDate   = $order->order_date
+        ? \Carbon\Carbon::parse($order->order_date)->format('d/m/Y')
+        : ($order->ordered_at
+            ? \Carbon\Carbon::parse($order->ordered_at)->format('d/m/Y')
+            : \Carbon\Carbon::parse($order->created_at)->format('d/m/Y'));
 
     $fournisseur = $order->fournisseur;
 

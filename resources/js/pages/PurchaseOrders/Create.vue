@@ -215,6 +215,7 @@ const form = useForm({
     title:          '',
     description:    '',
     amount:         '',
+    order_date:     new Date().toISOString().split('T')[0],
     boutique_id:    props.boutique?.id ?? ('' as number | ''),
     fournisseur_id: '' as number | '',
     and_submit:     false,
@@ -436,15 +437,25 @@ const submit = (andSend = false) => {
                 <div class="rounded-2xl border bg-card p-6 shadow-sm flex flex-col gap-4">
                     <h2 class="font-semibold text-sm uppercase tracking-wide text-muted-foreground">Informations générales</h2>
 
-                    <div class="flex flex-col gap-1.5">
-                        <label class="text-sm font-medium text-foreground" for="title">
-                            Titre <span class="text-red-500">*</span>
-                        </label>
-                        <input id="title" v-model="form.title" type="text"
-                            placeholder="Ex : Achat de fournitures de bureau"
-                            class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
-                            :class="{ 'border-red-400': form.errors.title }" />
-                        <p v-if="form.errors.title" class="text-xs text-red-500">{{ form.errors.title }}</p>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-medium text-foreground" for="title">
+                                Titre <span class="text-red-500">*</span>
+                            </label>
+                            <input id="title" v-model="form.title" type="text"
+                                placeholder="Ex : Achat de fournitures de bureau"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                :class="{ 'border-red-400': form.errors.title }" />
+                            <p v-if="form.errors.title" class="text-xs text-red-500">{{ form.errors.title }}</p>
+                        </div>
+
+                        <div class="flex flex-col gap-1.5">
+                            <label class="text-sm font-medium text-foreground" for="order_date">Date de la commande</label>
+                            <input id="order_date" v-model="form.order_date" type="date"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                                :class="{ 'border-red-400': form.errors.order_date }" />
+                            <p v-if="form.errors.order_date" class="text-xs text-red-500">{{ form.errors.order_date }}</p>
+                        </div>
                     </div>
 
                     <div class="flex flex-col gap-1.5">

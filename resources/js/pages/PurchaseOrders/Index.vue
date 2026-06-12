@@ -642,7 +642,7 @@ const submitOrder = async (order: PurchaseOrder) => {
                                     <span v-else class="text-xs text-muted-foreground">-</span>
                                 </td>
 
-                                <td class="hidden px-4 py-4 text-muted-foreground xl:table-cell">{{ formatDate(order.created_at) }}</td>
+                                <td class="hidden px-4 py-4 text-muted-foreground xl:table-cell">{{ formatDate(order.order_date ?? order.created_at) }}</td>
 
                                 <td class="px-5 py-4 text-right">
                                     <div class="flex flex-wrap items-center justify-end gap-2">

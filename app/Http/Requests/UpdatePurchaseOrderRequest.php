@@ -18,6 +18,7 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'title'                   => ['required', 'string', 'max:255'],
             'description'             => ['required', 'string'],
             'amount'                  => ['required', 'numeric', 'min:0'],
+            'order_date'              => ['nullable', 'date'],
             'attachments'             => ['nullable', 'array', 'max:10'],
             'attachments.*'           => ['file', 'mimes:pdf', 'max:10240'],
             'deleted_attachment_ids'  => ['nullable', 'array'],

@@ -174,8 +174,8 @@
             <td class="val" colspan="3">{{ $order->natureOperation?->name ?? '—' }}</td>
         </tr>
         <tr>
-            <td class="lbl">Date de création</td>
-            <td class="val">{{ \Carbon\Carbon::parse($order->created_at)->format('d/m/Y') }}</td>
+            <td class="lbl">Date</td>
+            <td class="val">{{ \Carbon\Carbon::parse($order->order_date ?? $order->created_at)->format('d/m/Y') }}</td>
             
         </tr>
         <tr>

@@ -30,6 +30,7 @@ class PurchaseOrder extends Model
         'ordered_at',
         'fully_received_at',
         'payment_status',
+        'order_date',
     ];
 
     protected $casts = [
@@ -37,6 +38,7 @@ class PurchaseOrder extends Model
         'submitted_at'        => 'datetime',
         'ordered_at'          => 'datetime',
         'fully_received_at'   => 'datetime',
+        'order_date'          => 'date',
         'current_level_order' => 'integer',
     ];
 
@@ -51,6 +53,10 @@ class PurchaseOrder extends Model
         static::creating(function (PurchaseOrder $order) {
             if (empty($order->uuid)) {
                 $order->uuid = Str::uuid()->toString();
+            }
+
+            if (empty($order->order_date)) {
+                $order->order_date = today();
             }
 
             // Référence de type DA-CODEBOUTIQUE-YYYY-NNNNN (Demande d'Achat)

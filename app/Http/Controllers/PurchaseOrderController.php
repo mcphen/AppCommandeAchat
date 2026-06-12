@@ -275,6 +275,7 @@ class PurchaseOrderController extends Controller
                 'description'    => $request->description,
                 'amount'         => $amount,
                 'status'         => 'draft',
+                'order_date'     => $request->order_date ?: today(),
             ]);
 
             foreach ($lines as $line) {
@@ -422,6 +423,7 @@ class PurchaseOrderController extends Controller
                 'title'          => $request->title,
                 'description'    => $request->description,
                 'amount'         => $amount,
+                'order_date'     => $request->order_date ?: $purchaseOrder->order_date,
             ]);
 
             // Sync des lignes : supprimer les anciennes, recréer

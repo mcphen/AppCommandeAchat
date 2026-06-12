@@ -195,6 +195,7 @@ export interface PurchaseOrder {
     fully_received_at?: string | null;
     current_level_order?: number;
     submitted_at?: string;
+    order_date?: string | null;
     attachments?: PurchaseOrderAttachment[];
     lines?: PurchaseOrderLine[];
     receptions?: PurchaseOrderReception[];
@@ -282,6 +283,7 @@ export interface DisbursementRequest {
     payment_status?: 'paid' | null;
     current_level_order?: number | null;
     submitted_at?: string | null;
+    order_date?: string | null;
     user?: User;
     boutique?: Boutique | null;
     company?: Company | null;

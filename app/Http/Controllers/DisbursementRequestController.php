@@ -227,6 +227,7 @@ class DisbursementRequestController extends Controller
             'title'               => 'required|string|max:255',
             'description'         => 'nullable|string|max:5000',
             'amount'              => 'required|numeric|min:1',
+            'order_date'          => 'nullable|date',
             'boutique_id'         => 'nullable|exists:boutiques,id',
             'company_id'          => 'nullable|exists:companies,id',
             'attachments.*'       => 'nullable|file|max:10240',
@@ -245,6 +246,7 @@ class DisbursementRequestController extends Controller
                 'description'         => $validated['description'] ?? null,
                 'amount'              => $validated['amount'],
                 'status'              => 'draft',
+                'order_date'          => $validated['order_date'] ?? today(),
             ]);
 
             $this->storeAttachments($dr, $request);
@@ -330,6 +332,7 @@ class DisbursementRequestController extends Controller
             'title'                  => 'required|string|max:255',
             'description'            => 'nullable|string|max:5000',
             'amount'                 => 'required|numeric|min:1',
+            'order_date'             => 'nullable|date',
             'company_id'             => 'nullable|exists:companies,id',
             'attachments.*'          => 'nullable|file|max:10240',
             'deleted_attachment_ids' => 'nullable|array',
@@ -343,6 +346,7 @@ class DisbursementRequestController extends Controller
                 'description'         => $validated['description'] ?? null,
                 'amount'              => $validated['amount'],
                 'company_id'          => $validated['company_id'] ?? null,
+                'order_date'          => $validated['order_date'] ?? $disbursementRequest->order_date,
             ]);
 
             if ($request->deleted_attachment_ids) {

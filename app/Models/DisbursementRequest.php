@@ -28,12 +28,14 @@ class DisbursementRequest extends Model
         'payment_status',
         'current_level_order',
         'submitted_at',
+        'order_date',
     ];
 
     protected $casts = [
         'amount'              => 'decimal:2',
         'submitted_at'        => 'datetime',
         'current_level_order' => 'integer',
+        'order_date'          => 'date',
     ];
 
     public function getRouteKeyName(): string
@@ -46,6 +48,10 @@ class DisbursementRequest extends Model
         static::creating(function (DisbursementRequest $dr) {
             if (empty($dr->uuid)) {
                 $dr->uuid = Str::uuid()->toString();
+            }
+
+            if (empty($dr->order_date)) {
+                $dr->order_date = today();
             }
 
             if (empty($dr->reference)) {

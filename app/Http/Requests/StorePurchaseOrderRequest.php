@@ -17,6 +17,7 @@ class StorePurchaseOrderRequest extends FormRequest
             'title'          => ['required', 'string', 'max:255'],
             'description'    => ['required', 'string'],
             'amount'         => ['nullable', 'numeric', 'min:0'],
+            'order_date'     => ['nullable', 'date'],
             'boutique_id'    => ['nullable', 'integer', 'exists:boutiques,id'],
             'fournisseur_id' => ['nullable', 'integer', 'exists:fournisseurs,id'],
             'and_submit'     => ['nullable', 'boolean'],

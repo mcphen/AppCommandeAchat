@@ -80,19 +80,39 @@ class DashboardController extends Controller
             ->get();
 
         $monthlyData = $this->getMonthlyData();
+        $ddMonthlyData = $this->getMonthlyDataDD();
 
         $alertBudgets = $budgetService->getAlertBudgets(now()->year, 5);
 
+        $ddBoutiqueStats = Boutique::select('id', 'name', 'code', 'city')
+            ->withCount([
+                'disbursementRequests as dd_total',
+                'disbursementRequests as dd_pending'  => fn ($q) => $q->where('status', 'pending'),
+                'disbursementRequests as dd_approved' => fn ($q) => $q->where('status', 'approved'),
+            ])
+            ->withSum(['disbursementRequests as dd_budget_approved' => fn ($q) => $q->where('status', 'approved')], 'amount')
+            ->where('is_active', true)
+            ->orderByDesc('dd_total')
+            ->get();
+
+        $recentDisbursements = DisbursementRequest::with(['user', 'boutique', 'natureOperation'])
+            ->latest()
+            ->limit(8)
+            ->get();
+
         return Inertia::render('Dashboard', [
-            'stats'          => $stats,
-            'recentOrders'   => $recentOrders,
-            'totalUsers'     => $totalUsers,
-            'totalLevels'    => $totalLevels,
-            'totalBoutiques' => $totalBoutiques,
-            'boutiqueStats'  => $boutiqueStats,
-            'monthlyData'    => $monthlyData,
-            'alertBudgets'   => $alertBudgets,
-            'checklist'      => $this->buildChecklist(auth()->user()),
+            'stats'               => $stats,
+            'recentOrders'        => $recentOrders,
+            'recentDisbursements' => $recentDisbursements,
+            'totalUsers'          => $totalUsers,
+            'totalLevels'         => $totalLevels,
+            'totalBoutiques'      => $totalBoutiques,
+            'boutiqueStats'       => $boutiqueStats,
+            'ddBoutiqueStats'     => $ddBoutiqueStats,
+            'monthlyData'         => $monthlyData,
+            'ddMonthlyData'       => $ddMonthlyData,
+            'alertBudgets'        => $alertBudgets,
+            'checklist'           => $this->buildChecklist(auth()->user()),
         ]);
     }
 
@@ -318,6 +338,36 @@ class DashboardController extends Controller
             'total'     => $total,
             'all_done'  => $allDone,
         ];
+    }
+
+    private function getMonthlyDataDD(): array
+    {
+        $months = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $months[] = now()->subMonths($i)->format('Y-m');
+        }
+
+        $rows = DisbursementRequest::select(
+                DB::raw("DATE_FORMAT(created_at, '%Y-%m') as month"),
+                'status',
+                DB::raw('COUNT(*) as count')
+            )
+            ->whereIn(DB::raw("DATE_FORMAT(created_at, '%Y-%m')"), $months)
+            ->groupBy('month', 'status')
+            ->get()
+            ->groupBy('month');
+
+        $labels = $pending = $approved = $rejected = [];
+
+        foreach ($months as $month) {
+            $labels[]   = \Carbon\Carbon::createFromFormat('Y-m', $month)->translatedFormat('M Y');
+            $group      = $rows->get($month, collect());
+            $pending[]  = (int) ($group->firstWhere('status', 'pending')?->count  ?? 0);
+            $approved[] = (int) ($group->firstWhere('status', 'approved')?->count ?? 0);
+            $rejected[] = (int) ($group->firstWhere('status', 'rejected')?->count ?? 0);
+        }
+
+        return compact('labels', 'pending', 'approved', 'rejected');
     }
 
     private function getMonthlyData(?int $userId = null): array

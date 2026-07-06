@@ -1,11 +1,11 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type DisbursementRequest, type NatureOperation, type PaginatedData, type SharedData, type User } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Banknote, Building2, CheckCircle2, Download, Eye, FileText, Filter, Pencil, Plus, RotateCcw, Search, Send, ShieldCheck, Trash2, X } from 'lucide-vue-next';
+import { Banknote, Building2, CheckCircle2, Download, Eye, FileText, Filter, Loader2, Pencil, Plus, RotateCcw, Search, Send, ShieldCheck, Trash2, X } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
@@ -32,7 +32,6 @@ const props = defineProps<{
 const page = usePage<SharedData>();
 const user = computed(() => page.props.auth.user);
 const isAdmin = computed(() => user.value?.role?.slug === 'admin');
-// Vrai si l'utilisateur est rattaché à une boutique (le backend ne lui passe pas la liste des boutiques)
 const hasBoutique = computed(() => !isAdmin.value && props.boutiques.length === 0);
 const canSeeBoutiqueUsers = computed(() => props.demandeurs.length > 1);
 
@@ -57,18 +56,72 @@ const localFilters = ref({
     date_to: props.filters.date_to ?? '',
 });
 
+// Infinite scroll state
+const allOrders = ref<DisbursementRequest[]>([...props.orders.data]);
+const currentPage = ref(props.orders.current_page);
+const lastPage = ref(props.orders.last_page);
+const total = ref(props.orders.total);
+const isLoadingMore = ref(false);
+const isAppending = ref(false);
+const sentinel = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
+watch(
+    () => props.orders,
+    (newOrders) => {
+        if (isAppending.value) {
+            allOrders.value = [...allOrders.value, ...newOrders.data];
+        } else {
+            allOrders.value = [...newOrders.data];
+        }
+        currentPage.value = newOrders.current_page;
+        lastPage.value = newOrders.last_page;
+        total.value = newOrders.total;
+        isAppending.value = false;
+    },
+);
+
+const loadMore = () => {
+    if (isLoadingMore.value || currentPage.value >= lastPage.value) return;
+    isLoadingMore.value = true;
+    isAppending.value = true;
+
+    const params: Record<string, string> = { page: String(currentPage.value + 1) };
+    Object.entries(localFilters.value).forEach(([k, v]) => { if (v) params[k] = v; });
+
+    router.get(route('disbursement-requests.index'), params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: ['orders'],
+        onFinish: () => { isLoadingMore.value = false; },
+    });
+};
+
+const setupObserver = () => {
+    observer?.disconnect();
+    observer = new IntersectionObserver(
+        (entries) => { if (entries[0].isIntersecting) loadMore(); },
+        { rootMargin: '300px' },
+    );
+    if (sentinel.value) observer.observe(sentinel.value);
+};
+
+onMounted(() => setupObserver());
+onUnmounted(() => observer?.disconnect());
+watch(sentinel, (el) => { if (el) setupObserver(); });
+
 const activeFilterCount = computed(() => Object.values(localFilters.value).filter((v) => v !== '').length);
 const hasActiveFilters = computed(() => activeFilterCount.value > 0);
-const visibleOrders = computed(() => props.orders.data);
-const draftCount = computed(() => visibleOrders.value.filter((o) => o.status === 'draft').length);
-const pendingCount = computed(() => visibleOrders.value.filter((o) => o.status === 'pending').length);
-const approvedCount = computed(() => visibleOrders.value.filter((o) => o.status === 'approved').length);
-const rejectedCount = computed(() => visibleOrders.value.filter((o) => o.status === 'rejected').length);
-const cancelledCount = computed(() => visibleOrders.value.filter((o) => o.status === 'cancelled').length);
+const hasMore = computed(() => currentPage.value < lastPage.value);
+
+const draftCount = computed(() => allOrders.value.filter((o) => o.status === 'draft').length);
+const pendingCount = computed(() => allOrders.value.filter((o) => o.status === 'pending').length);
+const approvedCount = computed(() => allOrders.value.filter((o) => o.status === 'approved').length);
+const rejectedCount = computed(() => allOrders.value.filter((o) => o.status === 'rejected').length);
+const cancelledCount = computed(() => allOrders.value.filter((o) => o.status === 'cancelled').length);
 const visibleAmountTotal = computed(() =>
-    visibleOrders.value
-        .filter((o) => o.status !== 'cancelled')
-        .reduce((sum, o) => sum + Number(o.amount || 0), 0),
+    allOrders.value.filter((o) => o.status !== 'cancelled').reduce((sum, o) => sum + Number(o.amount || 0), 0),
 );
 
 const statusConfig = {
@@ -93,12 +146,14 @@ const natureName = (id?: string) => props.natureOperations.find((n) => String(n.
 const applyFilters = () => {
     const params: Record<string, string> = {};
     Object.entries(localFilters.value).forEach(([k, v]) => { if (v) params[k] = v; });
-    router.get(route('disbursement-requests.index'), params, { preserveState: true, preserveScroll: true, replace: true });
+    isAppending.value = false;
+    router.get(route('disbursement-requests.index'), params, { preserveState: true, preserveScroll: false, replace: true });
 };
 
 const resetFilters = () => {
     localFilters.value = { search: '', boutique_id: '', nature_operation_id: '', status: '', user_id: '', date_from: '', date_to: '' };
-    router.get(route('disbursement-requests.index'), {}, { preserveState: true, preserveScroll: true, replace: true });
+    isAppending.value = false;
+    router.get(route('disbursement-requests.index'), {}, { preserveState: true, preserveScroll: false, replace: true });
 };
 
 const exportUrl = () => {
@@ -106,7 +161,6 @@ const exportUrl = () => {
     Object.entries(localFilters.value).forEach(([key, value]) => {
         if (value) params.set(key, value);
     });
-
     const query = params.toString();
     return query ? `${route('disbursement-requests.export')}?${query}` : route('disbursement-requests.export');
 };
@@ -201,18 +255,18 @@ const submitOrder = async (order: DisbursementRequest) => {
                     <div class="grid gap-3 sm:grid-cols-3 lg:w-[560px]">
                         <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">Portefeuille</p>
-                            <p class="mt-3 text-sm font-semibold text-foreground">{{ orders.total }} demande(s)</p>
+                            <p class="mt-3 text-sm font-semibold text-foreground">{{ total }} demande(s)</p>
                             <p class="mt-1 text-xs text-muted-foreground">{{ boutiques.length }} boutique(s) couvertes</p>
                         </div>
                         <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Validation</p>
                             <p class="mt-3 text-sm font-semibold text-foreground">{{ levelsCount }} niveau(x)</p>
-                            <p class="mt-1 text-xs text-muted-foreground">{{ pendingCount }} dossier(s) en attente sur la page</p>
+                            <p class="mt-1 text-xs text-muted-foreground">{{ pendingCount }} dossier(s) en attente chargés</p>
                         </div>
                         <div class="rounded-2xl border border-violet-100 bg-violet-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-violet-700">Résultats</p>
-                            <p class="mt-3 text-sm font-semibold text-foreground">{{ visibleOrders.length }} ligne(s) visibles</p>
-                            <p class="mt-1 text-xs text-muted-foreground">page {{ orders.current_page }} sur {{ orders.last_page }}</p>
+                            <p class="mt-3 text-sm font-semibold text-foreground">{{ allOrders.length }} / {{ total }}</p>
+                            <p class="mt-1 text-xs text-muted-foreground">lignes chargées</p>
                         </div>
                     </div>
                 </div>
@@ -222,13 +276,13 @@ const submitOrder = async (order: DisbursementRequest) => {
             <section class="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total</p>
-                    <p class="mt-2 text-2xl font-bold text-foreground">{{ orders.total }}</p>
+                    <p class="mt-2 text-2xl font-bold text-foreground">{{ total }}</p>
                     <p class="mt-1 text-xs text-muted-foreground">demande(s) recensées</p>
                 </div>
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Brouillons</p>
                     <p class="mt-2 text-2xl font-bold text-slate-600">{{ draftCount }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">sur la page courante</p>
+                    <p class="mt-1 text-xs text-muted-foreground">chargés jusqu'ici</p>
                 </div>
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approuvées</p>
@@ -238,10 +292,10 @@ const submitOrder = async (order: DisbursementRequest) => {
                 <div class="rounded-2xl border border-red-100 bg-red-50 p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Annulées</p>
                     <p class="mt-2 text-2xl font-bold text-red-600">{{ cancelledCount }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">sur la page courante</p>
+                    <p class="mt-1 text-xs text-muted-foreground">chargées jusqu'ici</p>
                 </div>
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Montant page</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Montant chargé</p>
                     <p class="mt-2 text-2xl font-bold text-foreground">{{ formatAmount(visibleAmountTotal) }}</p>
                     <p class="mt-1 text-xs text-muted-foreground">hors annulées</p>
                 </div>
@@ -437,7 +491,7 @@ const submitOrder = async (order: DisbursementRequest) => {
 
             <!-- Empty states -->
             <EmptyState
-                v-if="orders.data.length === 0 && hasActiveFilters"
+                v-if="allOrders.length === 0 && hasActiveFilters"
                 :icon="Filter"
                 icon-bg="bg-slate-100"
                 icon-color="text-slate-400"
@@ -454,7 +508,7 @@ const submitOrder = async (order: DisbursementRequest) => {
             </EmptyState>
 
             <EmptyState
-                v-else-if="orders.data.length === 0"
+                v-else-if="allOrders.length === 0"
                 :icon="Banknote"
                 icon-bg="bg-primary/10"
                 icon-color="text-primary"
@@ -470,12 +524,12 @@ const submitOrder = async (order: DisbursementRequest) => {
                     <div>
                         <h2 class="text-base font-semibold text-foreground">Liste des demandes</h2>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            {{ orders.from }} à {{ orders.to }} sur {{ orders.total }} demande(s) affichée(s).
+                            {{ allOrders.length }} sur {{ total }} demande(s) chargée(s).
                         </p>
                     </div>
                     <div class="inline-flex items-center gap-2 rounded-xl border bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground">
                         <CheckCircle2 class="h-4 w-4" />
-                        {{ pendingCount }} en attente, {{ rejectedCount }} refusée(s) sur cette page
+                        {{ pendingCount }} en attente, {{ rejectedCount }} refusée(s) chargées
                     </div>
                 </div>
 
@@ -496,7 +550,7 @@ const submitOrder = async (order: DisbursementRequest) => {
 
                         <tbody class="divide-y divide-border/60">
                             <tr
-                                v-for="order in orders.data"
+                                v-for="order in allOrders"
                                 :key="order.id"
                                 class="transition-colors hover:bg-muted/20"
                                 :class="order.status === 'cancelled' ? 'opacity-60 bg-red-50/40' : ''"
@@ -606,24 +660,18 @@ const submitOrder = async (order: DisbursementRequest) => {
                     </table>
                 </div>
 
-                <!-- Pagination -->
-                <div v-if="orders.last_page > 1" class="flex flex-col items-center gap-3 border-t px-5 py-4 sm:flex-row sm:justify-between">
-                    <p class="text-sm text-muted-foreground">{{ orders.from }}-{{ orders.to }} sur {{ orders.total }}</p>
+                <!-- Sentinel pour l'infinite scroll -->
+                <div ref="sentinel" class="h-1" />
 
-                    <div class="flex flex-wrap items-center justify-center gap-1">
-                        <Link
-                            v-for="link in orders.links"
-                            :key="link.label"
-                            :href="link.url ?? '#'"
-                            :class="[
-                                'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
-                                link.active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted',
-                                !link.url ? 'pointer-events-none opacity-40' : '',
-                            ]"
-                        >
-                            <span v-html="link.label" />
-                        </Link>
-                    </div>
+                <!-- Indicateur de chargement -->
+                <div v-if="isLoadingMore" class="flex items-center justify-center gap-2 border-t py-4 text-sm text-muted-foreground">
+                    <Loader2 class="h-4 w-4 animate-spin" />
+                    Chargement en cours…
+                </div>
+
+                <!-- Message fin de liste -->
+                <div v-else-if="allOrders.length > 0 && !hasMore" class="border-t px-4 py-3 text-center text-xs text-muted-foreground">
+                    Tous les {{ total }} résultat(s) ont été chargés.
                 </div>
             </section>
 

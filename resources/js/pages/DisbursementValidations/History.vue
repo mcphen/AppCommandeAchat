@@ -3,8 +3,8 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type DisbursementRequest, type PaginatedData, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Banknote, Building2, Clock, Download, Eye, Filter, History, RotateCcw, ShieldCheck } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { Building2, Clock, Download, Eye, Filter, History, Loader2, RotateCcw, ShieldCheck } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
@@ -34,17 +34,80 @@ const localFilters = ref({
     date_to: props.filters.date_to ?? '',
 });
 
+// Infinite scroll state
+const allOrders = ref<DisbursementRequest[]>([...props.orders.data]);
+const currentPage = ref(props.orders.current_page);
+const lastPage = ref(props.orders.last_page);
+const total = ref(props.orders.total);
+const isLoadingMore = ref(false);
+const isAppending = ref(false);
+const sentinel = ref<HTMLElement | null>(null);
+let observer: IntersectionObserver | null = null;
+
+watch(
+    () => props.orders,
+    (newOrders) => {
+        if (isAppending.value) {
+            allOrders.value = [...allOrders.value, ...newOrders.data];
+        } else {
+            allOrders.value = [...newOrders.data];
+        }
+        currentPage.value = newOrders.current_page;
+        lastPage.value = newOrders.last_page;
+        total.value = newOrders.total;
+        isAppending.value = false;
+    },
+);
+
+const loadMore = () => {
+    if (isLoadingMore.value || currentPage.value >= lastPage.value) return;
+    isLoadingMore.value = true;
+    isAppending.value = true;
+
+    const params: Record<string, string> = { page: String(currentPage.value + 1) };
+    Object.entries(localFilters.value).forEach(([key, value]) => {
+        if (value) params[key] = value;
+    });
+
+    router.get(route('disbursement-validations.history'), params, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: ['orders'],
+        onFinish: () => {
+            isLoadingMore.value = false;
+        },
+    });
+};
+
+const setupObserver = () => {
+    observer?.disconnect();
+    observer = new IntersectionObserver(
+        (entries) => {
+            if (entries[0].isIntersecting) loadMore();
+        },
+        { rootMargin: '300px' },
+    );
+    if (sentinel.value) observer.observe(sentinel.value);
+};
+
+onMounted(() => setupObserver());
+onUnmounted(() => observer?.disconnect());
+watch(sentinel, (el) => { if (el) setupObserver(); });
+
 const applyFilters = () => {
     const params: Record<string, string> = {};
     Object.entries(localFilters.value).forEach(([key, value]) => {
         if (value) params[key] = value;
     });
-    router.get(route('disbursement-validations.history'), params, { preserveState: true, preserveScroll: true, replace: true });
+    isAppending.value = false;
+    router.get(route('disbursement-validations.history'), params, { preserveState: true, preserveScroll: false, replace: true });
 };
 
 const resetFilters = () => {
     localFilters.value = { status: '', boutique_id: '', date_from: '', date_to: '' };
-    router.get(route('disbursement-validations.history'), {}, { preserveState: true, preserveScroll: true, replace: true });
+    isAppending.value = false;
+    router.get(route('disbursement-validations.history'), {}, { preserveState: true, preserveScroll: false, replace: true });
 };
 
 const statusConfig = {
@@ -71,13 +134,11 @@ const exportUrl = computed(() => {
     return query ? `${route('disbursement-validations.history.export')}?${query}` : route('disbursement-validations.history.export');
 });
 
-const visibleOrders = computed(() => props.orders.data);
-const approvedCount = computed(() => visibleOrders.value.filter((order) => order.status === 'approved').length);
-const rejectedCount = computed(() => visibleOrders.value.filter((order) => order.status === 'rejected').length);
-const visibleAmountTotal = computed(() =>
-    visibleOrders.value.reduce((sum, order) => sum + Number(order.amount || 0), 0),
-);
-const activeFilterCount = computed(() => Object.values(localFilters.value).filter((value) => value !== '').length);
+const approvedCount = computed(() => allOrders.value.filter((o) => o.status === 'approved').length);
+const rejectedCount = computed(() => allOrders.value.filter((o) => o.status === 'rejected').length);
+const visibleAmountTotal = computed(() => allOrders.value.reduce((sum, o) => sum + Number(o.amount || 0), 0));
+const activeFilterCount = computed(() => Object.values(localFilters.value).filter((v) => v !== '').length);
+const hasMore = computed(() => currentPage.value < lastPage.value);
 </script>
 
 <template>
@@ -120,20 +181,20 @@ const activeFilterCount = computed(() => Object.values(localFilters.value).filte
                     <div class="grid gap-3 sm:grid-cols-3 lg:w-[560px]">
                         <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">Historique</p>
-                            <p class="mt-3 text-sm font-semibold text-foreground">{{ orders.total }} demande(s)</p>
+                            <p class="mt-3 text-sm font-semibold text-foreground">{{ total }} demande(s)</p>
                             <p class="mt-1 text-xs text-muted-foreground">{{ boutiques.length }} boutique(s) couvertes</p>
                         </div>
 
                         <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Approuvées</p>
                             <p class="mt-3 text-sm font-semibold text-foreground">{{ approvedCount }} dossier(s)</p>
-                            <p class="mt-1 text-xs text-muted-foreground">sur la page courante</p>
+                            <p class="mt-1 text-xs text-muted-foreground">chargés jusqu'ici</p>
                         </div>
 
                         <div class="rounded-2xl border border-violet-100 bg-violet-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-violet-700">Résultats</p>
-                            <p class="mt-3 text-sm font-semibold text-foreground">{{ visibleOrders.length }} ligne(s) visibles</p>
-                            <p class="mt-1 text-xs text-muted-foreground">page {{ orders.current_page }} sur {{ orders.last_page }}</p>
+                            <p class="mt-3 text-sm font-semibold text-foreground">{{ allOrders.length }} / {{ total }}</p>
+                            <p class="mt-1 text-xs text-muted-foreground">dossier(s) chargés</p>
                         </div>
                     </div>
                 </div>
@@ -142,24 +203,24 @@ const activeFilterCount = computed(() => Object.values(localFilters.value).filte
             <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total</p>
-                    <p class="mt-2 text-2xl font-bold text-foreground">{{ orders.total }}</p>
+                    <p class="mt-2 text-2xl font-bold text-foreground">{{ total }}</p>
                     <p class="mt-1 text-xs text-muted-foreground">dossier(s) retrouvés</p>
                 </div>
 
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Approuvées</p>
                     <p class="mt-2 text-2xl font-bold text-emerald-600">{{ approvedCount }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">sur la page courante</p>
+                    <p class="mt-1 text-xs text-muted-foreground">chargées jusqu'ici</p>
                 </div>
 
                 <div class="rounded-2xl border border-red-100 bg-red-50 p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Refusées</p>
                     <p class="mt-2 text-2xl font-bold text-red-600">{{ rejectedCount }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">sur la page courante</p>
+                    <p class="mt-1 text-xs text-muted-foreground">chargées jusqu'ici</p>
                 </div>
 
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Montant page</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Montant chargé</p>
                     <p class="mt-2 text-2xl font-bold text-foreground">{{ formatAmount(visibleAmountTotal) }}</p>
                     <p class="mt-1 text-xs text-muted-foreground">sur les lignes affichées</p>
                 </div>
@@ -237,7 +298,7 @@ const activeFilterCount = computed(() => Object.values(localFilters.value).filte
             </div>
 
             <div class="rounded-2xl border bg-card shadow-sm overflow-hidden">
-                <EmptyState v-if="orders.data.length === 0" title="Aucun résultat" description="Aucune demande de décaissement ne correspond à ces critères." :icon="Clock" />
+                <EmptyState v-if="allOrders.length === 0" title="Aucun résultat" description="Aucune demande de décaissement ne correspond à ces critères." :icon="Clock" />
                 <div v-else class="overflow-x-auto">
                     <table class="min-w-full text-sm">
                         <thead class="border-b bg-muted/30">
@@ -252,7 +313,7 @@ const activeFilterCount = computed(() => Object.values(localFilters.value).filte
                             </tr>
                         </thead>
                         <tbody class="divide-y">
-                            <tr v-for="order in orders.data" :key="order.id" class="transition-colors hover:bg-muted/20">
+                            <tr v-for="order in allOrders" :key="order.id" class="transition-colors hover:bg-muted/20">
                                 <td class="px-4 py-3 font-mono text-xs text-foreground/80">{{ order.reference }}</td>
                                 <td class="px-4 py-3 font-medium text-foreground">
                                     {{ order.title }}
@@ -276,12 +337,18 @@ const activeFilterCount = computed(() => Object.values(localFilters.value).filte
                     </table>
                 </div>
 
-                <div v-if="orders.last_page > 1" class="flex items-center justify-between border-t px-4 py-3 text-sm text-muted-foreground">
-                    <span>Page {{ orders.current_page }} / {{ orders.last_page }} • {{ orders.total }} résultat(s)</span>
-                    <div class="flex gap-1">
-                        <Link v-if="orders.prev_page_url" :href="orders.prev_page_url" class="rounded-lg px-3 py-1.5 hover:bg-accent">Précédent</Link>
-                        <Link v-if="orders.next_page_url" :href="orders.next_page_url" class="rounded-lg px-3 py-1.5 hover:bg-accent">Suivant</Link>
-                    </div>
+                <!-- Sentinel pour l'infinite scroll -->
+                <div ref="sentinel" class="h-1" />
+
+                <!-- Indicateur de chargement -->
+                <div v-if="isLoadingMore" class="flex items-center justify-center gap-2 border-t py-4 text-sm text-muted-foreground">
+                    <Loader2 class="h-4 w-4 animate-spin" />
+                    Chargement en cours…
+                </div>
+
+                <!-- Message fin de liste -->
+                <div v-else-if="allOrders.length > 0 && !hasMore" class="border-t px-4 py-3 text-center text-xs text-muted-foreground">
+                    Tous les {{ total }} résultat(s) ont été chargés.
                 </div>
             </div>
         </div>

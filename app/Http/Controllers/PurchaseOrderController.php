@@ -2,25 +2,17 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StorePurchaseOrderRequest;
-use App\Http\Requests\UpdatePurchaseOrderRequest;
 use App\Models\AppSetting;
-use App\Models\Article;
 use App\Models\Boutique;
-use App\Models\Fournisseur;
 use App\Models\FournisseurArticle;
 use App\Models\PurchaseOrder;
-use App\Models\PurchaseOrderAttachment;
-use App\Models\PurchaseOrderLine;
 use App\Models\ValidationLevel;
-use App\Notifications\OrderSubmittedNotification;
 use App\Services\AccountingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -63,11 +55,9 @@ class PurchaseOrderController extends Controller
 
     private function buildQuery(Request $request, $user)
     {
+        // Les commandes proviennent de Sage100 (aucun demandeur propriétaire) : visibles par
+        // tous les rôles autorisés sur cette route (demandeur, validateur, admin).
         $query = PurchaseOrder::with(['attachments', 'boutique', 'user', 'validationLogs.user', 'validationLogs.validationLevel'])->latest();
-
-        if (! $user->isAdmin()) {
-            $query->where('user_id', $user->id);
-        }
 
         if ($request->filled('boutique_id')) {
             $query->where('boutique_id', $request->integer('boutique_id'));
@@ -232,80 +222,6 @@ class PurchaseOrderController extends Controller
         return $pdf->download('commandes-' . now()->format('Y-m-d') . '.pdf');
     }
 
-    public function create(): Response
-    {
-        $fournisseurs = Fournisseur::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'is_approved']);
-
-        return Inertia::render('PurchaseOrders/Create', [
-            'boutique'     => auth()->user()?->boutique,
-            'boutiques'    => Boutique::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'city']),
-            'articles'     => Article::with('category')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'reference', 'unit', 'unit_price', 'category_id']),
-            'fournisseurs' => $fournisseurs,
-        ]);
-    }
-
-    public function store(StorePurchaseOrderRequest $request): RedirectResponse
-    {
-        // Boutique de l'utilisateur en priorité, sinon celle choisie dans le formulaire
-        $boutique = $request->user()?->boutique
-            ?? ($request->boutique_id ? Boutique::find($request->boutique_id) : null);
-
-        $order = DB::transaction(function () use ($request, $boutique) {
-            $lines  = collect($request->input('lines', []));
-            $amount = $lines->isNotEmpty()
-                ? $lines->sum(fn ($l) => (float) ($l['quantity'] ?? 1) * (float) ($l['unit_price'] ?? 0))
-                : (float) ($request->amount ?? 0);
-
-            $order = PurchaseOrder::create([
-                'user_id'        => auth()->id(),
-                'boutique_id'    => $boutique?->id,
-                'fournisseur_id' => $request->fournisseur_id ?: null,
-                'title'          => $request->title,
-                'description'    => $request->description,
-                'amount'         => $amount,
-                'status'         => 'draft',
-            ]);
-
-            foreach ($lines as $line) {
-                PurchaseOrderLine::create([
-                    'purchase_order_id' => $order->id,
-                    'article_id'        => $line['article_id'] ?? null,
-                    'fournisseur_id'    => $line['fournisseur_id'] ?? null,
-                    'quantity'          => $line['quantity'] ?? 1,
-                    'unit_price'        => $line['unit_price'] ?? 0,
-                    'note'              => $line['note'] ?? null,
-                ]);
-            }
-
-            $this->storeAttachments($order, $request);
-
-            return $order;
-        });
-
-        // Soumettre immédiatement si demandé
-        if ($request->boolean('and_submit')) {
-            $firstLevel = ValidationLevel::first_level();
-
-            if ($firstLevel) {
-                $order->update([
-                    'status'              => 'pending',
-                    'current_level_order' => $firstLevel->order,
-                    'submitted_at'        => now(),
-                ]);
-
-                foreach ($firstLevel->validators as $validator) {
-                    $validator->notify(new OrderSubmittedNotification($order, $firstLevel));
-                }
-
-                return redirect()->route('purchase-orders.show', $order)
-                    ->with('success', 'Commande créée et soumise à validation.');
-            }
-        }
-
-        return redirect()->route('purchase-orders.show', $order)
-            ->with('success', 'Commande enregistrée en brouillon.');
-    }
-
     public function show(PurchaseOrder $purchaseOrder): Response
     {
         $this->authorizeView($purchaseOrder);
@@ -375,103 +291,6 @@ class PurchaseOrderController extends Controller
         ]);
     }
 
-    public function edit(PurchaseOrder $purchaseOrder): Response
-    {
-        abort_unless($purchaseOrder->isEditableBy(auth()->user()), 403);
-
-        $purchaseOrder->load(['attachments', 'boutique', 'fournisseur', 'lines.article', 'lines.fournisseur']);
-
-        $fournisseurs = Fournisseur::where('is_active', true)->orderBy('name')->get(['id', 'name', 'code', 'is_approved']);
-
-        return Inertia::render('PurchaseOrders/Edit', [
-            'order'        => $purchaseOrder,
-            'articles'     => Article::with('category')->where('is_active', true)->orderBy('name')->get(['id', 'name', 'reference', 'unit', 'unit_price', 'category_id']),
-            'fournisseurs' => $fournisseurs,
-        ]);
-    }
-
-    public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $purchaseOrder): RedirectResponse
-    {
-        DB::transaction(function () use ($request, $purchaseOrder) {
-            $lines  = collect($request->input('lines', []));
-            $amount = $lines->isNotEmpty()
-                ? $lines->sum(fn ($l) => (float) ($l['quantity'] ?? 1) * (float) ($l['unit_price'] ?? 0))
-                : (float) $request->amount;
-
-            $purchaseOrder->update([
-                'fournisseur_id' => $request->fournisseur_id ?: null,
-                'title'          => $request->title,
-                'description'    => $request->description,
-                'amount'         => $amount,
-            ]);
-
-            // Sync des lignes : supprimer les anciennes, recréer
-            $purchaseOrder->lines()->delete();
-            foreach ($lines as $line) {
-                PurchaseOrderLine::create([
-                    'purchase_order_id' => $purchaseOrder->id,
-                    'article_id'        => $line['article_id'] ?? null,
-                    'fournisseur_id'    => $line['fournisseur_id'] ?? null,
-                    'quantity'          => $line['quantity'] ?? 1,
-                    'unit_price'        => $line['unit_price'] ?? 0,
-                    'note'              => $line['note'] ?? null,
-                ]);
-            }
-
-            // Supprimer les pièces jointes marquées pour suppression
-            if ($request->deleted_attachment_ids) {
-                $toDelete = $purchaseOrder->attachments()
-                    ->whereIn('id', $request->deleted_attachment_ids)
-                    ->get();
-
-                foreach ($toDelete as $attachment) {
-                    Storage::disk('private')->delete($attachment->file_path);
-                    $attachment->delete();
-                }
-            }
-
-            $this->storeAttachments($purchaseOrder, $request);
-        });
-
-        return redirect()->route('purchase-orders.show', $purchaseOrder)
-            ->with('success', 'Commande mise à jour.');
-    }
-
-    public function submit(PurchaseOrder $purchaseOrder): RedirectResponse
-    {
-        abort_unless(
-            $purchaseOrder->user_id === auth()->id() && in_array($purchaseOrder->status, ['draft', 'rejected', 'needs_revision']),
-            403
-        );
-
-        // En révision : on reprend au niveau qui a demandé la révision
-        // Sinon : on repart du premier niveau
-        $targetLevelOrder = $purchaseOrder->isNeedsRevision()
-            ? $purchaseOrder->current_level_order
-            : null;
-
-        $firstLevel = $targetLevelOrder
-            ? ValidationLevel::where('order', $targetLevelOrder)->first()
-            : ValidationLevel::first_level();
-
-        abort_if(! $firstLevel, 422, 'Aucun niveau de validation configuré.');
-
-        $purchaseOrder->update([
-            'status'              => 'pending',
-            'current_level_order' => $firstLevel->order,
-            'submitted_at'        => now(),
-        ]);
-
-        // Notifier les validateurs du premier niveau
-        $validators = $firstLevel->validators;
-        foreach ($validators as $validator) {
-            $validator->notify(new OrderSubmittedNotification($purchaseOrder, $firstLevel));
-        }
-
-        return redirect()->route('purchase-orders.show', $purchaseOrder)
-            ->with('success', 'Commande soumise à validation.');
-    }
-
     public function markOrdered(PurchaseOrder $purchaseOrder): RedirectResponse
     {
         abort_unless(auth()->user()->isAdmin(), 403);
@@ -537,38 +356,6 @@ class PurchaseOrderController extends Controller
         $filename = 'commande-' . $purchaseOrder->id . '-' . str($purchaseOrder->title)->slug() . '.pdf';
 
         return $pdf->download($filename);
-    }
-
-    public function destroy(PurchaseOrder $purchaseOrder): RedirectResponse
-    {
-        abort_unless($purchaseOrder->isEditableBy(auth()->user()), 403);
-
-        foreach ($purchaseOrder->attachments as $attachment) {
-            Storage::disk('private')->delete($attachment->file_path);
-        }
-
-        $purchaseOrder->delete();
-
-        return redirect()->route('purchase-orders.index')
-            ->with('success', 'Commande supprimée.');
-    }
-
-    private function storeAttachments(PurchaseOrder $order, $request): void
-    {
-        if (! $request->hasFile('attachments')) {
-            return;
-        }
-
-        foreach ($request->file('attachments') as $file) {
-            $path = $file->store("attachments/{$order->id}", 'private');
-
-            PurchaseOrderAttachment::create([
-                'purchase_order_id' => $order->id,
-                'file_path'         => $path,
-                'file_name'         => $file->getClientOriginalName(),
-                'file_size'         => $file->getSize(),
-            ]);
-        }
     }
 
     private function authorizeView(PurchaseOrder $order): void

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Fournisseur extends Model
 {
-    protected $fillable = ['name', 'code', 'email', 'phone', 'address', 'city', 'is_active', 'is_approved'];
+    protected $fillable = ['name', 'code', 'sage_code', 'email', 'phone', 'address', 'city', 'is_active', 'is_approved'];
 
     protected $casts = [
         'is_active'   => 'boolean',

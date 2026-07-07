@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             ValidationLevelSeeder::class,
             BoutiqueSeeder::class,
             AdminUserSeeder::class,
+            SageSystemUserSeeder::class,
             AppSettingSeeder::class,
             CategorySeeder::class,
             FournisseurSeeder::class,

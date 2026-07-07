@@ -3,8 +3,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOrder, type SharedData, type User, type ValidationLevel } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Building2, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, Pencil, Plus, RotateCcw, Search, Send, ShieldCheck, ShoppingCart, Trash2, X } from 'lucide-vue-next';
-import Swal from 'sweetalert2';
+import { Building2, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, RotateCcw, Search, ShieldCheck, ShoppingCart, X } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -142,35 +141,6 @@ const exportUrl = (format: string) => {
     return route('purchase-orders.export', { format }) + (qs ? `?${qs}` : '');
 };
 
-const confirmDelete = async (order: PurchaseOrder) => {
-    const result = await Swal.fire({
-        title: 'Supprimer cette commande ?',
-        text: `"${order.title}" sera definitivement supprimee.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Supprimer',
-        cancelButtonText: 'Annuler',
-        confirmButtonColor: '#ef4444',
-        cancelButtonColor: '#6b7280',
-        reverseButtons: true,
-    });
-    if (result.isConfirmed) router.delete(route('purchase-orders.destroy', order.id));
-};
-
-const submitOrder = async (order: PurchaseOrder) => {
-    const result = await Swal.fire({
-        title: 'Soumettre a la validation ?',
-        text: `La commande "${order.title}" sera envoyee pour approbation.`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Soumettre',
-        cancelButtonText: 'Annuler',
-        confirmButtonColor: '#4f46e5',
-        cancelButtonColor: '#6b7280',
-        reverseButtons: true,
-    });
-    if (result.isConfirmed) router.post(route('purchase-orders.submit', order.id));
-};
 </script>
 
 <template>
@@ -329,13 +299,6 @@ const submitOrder = async (order: PurchaseOrder) => {
                         Rechercher
                     </button>
 
-                    <Link
-                        :href="route('purchase-orders.create')"
-                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                    >
-                        <Plus class="h-4 w-4" />
-                        Nouvelle commande
-                    </Link>
                 </div>
             </div>
             <section class="rounded-2xl border bg-card shadow-sm">
@@ -523,9 +486,7 @@ const submitOrder = async (order: PurchaseOrder) => {
                 icon-bg="bg-primary/10"
                 icon-color="text-primary"
                 title="Aucune commande pour l instant"
-                description="Creez votre premiere demande d achat puis suivez son avancement jusqu a l approbation et la reception."
-                :action-href="route('purchase-orders.create')"
-                action-label="Creer une commande"
+                description="Les commandes importees depuis Sage100 apparaitront ici des qu elles seront synchronisees."
             />
 
             <section v-else class="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -638,34 +599,6 @@ const submitOrder = async (order: PurchaseOrder) => {
                                             <span class="hidden 2xl:inline">PDF</span>
                                         </a>
 
-                                        <template v-if="order.status === 'draft' || order.status === 'rejected'">
-                                            <Link
-                                                :href="route('purchase-orders.edit', order.id)"
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
-                                                title="Modifier"
-                                            >
-                                                <Pencil class="h-3.5 w-3.5" />
-                                                <span class="hidden 2xl:inline">Modifier</span>
-                                            </Link>
-
-                                            <button
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 transition-colors hover:bg-emerald-100"
-                                                title="Soumettre"
-                                                @click="submitOrder(order)"
-                                            >
-                                                <Send class="h-3.5 w-3.5" />
-                                                <span class="hidden 2xl:inline">Soumettre</span>
-                                            </button>
-
-                                            <button
-                                                class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100"
-                                                title="Supprimer"
-                                                @click="confirmDelete(order)"
-                                            >
-                                                <Trash2 class="h-3.5 w-3.5" />
-                                                <span class="hidden 2xl:inline">Supprimer</span>
-                                            </button>
-                                        </template>
                                     </div>
                                 </td>
                             </tr>

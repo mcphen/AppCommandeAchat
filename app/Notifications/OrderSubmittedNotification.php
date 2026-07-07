@@ -25,7 +25,7 @@ class OrderSubmittedNotification extends Notification
         return [
             'type'        => 'order_submitted',
             'title'       => 'Nouvelle commande à valider',
-            'body'        => "La commande \"{$this->order->title}\" de {$this->order->user->name} nécessite votre validation au niveau {$this->level->name}.",
+            'body'        => "La commande \"{$this->order->title}\" (fournisseur : {$this->order->fournisseur?->name}) nécessite votre validation au niveau {$this->level->name}.",
             'url'         => route('validations.show', $this->order),
             'order_id'    => $this->order->id,
             'order_title' => $this->order->title,
@@ -41,7 +41,7 @@ class OrderSubmittedNotification extends Notification
             ->line("Une nouvelle commande d'achat requiert votre validation au niveau **{$this->level->name}**.")
             ->line("**Commande :** {$this->order->title}")
             ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
-            ->line("**Demandeur :** {$this->order->user->name}")
+            ->line("**Fournisseur :** {$this->order->fournisseur?->name}")
             ->action('Voir et valider', route('validations.show', $this->order))
             ->line('Merci de traiter cette demande dans les meilleurs délais.');
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\RejectValidationRequest;
 use App\Models\Boutique;
 use App\Models\PurchaseOrder;
+use App\Models\User;
 use App\Models\ValidationLevel;
 use App\Models\ValidationLog;
 use App\Notifications\OrderApprovedAtLevelNotification;
@@ -105,7 +106,7 @@ class ValidationController extends Controller
                     'current_level_order' => null,
                 ]);
 
-                $purchaseOrder->user->notify(new OrderFinallyApprovedNotification($purchaseOrder));
+                $this->notifyAdmins($purchaseOrder, new OrderFinallyApprovedNotification($purchaseOrder));
             }
         });
 
@@ -135,11 +136,20 @@ class ValidationController extends Controller
                 'current_level_order' => null,
             ]);
 
-            $purchaseOrder->user->notify(new OrderRejectedNotification($purchaseOrder, $currentLevel, $request->comment));
+            $this->notifyAdmins($purchaseOrder, new OrderRejectedNotification($purchaseOrder, $currentLevel, $request->comment));
         });
 
         return redirect()->route('validations.index')
             ->with('success', 'Commande refusée.');
+    }
+
+    private function notifyAdmins(PurchaseOrder $purchaseOrder, $notification): void
+    {
+        // Les commandes proviennent désormais de Sage100 (aucun demandeur humain propriétaire) :
+        // on notifie les admins plutôt que $purchaseOrder->user (compte système).
+        User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))
+            ->get()
+            ->each(fn ($admin) => $admin->notify($notification));
     }
 
     private function authorizeValidation(PurchaseOrder $purchaseOrder): void

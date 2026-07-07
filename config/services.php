@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'sage' => [
+        'api_token' => env('SAGE_API_TOKEN'),
+    ],
+
 ];

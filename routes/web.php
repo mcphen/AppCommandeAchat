@@ -32,11 +32,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    // Commandes : création, consultation, édition, soumission (Demandeur + Validateur + Admin)
+    // Commandes : consultation (import automatique depuis Sage100, plus de création manuelle) (Demandeur + Validateur + Admin)
     Route::middleware('role:demandeur,validateur,admin')->group(function () {
-        Route::resource('purchase-orders', PurchaseOrderController::class);
-        Route::post('purchase-orders/{purchase_order}/submit', [PurchaseOrderController::class, 'submit'])
-            ->name('purchase-orders.submit');
+        Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show']);
     });
 
     // Commandes : confirmation d'ordre et réceptions (Demandeur + Admin uniquement)

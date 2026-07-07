@@ -692,9 +692,7 @@ const hasBarData = computed(() =>
                 icon-bg="bg-primary/10"
                 icon-color="text-primary"
                 title="Aucune commande pour l'instant"
-                description="Créez votre première demande d'achat, sélectionnez vos articles et soumettez-la pour validation."
-                :action-href="route('purchase-orders.create')"
-                action-label="Créer ma première commande"
+                description="Les commandes importées depuis Sage100 apparaîtront ici dès qu'elles seront synchronisées."
             />
 
         </div>

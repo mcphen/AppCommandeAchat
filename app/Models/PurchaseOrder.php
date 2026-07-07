@@ -22,6 +22,8 @@ class PurchaseOrder extends Model
         'delivery_status',
         'ordered_at',
         'fully_received_at',
+        'sage_reference',
+        'source',
     ];
 
     protected $casts = [

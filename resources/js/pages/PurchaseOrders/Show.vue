@@ -5,7 +5,7 @@ import { type BreadcrumbItem, type PurchaseOrder, type PurchaseOrderLine, type V
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft, Building2, Calendar, CheckCircle2, Clock, DollarSign,
-    Download, FileDown, FileText, Paperclip, Pencil, Send, Truck,
+    Download, FileDown, FileText, Paperclip, Pencil, Truck,
     User, XCircle, Package, ShoppingCart, ClipboardCheck, X, AlertCircle, Receipt,
     TrendingDown, TrendingUp, Tag,
 } from 'lucide-vue-next';
@@ -95,21 +95,6 @@ const receivedPercent = (line: PurchaseOrderLine): number => {
 };
 
 // ─── Actions ─────────────────────────────────────────────────────────────────
-const submitOrder = async () => {
-    const result = await Swal.fire({
-        title: 'Soumettre a la validation ?',
-        text: 'La commande sera envoyee pour approbation et ne pourra plus etre modifiee.',
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonText: 'Soumettre',
-        cancelButtonText: 'Annuler',
-        confirmButtonColor: '#4f46e5',
-        cancelButtonColor: '#6b7280',
-        reverseButtons: true,
-    });
-    if (result.isConfirmed) router.post(route('purchase-orders.submit', props.order.id));
-};
-
 const confirmOrder = async () => {
     const result = await Swal.fire({
         title: 'Confirmer la commande ?',
@@ -259,31 +244,6 @@ const submitReception = () => {
                         <FileDown class="h-4 w-4" />
                         <span class="hidden sm:inline">PDF</span>
                     </a>
-                    <Link
-                        v-if="order.status === 'draft' || order.status === 'rejected'"
-                        :href="route('purchase-orders.edit', order.id)"
-                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-                    >
-                        <Pencil class="h-4 w-4" />
-                        Modifier
-                    </Link>
-                    <button
-                        v-if="order.status === 'draft' || order.status === 'rejected'"
-                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                        @click="submitOrder"
-                    >
-                        <Send class="h-4 w-4" />
-                        Soumettre
-                    </button>
-                    <!-- Re-soumettre après révision -->
-                    <button
-                        v-if="isCreator && order.status === 'needs_revision'"
-                        class="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700"
-                        @click="submitOrder"
-                    >
-                        <Send class="h-4 w-4" />
-                        Re-soumettre
-                    </button>
                     <!-- Confirmer la commande (admin, approuvée, pas encore ordonnée) -->
                     <button
                         v-if="isAdmin && order.status === 'approved' && !order.delivery_status"

@@ -14,15 +14,15 @@ class AdminUserSeeder extends Seeder
         $adminRole = Role::where('slug', 'admin')->first();
 
         User::firstOrCreate(
-            ['email' => 'admin@scndienne.sn'],
+            ['email' => 'admin@construcsen.com'],
             [
-                'name'     => 'Administrateur SCN',
-                'email'    => 'admin@scndienne.sn',
+                'name'     => 'Administrateur Construcsen',
+                'email'    => 'admin@construcsen.com',
                 'password' => Hash::make('password'),
                 'role_id'  => $adminRole?->id,
             ]
         );
 
-        $this->command->info('✓ Compte administrateur créé (admin@scndienne.sn / password).');
+        $this->command->info('✓ Compte administrateur créé (admin@construcsen.com / password).');
     }
 }

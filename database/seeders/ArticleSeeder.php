@@ -10,7 +10,7 @@ class ArticleSeeder extends Seeder
 {
     public function run(): void
     {
-        // Catalogue calé sur les produits visibles sur scndienne.sn
+        // Catalogue de démo générique (quincaillerie/BTP) — à adapter au catalogue réel Construcsen
         $articlesByCategory = [
 
             // ── Huiles Alimentaires ───────────────────────────────────────────

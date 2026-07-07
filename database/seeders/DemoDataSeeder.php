@@ -29,17 +29,17 @@ class DemoDataSeeder extends Seeder
         $validateurs = [
             [
                 'name'                => 'Pape Ibrahima Ndiaye',
-                'email'               => 'p.ndiaye@scndienne.sn',
+                'email'               => 'p.ndiaye@construcsen.com',
                 'validation_level_id' => $levels->firstWhere('order', 1)?->id,
             ],
             [
                 'name'                => 'Aminata Diop',
-                'email'               => 'a.diop@scndienne.sn',
+                'email'               => 'a.diop@construcsen.com',
                 'validation_level_id' => $levels->firstWhere('order', 2)?->id,
             ],
             [
                 'name'                => 'Moussa Sall',
-                'email'               => 'm.sall@scndienne.sn',
+                'email'               => 'm.sall@construcsen.com',
                 'validation_level_id' => $levels->firstWhere('order', 3)?->id,
             ],
         ];
@@ -57,11 +57,11 @@ class DemoDataSeeder extends Seeder
 
         // ── Demandeurs ─────────────────────────────────────────────────────────
         $demandeurs = [
-            ['name' => 'Seydou Diallo',       'email' => 's.diallo@scndienne.sn',    'boutique_idx' => 0], // Siège Dalifort
-            ['name' => 'Fatou Mbaye',         'email' => 'f.mbaye@scndienne.sn',     'boutique_idx' => 0], // Siège Dalifort
-            ['name' => 'Oumar Ba',            'email' => 'o.ba@scndienne.sn',        'boutique_idx' => 1], // Dépôt Touba
-            ['name' => 'Rokhaya Touré',       'email' => 'r.toure@scndienne.sn',     'boutique_idx' => 2], // Agence Plateau
-            ['name' => 'Ibrahima Ly',         'email' => 'i.ly@scndienne.sn',        'boutique_idx' => 3], // Dépôt Médina
+            ['name' => 'Seydou Diallo',       'email' => 's.diallo@construcsen.com',    'boutique_idx' => 0], // Siège Dalifort
+            ['name' => 'Fatou Mbaye',         'email' => 'f.mbaye@construcsen.com',     'boutique_idx' => 0], // Siège Dalifort
+            ['name' => 'Oumar Ba',            'email' => 'o.ba@construcsen.com',        'boutique_idx' => 1], // Dépôt Touba
+            ['name' => 'Rokhaya Touré',       'email' => 'r.toure@construcsen.com',     'boutique_idx' => 2], // Agence Plateau
+            ['name' => 'Ibrahima Ly',         'email' => 'i.ly@construcsen.com',        'boutique_idx' => 3], // Dépôt Médina
         ];
 
         $demandeurUsers = [];

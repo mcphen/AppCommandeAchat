@@ -58,7 +58,15 @@ function Invoke-Query([System.Data.SqlClient.SqlConnection]$Connection, [string]
 }
 
 Write-Host "=== Connexion a $SqlServer / $Database ===" -ForegroundColor Cyan
-$conn = New-Connection
+try {
+    $conn = New-Connection
+} catch {
+    $innerMessage = $_.Exception.InnerException.Message
+    if (-not $innerMessage) { $innerMessage = $_.Exception.Message }
+    Write-Host "ECHEC DE CONNEXION : $innerMessage" -ForegroundColor Red
+    Write-Host "Verifie le nom du serveur/instance, la base, l'utilisateur et le mot de passe." -ForegroundColor Yellow
+    exit 1
+}
 Write-Host "Connecte." -ForegroundColor Green
 
 Write-Host "`n=== 1. Tables candidates (F_DOC*, F_ARTICLE, F_COMPTET...) ===" -ForegroundColor Cyan
@@ -88,23 +96,25 @@ Write-Host "`n=== 3. Colonnes de F_DOCLIGNE ===" -ForegroundColor Cyan
 Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_DOCLIGNE' ORDER BY ORDINAL_POSITION" |
     Format-Table -AutoSize
 
-Write-Host "`n=== 4. Repartition des DO_Type (pour identifier 'commande fournisseur') ===" -ForegroundColor Cyan
+Write-Host "`n=== 4. Repartition des DO_Domaine + DO_Type (pour identifier 'commande fournisseur') ===" -ForegroundColor Cyan
+Write-Host "Rappel Sage100 : DO_Domaine distingue Ventes (0) / Achats (1) / Stock (2)." -ForegroundColor DarkGray
 Invoke-Query $conn @"
-SELECT DO_Type, COUNT(*) AS Nombre, MIN(DO_Date) AS PremiereDate, MAX(DO_Date) AS DerniereDate
+SELECT DO_Domaine, DO_Type, COUNT(*) AS Nombre, MIN(DO_Piece) AS PremierePiece, MAX(DO_Piece) AS DernierePiece, MIN(DO_Date) AS PremiereDate, MAX(DO_Date) AS DerniereDate
 FROM F_DOCENTETE
-GROUP BY DO_Type
-ORDER BY DO_Type
+GROUP BY DO_Domaine, DO_Type
+ORDER BY DO_Domaine, DO_Type
 "@ | Format-Table -AutoSize
 
-Write-Host "`n=== 5. Echantillon de 5 lignes recentes par DO_Type ===" -ForegroundColor Cyan
-$types = Invoke-Query $conn "SELECT DISTINCT DO_Type FROM F_DOCENTETE"
+Write-Host "`n=== 5. Echantillon de 5 lignes recentes par DO_Domaine + DO_Type ===" -ForegroundColor Cyan
+$types = Invoke-Query $conn "SELECT DISTINCT DO_Domaine, DO_Type FROM F_DOCENTETE ORDER BY DO_Domaine, DO_Type"
 foreach ($row in $types) {
+    $domaine = $row.DO_Domaine
     $type = $row.DO_Type
-    Write-Host "`n--- DO_Type = $type ---" -ForegroundColor Magenta
+    Write-Host "`n--- DO_Domaine = $domaine / DO_Type = $type ---" -ForegroundColor Magenta
     Invoke-Query $conn @"
-SELECT TOP 5 DO_Piece, DO_Date, DO_Tiers, DO_Ref, DO_Type
+SELECT TOP 5 DO_Piece, DO_Date, DO_Tiers, DO_Ref, DO_Domaine, DO_Type
 FROM F_DOCENTETE
-WHERE DO_Type = '$type'
+WHERE DO_Domaine = $domaine AND DO_Type = $type
 ORDER BY DO_Date DESC
 "@ | Format-Table -AutoSize
 }
@@ -114,6 +124,15 @@ if (Invoke-Query $conn "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE T
     Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_COMPTET' ORDER BY ORDINAL_POSITION" |
         Format-Table -AutoSize
     Invoke-Query $conn "SELECT TOP 5 CT_Num, CT_Intitule, CT_Type FROM F_COMPTET ORDER BY CT_Num" | Format-Table -AutoSize
+
+    Write-Host "`n--- 6bis. CT_Type des tiers par DO_Domaine/DO_Type (pour trancher Client vs Fournisseur) ---" -ForegroundColor Cyan
+    Invoke-Query $conn @"
+SELECT d.DO_Domaine, d.DO_Type, ct.CT_Type, COUNT(*) AS Nombre, MIN(ct.CT_Intitule) AS ExempleTiers
+FROM F_DOCENTETE d
+LEFT JOIN F_COMPTET ct ON ct.CT_Num = d.DO_Tiers
+GROUP BY d.DO_Domaine, d.DO_Type, ct.CT_Type
+ORDER BY d.DO_Domaine, d.DO_Type
+"@ | Format-Table -AutoSize
 }
 
 Write-Host "`n=== 7. Table des articles : F_ARTICLE, colonnes cle ===" -ForegroundColor Cyan

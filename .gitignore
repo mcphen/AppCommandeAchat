@@ -21,3 +21,8 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# Sage sync (Windows Server) : secrets et fichiers d'etat locaux, jamais commites
+/scripts/sage-sync/sage-sync.config.json
+/scripts/sage-sync/sync-state.json
+/scripts/sage-sync/sync.log

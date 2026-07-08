@@ -141,6 +141,10 @@ const exportUrl = (format: string) => {
     return route('purchase-orders.export', { format }) + (qs ? `?${qs}` : '');
 };
 
+const openOrderInNewTab = (order: PurchaseOrder) => {
+    window.open(route('purchase-orders.show', order.id), '_blank');
+};
+
 </script>
 
 <template>
@@ -522,12 +526,17 @@ const exportUrl = (format: string) => {
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">
                                     Date
                                 </th>
-                                <th class="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Actions</th>
+                                <th class="sticky right-0 z-10 bg-muted/95 px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] backdrop-blur">Actions</th>
                             </tr>
                         </thead>
 
                         <tbody class="divide-y divide-border/60">
-                            <tr v-for="order in orders.data" :key="order.id" class="transition-colors hover:bg-muted/20">
+                            <tr
+                                v-for="order in orders.data"
+                                :key="order.id"
+                                class="group cursor-pointer transition-colors hover:bg-muted/20"
+                                @click="openOrderInNewTab(order)"
+                            >
                                 <td class="px-5 py-4">
                                     <div class="flex items-center gap-3">
                                         <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -578,10 +587,14 @@ const exportUrl = (format: string) => {
 
                                 <td class="hidden px-4 py-4 text-muted-foreground xl:table-cell">{{ formatDate(order.created_at) }}</td>
 
-                                <td class="px-5 py-4 text-right">
+                                <td
+                                    class="sticky right-0 z-10 bg-card px-5 py-4 text-right shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors group-hover:bg-muted/40"
+                                    @click.stop
+                                >
                                     <div class="flex flex-wrap items-center justify-end gap-2">
                                         <Link
                                             :href="route('purchase-orders.show', order.id)"
+                                            target="_blank"
                                             class="inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 transition-colors hover:bg-blue-100"
                                             title="Voir"
                                         >

@@ -1,0 +1,234 @@
+<#
+.SYNOPSIS
+    Synchronise les commandes fournisseur Sage100 (DO_Domaine=1, DO_Type=12) vers
+    l'API webhook Laravel POST /api/sage/purchase-orders.
+
+.DESCRIPTION
+    Lit F_DOCENTETE/F_DOCLIGNE pour les commandes fournisseur nouvelles ou modifiees
+    depuis le dernier passage (watermark sur cbModification), construit le JSON attendu
+    par le webhook, l'envoie, puis avance le watermark uniquement pour les pieces
+    envoyees avec succes. Les echecs restent dans la fenetre et seront retentes au
+    prochain passage. Ne modifie JAMAIS la base Sage100 (lecture seule).
+
+.PARAMETER SqlServer
+    Instance SQL Server Sage100 (ex: "localhost\SAGE100").
+
+.PARAMETER Database
+    Base Sage100 (ex: "bijou" en test, la vraie base client en prod).
+
+.PARAMETER SqlUser / SqlPassword
+    Identifiants SQL. Si omis, authentification Windows integree.
+
+.PARAMETER ApiBaseUrl
+    URL de base de l'application Laravel (ex: "https://achats.exemple.com").
+
+.PARAMETER ApiToken
+    Valeur de SAGE_API_TOKEN configuree cote Laravel (.env), envoyee en header X-API-Key.
+
+.PARAMETER StateFile
+    Fichier local ou est stocke le watermark (date de derniere synchro reussie).
+    Par defaut : sync-state.json a cote du script.
+
+.PARAMETER DryRun
+    N'envoie rien : affiche seulement ce qui serait synchronise (pour tester sans risque).
+
+.EXAMPLE
+    .\Sync-PurchaseOrders.ps1 -SqlServer "localhost\SAGE100" -Database "bijou" `
+        -ApiBaseUrl "https://achats.exemple.com" -ApiToken "xxxxx" -DryRun
+
+.EXAMPLE
+    .\Sync-PurchaseOrders.ps1 -SqlServer "localhost\SAGE100" -Database "bijou" `
+        -ApiBaseUrl "https://achats.exemple.com" -ApiToken "xxxxx"
+#>
+
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$SqlServer,
+
+    [Parameter(Mandatory = $true)]
+    [string]$Database,
+
+    [string]$SqlUser,
+    [string]$SqlPassword,
+
+    [Parameter(Mandatory = $true)]
+    [string]$ApiBaseUrl,
+
+    [Parameter(Mandatory = $true)]
+    [string]$ApiToken,
+
+    [string]$StateFile = (Join-Path $PSScriptRoot "sync-state.json"),
+
+    [switch]$DryRun
+)
+
+$ErrorActionPreference = "Stop"
+$LogFile = Join-Path $PSScriptRoot "sync.log"
+
+function Write-Log([string]$Message, [string]$Level = "INFO") {
+    $line = "[{0}] [{1}] {2}" -f (Get-Date -Format "yyyy-MM-dd HH:mm:ss"), $Level, $Message
+    Write-Host $line
+    Add-Content -Path $LogFile -Value $line
+}
+
+function Get-SqlConnection {
+    if ($SqlUser) {
+        $connString = "Server=$SqlServer;Database=$Database;User Id=$SqlUser;Password=$SqlPassword;TrustServerCertificate=True;"
+    } else {
+        $connString = "Server=$SqlServer;Database=$Database;Integrated Security=True;TrustServerCertificate=True;"
+    }
+    $conn = New-Object System.Data.SqlClient.SqlConnection($connString)
+    $conn.Open()
+    return $conn
+}
+
+function Invoke-SqlQuery([System.Data.SqlClient.SqlConnection]$Connection, [string]$Sql, [hashtable]$Params = @{}) {
+    $cmd = New-Object System.Data.SqlClient.SqlCommand($Sql, $Connection)
+    $cmd.CommandTimeout = 60
+    foreach ($key in $Params.Keys) {
+        [void]$cmd.Parameters.AddWithValue("@$key", $Params[$key])
+    }
+    $adapter = New-Object System.Data.SqlClient.SqlDataAdapter($cmd)
+    $table = New-Object System.Data.DataTable
+    [void]$adapter.Fill($table)
+    return $table
+}
+
+function Get-Watermark {
+    if (Test-Path $StateFile) {
+        $state = Get-Content $StateFile -Raw | ConvertFrom-Json
+        return [datetime]$state.lastCbModification
+    }
+    return [datetime]"2000-01-01"
+}
+
+function Set-Watermark([datetime]$Value) {
+    @{ lastCbModification = $Value.ToString("o") } | ConvertTo-Json | Set-Content -Path $StateFile
+}
+
+# ── 1. Connexion ────────────────────────────────────────────────────────────
+Write-Log "=== Debut synchro (DryRun=$($DryRun.IsPresent)) ==="
+try {
+    $conn = Get-SqlConnection
+} catch {
+    $innerMessage = $_.Exception.InnerException.Message
+    if (-not $innerMessage) { $innerMessage = $_.Exception.Message }
+    Write-Log "Echec de connexion SQL : $innerMessage" "ERROR"
+    exit 1
+}
+
+$watermark = Get-Watermark
+Write-Log "Watermark actuel : $($watermark.ToString('o'))"
+
+# ── 2. Recuperer les entetes de commandes fournisseur modifiees depuis le watermark ──
+$entetes = Invoke-SqlQuery $conn @"
+SELECT DO_Piece, DO_Date, DO_Tiers, DO_TotalHT, DO_TotalTTC, cbModification
+FROM F_DOCENTETE
+WHERE DO_Domaine = 1 AND DO_Type = 12 AND cbModification > @watermark
+ORDER BY cbModification ASC
+"@ -Params @{ watermark = $watermark }
+
+Write-Log "Commandes fournisseur a synchroniser : $($entetes.Rows.Count)"
+
+if ($entetes.Rows.Count -eq 0) {
+    $conn.Close()
+    Write-Log "=== Rien a synchroniser. Fin. ==="
+    exit 0
+}
+
+# ── 3. Recuperer TOUTES les lignes en une seule requete, puis grouper cote PowerShell ──
+# (evite tout souci de correspondance de parametre SQL piece-par-piece)
+$toutesLesLignes = Invoke-SqlQuery $conn @"
+SELECT DO_Piece, AR_Ref, DL_Design, DL_Qte, DL_PrixUnitaire, DL_Ligne
+FROM F_DOCLIGNE
+WHERE DO_Domaine = 1 AND DO_Type = 12
+ORDER BY DO_Piece, DL_Ligne ASC
+"@
+
+$lignesParPiece = @{}
+foreach ($ligne in $toutesLesLignes) {
+    $cle = $ligne.DO_Piece.Trim()
+    if (-not $lignesParPiece.ContainsKey($cle)) { $lignesParPiece[$cle] = @() }
+    $lignesParPiece[$cle] += $ligne
+}
+
+$maxSuccessfulModification = $watermark
+$successCount = 0
+$errorCount = 0
+
+foreach ($entete in $entetes) {
+    $piece = $entete.DO_Piece.Trim()
+    Write-Log "--- Traitement $piece ---"
+
+    $lignes = $lignesParPiece[$piece]
+
+    if (-not $lignes -or $lignes.Count -eq 0) {
+        Write-Log "  Aucune ligne trouvee pour $piece, ignoree." "WARN"
+        continue
+    }
+
+    $payload = @{
+        numero       = $piece
+        date         = $entete.DO_Date.ToString("yyyy-MM-dd")
+        tiers        = $entete.DO_Tiers.Trim()
+        montant_ht   = [double]$entete.DO_TotalHT
+        montant_ttc  = [double]$entete.DO_TotalTTC
+        lignes       = @(
+            foreach ($ligne in $lignes) {
+                @{
+                    article        = $ligne.AR_Ref.Trim()
+                    designation    = $ligne.DL_Design
+                    quantite       = [double]$ligne.DL_Qte
+                    prix_unitaire  = [double]$ligne.DL_PrixUnitaire
+                }
+            }
+        )
+    }
+
+    $json = $payload | ConvertTo-Json -Depth 5
+
+    if ($DryRun) {
+        Write-Log "  [DRY-RUN] Payload qui serait envoye :`n$json"
+        if ($entete.cbModification -gt $maxSuccessfulModification) {
+            $maxSuccessfulModification = $entete.cbModification
+        }
+        $successCount++
+        continue
+    }
+
+    try {
+        # PowerShell 5.1 encode -Body en texte avec le codepage systeme par defaut, ce qui
+        # corrompt les caracteres accentues (e, e, ...) lors de l'envoi. On force l'UTF-8
+        # en convertissant la chaine JSON en tableau d'octets avant l'envoi.
+        $utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+
+        $response = Invoke-RestMethod -Uri "$ApiBaseUrl/api/sage/purchase-orders" `
+            -Method Post `
+            -Headers @{ "X-API-Key" = $ApiToken } `
+            -ContentType "application/json; charset=utf-8" `
+            -Body $utf8Bytes `
+            -TimeoutSec 30
+
+        Write-Log "  OK -> id=$($response.id) statut=$($response.status)"
+        $successCount++
+        if ($entete.cbModification -gt $maxSuccessfulModification) {
+            $maxSuccessfulModification = $entete.cbModification
+        }
+    } catch {
+        $statusCode = $null
+        if ($_.Exception.Response) { $statusCode = [int]$_.Exception.Response.StatusCode }
+        Write-Log "  ECHEC (HTTP $statusCode) : $($_.Exception.Message)" "ERROR"
+        $errorCount++
+        # Pas d'avancement du watermark pour cette piece : elle sera retentee au prochain passage.
+    }
+}
+
+$conn.Close()
+
+if (-not $DryRun) {
+    Set-Watermark $maxSuccessfulModification
+    Write-Log "Watermark avance a : $($maxSuccessfulModification.ToString('o'))"
+}
+
+Write-Log "=== Fin synchro : $successCount succes, $errorCount echec(s) ==="
+if ($errorCount -gt 0) { exit 2 }

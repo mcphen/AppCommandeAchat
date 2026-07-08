@@ -1,0 +1,6 @@
+{
+    "SqlServer": "localhost\\SAGE100",
+    "Database": "NOM_DE_LA_VRAIE_BASE",
+    "ApiBaseUrl": "https://achats.construcsen.com",
+    "ApiToken": "COLLER_ICI_LA_VALEUR_DE_SAGE_API_TOKEN"
+}

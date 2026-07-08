@@ -13,6 +13,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const props = defineProps<{
     orders: PaginatedData<PurchaseOrder>;
+    amountTotal: number;
     boutiques: Boutique[];
     demandeurs: Pick<User, 'id' | 'name'>[];
     levels: Pick<ValidationLevel, 'id' | 'name' | 'order'>[];
@@ -67,7 +68,6 @@ const draftCount = computed(() => visibleOrders.value.filter((order) => order.st
 const pendingCount = computed(() => visibleOrders.value.filter((order) => order.status === 'pending').length);
 const approvedCount = computed(() => visibleOrders.value.filter((order) => order.status === 'approved').length);
 const rejectedCount = computed(() => visibleOrders.value.filter((order) => order.status === 'rejected').length);
-const visibleAmountTotal = computed(() => visibleOrders.value.reduce((sum, order) => sum + Number(order.amount || 0), 0));
 
 const statusConfig = {
     draft: { label: 'Brouillon', classes: 'bg-slate-100 text-slate-700', dot: 'bg-slate-400' },
@@ -172,44 +172,6 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
                 </div>
             </div>
 
-            <section class="rounded-2xl border bg-card p-5 shadow-sm">
-                <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                    <div class="flex items-center gap-4">
-                        <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                            <ShoppingCart class="h-8 w-8" />
-                        </div>
-
-                        <div class="min-w-0">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Portefeuille commandes</p>
-                            <h2 class="mt-1 text-xl font-semibold text-foreground">{{ isAdmin ? 'Pilotage central des demandes' : 'Tableau de suivi des commandes' }}</h2>
-                            <p class="mt-1 text-sm text-muted-foreground">
-                                Filtrez, exportez et suivez les achats depuis une interface alignee avec le reste du back-office.
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="grid gap-3 sm:grid-cols-3 lg:w-[560px]">
-                        <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">Portefeuille</p>
-                            <p class="mt-3 text-sm font-semibold text-foreground">{{ orders.total }} commande(s)</p>
-                            <p class="mt-1 text-xs text-muted-foreground">{{ boutiques.length }} société(s) couvertes</p>
-                        </div>
-
-                        <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Validation</p>
-                            <p class="mt-3 text-sm font-semibold text-foreground">{{ levelsCount }} niveau(x)</p>
-                            <p class="mt-1 text-xs text-muted-foreground">{{ pendingCount }} dossier(s) en attente sur la page</p>
-                        </div>
-
-                        <div class="rounded-2xl border border-violet-100 bg-violet-50 p-4">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-violet-700">Resultats</p>
-                            <p class="mt-3 text-sm font-semibold text-foreground">{{ visibleOrders.length }} ligne(s) visibles</p>
-                            <p class="mt-1 text-xs text-muted-foreground">page {{ orders.current_page }} sur {{ orders.last_page }}</p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total</p>
@@ -230,9 +192,9 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
                 </div>
 
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Montant page</p>
-                    <p class="mt-2 text-2xl font-bold text-foreground">{{ formatAmount(visibleAmountTotal) }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">cumule des lignes affichees</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Montant</p>
+                    <p class="mt-2 text-2xl font-bold text-foreground">{{ formatAmount(props.amountTotal) }}</p>
+                    <p class="mt-1 text-xs text-muted-foreground">cumule de toutes les commandes filtrees</p>
                 </div>
             </section>
 

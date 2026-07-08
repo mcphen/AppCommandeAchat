@@ -23,10 +23,13 @@ class PurchaseOrderController extends Controller
         $user  = $request->user();
         $query = $this->buildQuery($request, $user);
 
+        $amountTotal = (clone $query)->sum('amount');
+
         $orders = $query->paginate(10)->withQueryString();
 
         return Inertia::render('PurchaseOrders/Index', [
             'orders'      => $orders,
+            'amountTotal' => (float) $amountTotal,
             'boutiques'   => Boutique::where('is_active', true)->orderBy('name')->get(),
             'demandeurs'  => $user->isAdmin() ? \App\Models\User::whereHas('role', fn ($q) => $q->where('slug', 'demandeur'))->orderBy('name')->get(['id', 'name']) : [],
             'levels'      => ValidationLevel::orderBy('order')->get(['id', 'name', 'order']),

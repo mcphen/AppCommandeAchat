@@ -7,6 +7,7 @@ use App\Models\Article;
 use App\Models\Fournisseur;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
+use App\Models\Role;
 use App\Models\SageWebhookLog;
 use App\Models\User;
 use App\Models\ValidationLevel;
@@ -14,7 +15,9 @@ use App\Notifications\OrderSubmittedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 class SageWebhookController extends Controller
@@ -32,6 +35,10 @@ class SageWebhookController extends Controller
             'lignes.*.designation'    => ['nullable', 'string', 'max:255'],
             'lignes.*.quantite'       => ['required', 'numeric', 'min:0.01'],
             'lignes.*.prix_unitaire'  => ['required', 'numeric', 'min:0'],
+            'demandeur'                    => ['nullable', 'array'],
+            'demandeur.code'               => ['required_with:demandeur', 'string', 'max:255'],
+            'demandeur.nom'                => ['nullable', 'string', 'max:255'],
+            'demandeur.email'              => ['nullable', 'string', 'max:255'],
         ]);
 
         if ($validator->fails()) {
@@ -77,10 +84,14 @@ class SageWebhookController extends Controller
         $amount = $data['montant_ht'] ?? collect($data['lignes'])
             ->sum(fn ($l) => (float) $l['quantite'] * (float) $l['prix_unitaire']);
 
+        $userId = isset($data['demandeur'])
+            ? $this->findOrCreateDemandeur($data['demandeur'])->id
+            : $this->systemUserId();
+
         $attributes = [
-            'user_id'             => $this->systemUserId(),
+            'user_id'             => $userId,
             'fournisseur_id'      => $fournisseur->id,
-            'title'               => "Commande Sage {$data['numero']}",
+            'title'               => $data['numero'],
             'description'         => "Commande importée automatiquement depuis Sage100 (fournisseur : {$data['tiers']}).",
             'amount'              => $amount,
             'status'              => 'pending',
@@ -142,6 +153,21 @@ class SageWebhookController extends Controller
                 'reference'  => "SAGE-{$sageReference}",
                 'unit_price' => $unitPrice,
                 'is_active'  => false,
+            ]
+        );
+    }
+
+    private function findOrCreateDemandeur(array $demandeur): User
+    {
+        $code = trim($demandeur['code']);
+
+        return User::firstOrCreate(
+            ['sage_collaborateur_code' => $code],
+            [
+                'name'     => ($demandeur['nom'] ?? null) ?: "Collaborateur Sage {$code}",
+                'email'    => ($demandeur['email'] ?? null) ?: "collaborateur-{$code}@sage.local",
+                'password' => Hash::make(Str::random(40)),
+                'role_id'  => Role::where('slug', 'demandeur')->value('id'),
             ]
         );
     }

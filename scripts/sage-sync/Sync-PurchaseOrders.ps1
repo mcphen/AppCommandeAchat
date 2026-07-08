@@ -106,6 +106,17 @@ function Set-Watermark([datetime]$Value) {
     @{ lastCbModification = $Value.ToString("o") } | ConvertTo-Json | Set-Content -Path $StateFile
 }
 
+# Trim() plante sur DBNull/$null : frequent sur de vraies donnees de prod (champs vides en Sage).
+function Get-SafeTrim($value) {
+    if ($null -eq $value -or $value -is [System.DBNull]) { return "" }
+    return [string]$value.Trim()
+}
+
+function Get-SafeDouble($value) {
+    if ($null -eq $value -or $value -is [System.DBNull]) { return 0.0 }
+    return [double]$value
+}
+
 # ── 1. Connexion ────────────────────────────────────────────────────────────
 Write-Log "=== Debut synchro (DryRun=$($DryRun.IsPresent)) ==="
 try {
@@ -121,11 +132,14 @@ $watermark = Get-Watermark
 Write-Log "Watermark actuel : $($watermark.ToString('o'))"
 
 # ── 2. Recuperer les entetes de commandes fournisseur modifiees depuis le watermark ──
+# Jointure F_COLLABORATEUR (via CO_No) pour recuperer le vrai demandeur Sage.
 $entetes = Invoke-SqlQuery $conn @"
-SELECT DO_Piece, DO_Date, DO_Tiers, DO_TotalHT, DO_TotalTTC, cbModification
-FROM F_DOCENTETE
-WHERE DO_Domaine = 1 AND DO_Type = 12 AND cbModification > @watermark
-ORDER BY cbModification ASC
+SELECT d.DO_Piece, d.DO_Date, d.DO_Tiers, d.DO_TotalHT, d.DO_TotalTTC, d.cbModification,
+       d.CO_No, c.CO_Nom, c.CO_Prenom, c.CO_EMail
+FROM F_DOCENTETE d
+LEFT JOIN F_COLLABORATEUR c ON c.CO_No = d.CO_No
+WHERE d.DO_Domaine = 1 AND d.DO_Type = 12 AND d.cbModification > @watermark
+ORDER BY d.cbModification ASC
 "@ -Params @{ watermark = $watermark }
 
 Write-Log "Commandes fournisseur a synchroniser : $($entetes.Rows.Count)"
@@ -147,7 +161,8 @@ ORDER BY DO_Piece, DL_Ligne ASC
 
 $lignesParPiece = @{}
 foreach ($ligne in $toutesLesLignes) {
-    $cle = $ligne.DO_Piece.Trim()
+    $cle = Get-SafeTrim $ligne.DO_Piece
+    if (-not $cle) { continue }
     if (-not $lignesParPiece.ContainsKey($cle)) { $lignesParPiece[$cle] = @() }
     $lignesParPiece[$cle] += $ligne
 }
@@ -155,48 +170,85 @@ foreach ($ligne in $toutesLesLignes) {
 $maxSuccessfulModification = $watermark
 $successCount = 0
 $errorCount = 0
+$skippedCount = 0
 
 foreach ($entete in $entetes) {
-    $piece = $entete.DO_Piece.Trim()
-    Write-Log "--- Traitement $piece ---"
-
-    $lignes = $lignesParPiece[$piece]
-
-    if (-not $lignes -or $lignes.Count -eq 0) {
-        Write-Log "  Aucune ligne trouvee pour $piece, ignoree." "WARN"
-        continue
-    }
-
-    $payload = @{
-        numero       = $piece
-        date         = $entete.DO_Date.ToString("yyyy-MM-dd")
-        tiers        = $entete.DO_Tiers.Trim()
-        montant_ht   = [double]$entete.DO_TotalHT
-        montant_ttc  = [double]$entete.DO_TotalTTC
-        lignes       = @(
-            foreach ($ligne in $lignes) {
-                @{
-                    article        = $ligne.AR_Ref.Trim()
-                    designation    = $ligne.DL_Design
-                    quantite       = [double]$ligne.DL_Qte
-                    prix_unitaire  = [double]$ligne.DL_PrixUnitaire
-                }
-            }
-        )
-    }
-
-    $json = $payload | ConvertTo-Json -Depth 5
-
-    if ($DryRun) {
-        Write-Log "  [DRY-RUN] Payload qui serait envoye :`n$json"
-        if ($entete.cbModification -gt $maxSuccessfulModification) {
-            $maxSuccessfulModification = $entete.cbModification
-        }
-        $successCount++
-        continue
-    }
-
+    # Toute la commande est traitee dans un try/catch : une commande mal formee
+    # (champ NULL, valeur inattendue...) ne doit jamais interrompre le traitement
+    # des autres commandes du lot.
     try {
+        $piece = Get-SafeTrim $entete.DO_Piece
+        if (-not $piece) {
+            Write-Log "  Entete sans DO_Piece exploitable, ignoree." "WARN"
+            $skippedCount++
+            continue
+        }
+
+        Write-Log "--- Traitement $piece ---"
+
+        $lignes = $lignesParPiece[$piece]
+
+        if (-not $lignes -or $lignes.Count -eq 0) {
+            Write-Log "  Aucune ligne trouvee pour $piece, ignoree." "WARN"
+            $skippedCount++
+            continue
+        }
+
+        $tiers = Get-SafeTrim $entete.DO_Tiers
+        if (-not $tiers) {
+            Write-Log "  Tiers (fournisseur) manquant pour $piece, ignoree." "WARN"
+            $skippedCount++
+            continue
+        }
+
+        $payload = @{
+            numero       = $piece
+            date         = $entete.DO_Date.ToString("yyyy-MM-dd")
+            tiers        = $tiers
+            montant_ht   = Get-SafeDouble $entete.DO_TotalHT
+            montant_ttc  = Get-SafeDouble $entete.DO_TotalTTC
+            lignes       = @(
+                foreach ($ligne in $lignes) {
+                    $article = Get-SafeTrim $ligne.AR_Ref
+                    if (-not $article) { continue }
+                    @{
+                        article        = $article
+                        designation    = Get-SafeTrim $ligne.DL_Design
+                        quantite       = Get-SafeDouble $ligne.DL_Qte
+                        prix_unitaire  = Get-SafeDouble $ligne.DL_PrixUnitaire
+                    }
+                }
+            )
+        }
+
+        if ($payload.lignes.Count -eq 0) {
+            Write-Log "  Aucune ligne avec article valide pour $piece, ignoree." "WARN"
+            $skippedCount++
+            continue
+        }
+
+        # Demandeur reel (F_COLLABORATEUR via CO_No) : si absent, le webhook rattache
+        # la commande au compte systeme Sage100 par defaut.
+        if ($entete.CO_No -isnot [System.DBNull] -and $entete.CO_No) {
+            $nomComplet = ((Get-SafeTrim $entete.CO_Nom) + " " + (Get-SafeTrim $entete.CO_Prenom)).Trim()
+            $payload["demandeur"] = @{
+                code  = [string]$entete.CO_No
+                nom   = $nomComplet
+                email = Get-SafeTrim $entete.CO_EMail
+            }
+        }
+
+        $json = $payload | ConvertTo-Json -Depth 5
+
+        if ($DryRun) {
+            Write-Log "  [DRY-RUN] Payload qui serait envoye :`n$json"
+            if ($entete.cbModification -gt $maxSuccessfulModification) {
+                $maxSuccessfulModification = $entete.cbModification
+            }
+            $successCount++
+            continue
+        }
+
         # PowerShell 5.1 encode -Body en texte avec le codepage systeme par defaut, ce qui
         # corrompt les caracteres accentues (e, e, ...) lors de l'envoi. On force l'UTF-8
         # en convertissant la chaine JSON en tableau d'octets avant l'envoi.
@@ -230,5 +282,5 @@ if (-not $DryRun) {
     Write-Log "Watermark avance a : $($maxSuccessfulModification.ToString('o'))"
 }
 
-Write-Log "=== Fin synchro : $successCount succes, $errorCount echec(s) ==="
+Write-Log "=== Fin synchro : $successCount succes, $errorCount echec(s), $skippedCount ignoree(s) (donnees incompletes) ==="
 if ($errorCount -gt 0) { exit 2 }

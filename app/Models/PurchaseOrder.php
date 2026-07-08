@@ -24,6 +24,7 @@ class PurchaseOrder extends Model
         'fully_received_at',
         'sage_reference',
         'source',
+        'order_date',
     ];
 
     protected $casts = [
@@ -31,6 +32,7 @@ class PurchaseOrder extends Model
         'submitted_at' => 'datetime',
         'ordered_at' => 'datetime',
         'fully_received_at' => 'datetime',
+        'order_date' => 'date',
         'current_level_order' => 'integer',
     ];
 

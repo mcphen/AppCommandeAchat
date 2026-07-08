@@ -18,6 +18,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'sage_collaborateur_code',
         'role_id',
         'validation_level_id',
         'boutique_id',

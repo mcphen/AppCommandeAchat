@@ -585,7 +585,7 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
                                     <span v-else class="text-xs text-muted-foreground">-</span>
                                 </td>
 
-                                <td class="hidden px-4 py-4 text-muted-foreground xl:table-cell">{{ formatDate(order.created_at) }}</td>
+                                <td class="hidden px-4 py-4 text-muted-foreground xl:table-cell">{{ formatDate(order.order_date ?? order.created_at) }}</td>
 
                                 <td
                                     class="sticky right-0 z-10 bg-card px-5 py-4 text-right shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] transition-colors group-hover:bg-muted/40"

@@ -283,8 +283,8 @@ const submitReception = () => {
                             <div class="flex items-center gap-3">
                                 <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-purple-50"><Calendar class="h-4 w-4 text-purple-600" /></div>
                                 <div>
-                                    <p class="text-xs text-muted-foreground">Creee le</p>
-                                    <p class="text-sm font-medium text-foreground">{{ formatDate(order.created_at) }}</p>
+                                    <p class="text-xs text-muted-foreground">Date de la commande</p>
+                                    <p class="text-sm font-medium text-foreground">{{ formatDate(order.order_date ?? order.created_at) }}</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3">

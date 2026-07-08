@@ -134,6 +134,9 @@ export interface PurchaseOrder {
     fully_received_at?: string | null;
     current_level_order?: number;
     submitted_at?: string;
+    order_date?: string | null;
+    sage_reference?: string | null;
+    source?: 'manual' | 'sage';
     attachments?: PurchaseOrderAttachment[];
     lines?: PurchaseOrderLine[];
     receptions?: PurchaseOrderReception[];

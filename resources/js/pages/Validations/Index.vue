@@ -81,13 +81,13 @@ const hasActiveFilters = computed(() => !!props.filters.boutique_id);
             <div class="rounded-2xl border bg-card p-4 shadow-sm">
                 <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                     <div class="w-full max-w-sm">
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Filtrer par boutique</label>
+                        <label class="mb-1.5 block text-sm font-medium text-foreground">Filtrer par société</label>
                         <select
                             :value="filters.boutique_id ?? ''"
                             class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-black transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                             @change="applyBoutiqueFilter"
                         >
-                            <option value="">Toutes les boutiques</option>
+                            <option value="">Toutes les sociétés</option>
                             <option v-for="boutique in boutiques" :key="boutique.id" :value="boutique.id">{{ boutique.name }}</option>
                         </select>
                     </div>
@@ -110,7 +110,7 @@ const hasActiveFilters = computed(() => !!props.filters.boutique_id);
                                 <tr class="border-b bg-muted/30">
                                     <th class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Commande</th>
                                     <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell sm:px-6">Demandeur</th>
-                                    <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell sm:px-6">Boutique</th>
+                                    <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell sm:px-6">Société</th>
                                     <th class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Montant</th>
                                     <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground xl:table-cell sm:px-6">Soumise le</th>
                                     <th class="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Action</th>

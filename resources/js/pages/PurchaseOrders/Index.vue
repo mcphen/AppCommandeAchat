@@ -83,7 +83,7 @@ const formatAmount = (value: string | number) =>
 const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
-const boutiqueName = (id?: string) => props.boutiques.find((boutique) => String(boutique.id) === id)?.name ?? 'Boutique';
+const boutiqueName = (id?: string) => props.boutiques.find((boutique) => String(boutique.id) === id)?.name ?? 'Société';
 const demandeurName = (id?: string) => props.demandeurs.find((demandeur) => String(demandeur.id) === id)?.name ?? 'Demandeur';
 const levelName = (order?: string) => props.levels.find((level) => String(level.order) === order)?.name ?? `Niveau ${order}`;
 
@@ -192,7 +192,7 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
                         <div class="rounded-2xl border border-blue-100 bg-blue-50 p-4">
                             <p class="text-xs font-semibold uppercase tracking-wide text-blue-700">Portefeuille</p>
                             <p class="mt-3 text-sm font-semibold text-foreground">{{ orders.total }} commande(s)</p>
-                            <p class="mt-1 text-xs text-muted-foreground">{{ boutiques.length }} boutique(s) couvertes</p>
+                            <p class="mt-1 text-xs text-muted-foreground">{{ boutiques.length }} société(s) couvertes</p>
                         </div>
 
                         <div class="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
@@ -309,7 +309,7 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
                 <div class="flex flex-col gap-2 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 class="text-base font-semibold text-foreground">Filtres et pilotage</h2>
-                        <p class="mt-1 text-sm text-muted-foreground">Affinez la liste par boutique, statut, demandeur, dates ou montant.</p>
+                        <p class="mt-1 text-sm text-muted-foreground">Affinez la liste par société, statut, demandeur, dates ou montant.</p>
                     </div>
 
                     <div class="inline-flex items-center gap-2 rounded-xl border bg-muted/20 px-3 py-2 text-xs font-medium text-muted-foreground">
@@ -329,7 +329,7 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
                     <div v-if="showFilters" class="space-y-4 px-5 py-4">
                         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                             <div>
-                                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Boutique</label>
+                                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Société</label>
                                 <select
                                     v-model="localFilters.boutique_id"
                                     class="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
@@ -438,7 +438,7 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
 
                 <div v-if="hasActiveFilters" class="flex flex-wrap gap-2 px-5 py-4" :class="showFilters ? 'border-t' : ''">
                     <span v-if="filters.boutique_id" class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                        Boutique : {{ boutiqueName(filters.boutique_id) }}
+                        Société : {{ boutiqueName(filters.boutique_id) }}
                         <button class="ml-1 rounded-full hover:bg-primary/20" @click="localFilters.boutique_id = ''; applyFilters()"><X class="h-3 w-3" /></button>
                     </span>
                     <span v-if="filters.status" class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
@@ -514,7 +514,7 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
                             <tr class="border-b bg-muted/20">
                                 <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Commande</th>
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground md:table-cell">
-                                    Boutique
+                                    Société
                                 </th>
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
                                     Montant

@@ -9,7 +9,7 @@ import Swal from 'sweetalert2';
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
     { title: 'Administration', href: '#' },
-    { title: 'Boutiques', href: '/admin/boutiques' },
+    { title: 'Sociétés', href: '/admin/boutiques' },
 ];
 
 defineProps<{
@@ -18,8 +18,8 @@ defineProps<{
 
 const deleteBoutique = async (boutique: Boutique) => {
     const result = await Swal.fire({
-        title: 'Supprimer cette boutique ?',
-        text: `La boutique "${boutique.name}" sera supprimee si elle n'est plus utilisee.`,
+        title: 'Supprimer cette société ?',
+        text: `La société "${boutique.name}" sera supprimee si elle n'est plus utilisee.`,
         icon: 'warning',
         showCancelButton: true,
         confirmButtonText: 'Supprimer',
@@ -36,20 +36,20 @@ const deleteBoutique = async (boutique: Boutique) => {
 </script>
 
 <template>
-    <Head title="Boutiques" />
+    <Head title="Sociétés" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
             <div class="flex items-center justify-between gap-3">
                 <div>
-                    <h1 class="text-xl font-bold text-foreground sm:text-2xl">Boutiques</h1>
-                    <p class="mt-1 text-sm text-muted-foreground">{{ boutiques.length }} boutique{{ boutiques.length !== 1 ? 's' : '' }} configuree{{ boutiques.length !== 1 ? 's' : '' }}</p>
+                    <h1 class="text-xl font-bold text-foreground sm:text-2xl">Sociétés</h1>
+                    <p class="mt-1 text-sm text-muted-foreground">{{ boutiques.length }} société{{ boutiques.length !== 1 ? 's' : '' }} configuree{{ boutiques.length !== 1 ? 's' : '' }}</p>
                 </div>
                 <Link
                     :href="route('admin.boutiques.create')"
                     class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
                 >
                     <Plus class="h-4 w-4" />
-                    Nouvelle boutique
+                    Nouvelle société
                 </Link>
             </div>
 
@@ -122,10 +122,10 @@ const deleteBoutique = async (boutique: Boutique) => {
                 :icon="Building2"
                 icon-bg="bg-blue-50"
                 icon-color="text-blue-500"
-                title="Aucune boutique"
-                description="Créez vos boutiques ou départements pour affecter les demandeurs et suivre les dépenses par entité."
+                title="Aucune société"
+                description="Créez vos sociétés ou départements pour affecter les demandeurs et suivre les dépenses par entité."
                 :action-href="route('admin.boutiques.create')"
-                action-label="Créer la première boutique"
+                action-label="Créer la première société"
             />
         </div>
     </AppLayout>

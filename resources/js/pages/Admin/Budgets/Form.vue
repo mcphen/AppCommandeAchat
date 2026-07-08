@@ -71,7 +71,7 @@ const scopeLabel = computed(() => {
     const category = props.categories.find(c => c.id == (form.category_id as unknown as number));
     const parts = [];
     if (boutique) parts.push(boutique.name);
-    else parts.push('Toutes boutiques');
+    else parts.push('Toutes sociétés');
     if (category) parts.push(category.name);
     else parts.push('Toutes catégories');
     return parts.join(' · ');
@@ -106,12 +106,12 @@ const scopeLabel = computed(() => {
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
 
-                        <!-- Boutique -->
+                        <!-- Société -->
                         <div class="flex flex-col gap-1.5">
-                            <label class="text-sm font-medium text-foreground" for="boutique_id">Boutique</label>
+                            <label class="text-sm font-medium text-foreground" for="boutique_id">Société</label>
                             <select id="boutique_id" v-model="form.boutique_id"
                                 class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors">
-                                <option value="">— Toutes les boutiques —</option>
+                                <option value="">— Toutes les sociétés —</option>
                                 <option v-for="b in boutiques" :key="b.id" :value="b.id">{{ b.name }} ({{ b.code }})</option>
                             </select>
                             <p class="text-xs text-muted-foreground">Laisser vide pour un budget global.</p>

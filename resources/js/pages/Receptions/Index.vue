@@ -155,7 +155,7 @@ const globalProgress = (order: PurchaseOrder): number => {
                         v-model="localFilters.boutique_id"
                         class="rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                     >
-                        <option value="">Toutes les boutiques</option>
+                        <option value="">Toutes les sociétés</option>
                         <option v-for="b in boutiques" :key="b.id" :value="b.id">{{ b.name }}</option>
                     </select>
                     <button

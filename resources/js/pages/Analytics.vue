@@ -136,7 +136,7 @@ const horizontalBarOptions = {
     },
 };
 
-// ---- Dépenses mensuelles par boutique (line) ----
+// ---- Dépenses mensuelles par société (line) ----
 const lineOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -246,7 +246,7 @@ const rateColor = (rate: number) => {
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Commande</th>
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">Demandeur</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Boutique</th>
+                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Société</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Montant</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attente</th>
                                 <th class="px-4 py-3"></th>
@@ -351,7 +351,7 @@ const rateColor = (rate: number) => {
             <section>
                 <div class="mb-3 flex items-center gap-2">
                     <TrendingUp class="h-4 w-4 text-indigo-500" />
-                    <h2 class="font-semibold text-foreground">Dépenses mensuelles par boutique</h2>
+                    <h2 class="font-semibold text-foreground">Dépenses mensuelles par société</h2>
                     <span class="ml-auto text-xs text-muted-foreground">6 derniers mois — commandes approuvées</span>
                 </div>
                 <div class="rounded-2xl border bg-card p-5 shadow-sm">

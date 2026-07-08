@@ -79,7 +79,7 @@ const analyticsNav = computed(() => {
 const adminNav = computed(() => {
     if (role.value !== 'admin') return [];
     return [
-        { title: 'Boutiques',            href: route('admin.boutiques.index'),         icon: Building2,  key: 'admin-boutiques' },
+        { title: 'Sociétés',             href: route('admin.boutiques.index'),         icon: Building2,  key: 'admin-boutiques' },
         { title: 'Utilisateurs',         href: route('admin.users.index'),             icon: Users,      key: 'admin-users' },
         { title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings,   key: 'admin-levels' },
         { title: 'Catégories',           href: route('admin.categories.index'),        icon: FolderTree, key: 'admin-categories' },

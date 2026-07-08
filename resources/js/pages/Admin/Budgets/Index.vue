@@ -81,7 +81,7 @@ const statusBadge = (b: Budget) => {
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 class="text-2xl font-bold text-foreground">Gestion budgetaire</h1>
-                    <p class="text-sm text-muted-foreground">Pilotez les enveloppes par boutique, categorie et periode.</p>
+                    <p class="text-sm text-muted-foreground">Pilotez les enveloppes par société, categorie et periode.</p>
                 </div>
 
                 <div
@@ -132,7 +132,7 @@ const statusBadge = (b: Budget) => {
                                 <Building2 class="h-4 w-4" />
                                 Perimetre
                             </div>
-                            <p class="mt-3 text-sm font-semibold text-foreground">Boutiques globales ou cibles avec categories dediees</p>
+                            <p class="mt-3 text-sm font-semibold text-foreground">Sociétés globales ou cibles avec categories dediees</p>
                         </div>
                     </div>
                 </div>
@@ -192,7 +192,7 @@ const statusBadge = (b: Budget) => {
                 icon-bg="bg-emerald-50 dark:bg-emerald-950/30"
                 icon-color="text-emerald-500 dark:text-emerald-300"
                 :title="`Aucun budget pour ${selectedYear}`"
-                description="Definissez des enveloppes budgetaires par boutique et/ou categorie pour controler les depenses en temps reel."
+                description="Definissez des enveloppes budgetaires par société et/ou categorie pour controler les depenses en temps reel."
                 :action-href="route('admin.budgets.create')"
                 action-label="Creer un budget"
             />
@@ -223,7 +223,7 @@ const statusBadge = (b: Budget) => {
                                     class="inline-flex items-center gap-1 rounded-lg border border-border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground"
                                 >
                                     <Building2 class="h-3 w-3" />
-                                    Toutes boutiques
+                                    Toutes sociétés
                                 </span>
 
                                 <span

@@ -13,8 +13,8 @@ const isEdit = computed(() => !!props.boutique);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
-    { title: 'Boutiques', href: '/admin/boutiques' },
-    { title: isEdit.value ? 'Modifier' : 'Nouvelle boutique', href: '#' },
+    { title: 'Sociétés', href: '/admin/boutiques' },
+    { title: isEdit.value ? 'Modifier' : 'Nouvelle société', href: '#' },
 ];
 
 const form = useForm({
@@ -35,7 +35,7 @@ const submit = () => {
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifier la boutique' : 'Nouvelle boutique'" />
+    <Head :title="isEdit ? 'Modifier la société' : 'Nouvelle société'" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex w-full max-w-3xl flex-col gap-6 p-6">
             <div class="flex items-center gap-4">
@@ -43,8 +43,8 @@ const submit = () => {
                     <ArrowLeft class="h-5 w-5" />
                 </Link>
                 <div>
-                    <h1 class="text-2xl font-bold text-foreground">{{ isEdit ? 'Modifier la boutique' : 'Nouvelle boutique' }}</h1>
-                    <p class="text-sm text-muted-foreground">{{ isEdit ? props.boutique?.name : 'Configurer une nouvelle boutique du groupe' }}</p>
+                    <h1 class="text-2xl font-bold text-foreground">{{ isEdit ? 'Modifier la société' : 'Nouvelle société' }}</h1>
+                    <p class="text-sm text-muted-foreground">{{ isEdit ? props.boutique?.name : 'Configurer une nouvelle société du groupe' }}</p>
                 </div>
             </div>
 
@@ -68,7 +68,7 @@ const submit = () => {
                             <input
                                 v-model="form.name"
                                 type="text"
-                                placeholder="Boutique Plateau"
+                                placeholder="Société Plateau"
                                 class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                                 :class="{ 'border-red-400': form.errors.name }"
                             />
@@ -102,8 +102,8 @@ const submit = () => {
                         <label class="flex items-center gap-3">
                             <input v-model="form.is_active" type="checkbox" class="h-4 w-4 rounded border-input text-primary focus:ring-primary/30" />
                             <div>
-                                <p class="text-sm font-medium text-foreground">Boutique active</p>
-                                <p class="text-xs text-muted-foreground">Une boutique inactive ne sera plus proposee dans l'affectation des gerants.</p>
+                                <p class="text-sm font-medium text-foreground">Société active</p>
+                                <p class="text-xs text-muted-foreground">Une société inactive ne sera plus proposee dans l'affectation des gerants.</p>
                             </div>
                         </label>
                     </div>
@@ -120,7 +120,7 @@ const submit = () => {
                     >
                         <Loader2 v-if="form.processing" class="h-4 w-4 animate-spin" />
                         <Save v-else class="h-4 w-4" />
-                        {{ isEdit ? 'Enregistrer' : 'Creer la boutique' }}
+                        {{ isEdit ? 'Enregistrer' : 'Creer la société' }}
                     </button>
                 </div>
             </form>

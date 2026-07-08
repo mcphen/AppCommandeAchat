@@ -298,7 +298,7 @@ const submitReception = () => {
                             <div v-if="order.boutique" class="flex items-center gap-3">
                                 <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-cyan-50"><Building2 class="h-4 w-4 text-cyan-600" /></div>
                                 <div>
-                                    <p class="text-xs text-muted-foreground">Boutique</p>
+                                    <p class="text-xs text-muted-foreground">Société</p>
                                     <p class="text-sm font-medium text-foreground">{{ order.boutique.name }} <span class="text-muted-foreground">({{ order.boutique.code }})</span></p>
                                 </div>
                             </div>

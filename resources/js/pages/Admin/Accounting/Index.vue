@@ -120,9 +120,9 @@ const exportUrl = (format: 'fec' | 'csv') => {
                         <div class="rounded-2xl border border-amber-100 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
                             <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
                                 <Building2 class="h-4 w-4" />
-                                Boutiques
+                                Sociétés
                             </div>
-                            <p class="mt-3 text-sm font-semibold text-foreground">Filtrage par piece, compte, periode et boutique</p>
+                            <p class="mt-3 text-sm font-semibold text-foreground">Filtrage par piece, compte, periode et société</p>
                         </div>
                     </div>
                 </div>
@@ -187,7 +187,7 @@ const exportUrl = (format: 'fec' | 'csv') => {
                 <div class="flex flex-col gap-5">
                     <div>
                         <p class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Filtres</p>
-                        <p class="mt-1 text-sm text-muted-foreground">Affinez le journal par periode, compte, piece comptable ou boutique.</p>
+                        <p class="mt-1 text-sm text-muted-foreground">Affinez le journal par periode, compte, piece comptable ou société.</p>
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -230,7 +230,7 @@ const exportUrl = (format: 'fec' | 'csv') => {
                         </div>
 
                         <div class="flex flex-col gap-2">
-                            <label class="text-sm font-medium text-foreground">Boutique</label>
+                            <label class="text-sm font-medium text-foreground">Société</label>
                             <select
                                 v-model="boutiqueId"
                                 class="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"

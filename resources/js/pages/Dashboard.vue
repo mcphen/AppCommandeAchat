@@ -315,12 +315,12 @@ const hasBarData = computed(() =>
                     </div>
                 </div>
 
-                <!-- Performance par boutique -->
+                <!-- Performance par société -->
                 <div v-if="boutiqueStats && boutiqueStats.length > 0" class="rounded-2xl border bg-card shadow-sm">
                     <div class="flex items-center justify-between border-b px-4 py-4 sm:px-6">
                         <h2 class="font-semibold text-foreground flex items-center gap-2">
                             <Store class="h-4 w-4 text-muted-foreground" />
-                            Performance par boutique
+                            Performance par société
                         </h2>
                         <Link :href="route('admin.boutiques.index')" class="text-sm text-primary hover:underline flex items-center gap-1">
                             Gérer <ArrowRight class="h-3.5 w-3.5" />
@@ -332,7 +332,7 @@ const hasBarData = computed(() =>
                             :key="b.id"
                             class="grid grid-cols-12 items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors sm:px-6"
                         >
-                            <!-- Boutique info -->
+                            <!-- Société info -->
                             <div class="col-span-5 flex items-center gap-3 min-w-0">
                                 <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-50">
                                     <Building2 class="h-4 w-4 text-blue-600" />
@@ -382,7 +382,7 @@ const hasBarData = computed(() =>
                                     <AlertTriangle v-else-if="b.consumption?.is_warning" class="h-3.5 w-3.5 shrink-0 text-amber-500" />
                                     <div class="min-w-0">
                                         <p class="text-sm font-medium text-foreground truncate">
-                                            {{ b.boutique?.name ?? 'Toutes boutiques' }}
+                                            {{ b.boutique?.name ?? 'Toutes sociétés' }}
                                             <span class="text-muted-foreground font-normal"> · {{ b.category?.name ?? 'Toutes catégories' }}</span>
                                         </p>
                                         <p class="text-xs text-muted-foreground">{{ b.period }}</p>
@@ -430,8 +430,8 @@ const hasBarData = computed(() =>
                         <div class="flex items-center gap-3">
                             <div class="rounded-xl bg-blue-50 p-2.5"><Store class="h-4 w-4 text-blue-600 sm:h-5 sm:w-5" /></div>
                             <div>
-                                <p class="font-semibold text-foreground text-sm sm:text-base">{{ totalBoutiques }} boutiques</p>
-                                <p class="text-xs text-muted-foreground">Gérer les boutiques</p>
+                                <p class="font-semibold text-foreground text-sm sm:text-base">{{ totalBoutiques }} sociétés</p>
+                                <p class="text-xs text-muted-foreground">Gérer les sociétés</p>
                             </div>
                         </div>
                         <ArrowRight class="h-4 w-4 text-muted-foreground group-hover:translate-x-1 transition-transform shrink-0" />
@@ -519,14 +519,14 @@ const hasBarData = computed(() =>
             <!-- ===== DEMANDEUR ===== -->
             <template v-else>
 
-                <!-- Boutique card -->
+                <!-- Société card -->
                 <div v-if="boutique" class="rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                     <div class="flex items-center gap-3">
                         <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
                             <Store class="h-5 w-5 text-blue-600" />
                         </div>
                         <div>
-                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Votre boutique</p>
+                            <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Votre société</p>
                             <p class="text-base font-semibold text-foreground">{{ boutique.name }}</p>
                             <p class="text-xs text-muted-foreground">
                                 {{ boutique.code }}<template v-if="boutique.city"> · {{ boutique.city }}</template>

@@ -228,9 +228,9 @@ const exportUrl = (format: string) => {
                                 </select>
                             </div>
 
-                            <!-- Boutique -->
+                            <!-- Société -->
                             <div>
-                                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Boutique</label>
+                                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Société</label>
                                 <select v-model="localFilters.boutique_id" class="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30">
                                     <option value="">Toutes</option>
                                     <option v-for="b in boutiques" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
@@ -286,7 +286,7 @@ const exportUrl = (format: string) => {
                         <button @click="localFilters.date_from = ''; localFilters.date_to = ''; applyFilters()"><X class="h-3 w-3 ml-1" /></button>
                     </span>
                     <span v-if="filters.boutique_id" class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                        Boutique filtrée
+                        Société filtrée
                         <button @click="localFilters.boutique_id = ''; applyFilters()"><X class="h-3 w-3 ml-1" /></button>
                     </span>
                     <span v-if="filters.level_id" class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
@@ -309,7 +309,7 @@ const exportUrl = (format: string) => {
                                 <tr class="border-b bg-muted/30">
                                     <th class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Date</th>
                                     <th class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Commande</th>
-                                    <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell sm:px-6">Boutique</th>
+                                    <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell sm:px-6">Société</th>
                                     <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground lg:table-cell sm:px-6">Demandeur</th>
                                     <th class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Action</th>
                                     <th class="hidden px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell sm:px-6">Niveau</th>
@@ -342,7 +342,7 @@ const exportUrl = (format: string) => {
                                         </p>
                                     </td>
 
-                                    <!-- Boutique -->
+                                    <!-- Société -->
                                     <td class="hidden px-4 py-4 text-sm text-foreground md:table-cell sm:px-6">
                                         {{ log.purchase_order?.boutique?.name ?? '—' }}
                                     </td>

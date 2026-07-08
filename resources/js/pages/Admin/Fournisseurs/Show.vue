@@ -694,7 +694,7 @@ const importMappingValid = computed(() =>
                                     <th
                                         class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:table-cell"
                                     >
-                                        Boutique
+                                        Société
                                     </th>
                                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Montant</th>
                                     <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</th>

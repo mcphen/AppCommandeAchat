@@ -72,8 +72,6 @@
         .timeline-dot.done     { background: #10b981; border-color: #10b981; }
         .timeline-dot.active   { background: #4f46e5; border-color: #4f46e5; }
         .timeline-dot.rejected { background: #ef4444; border-color: #ef4444; }
-        .timeline-line { position: absolute; left: -13px; top: 14px; width: 2px; height: calc(100% + 2px); background: #e2e8f0; }
-        .timeline-item.done .timeline-line { background: #10b981; }
         .level-name      { font-weight: 600; font-size: 11px; color: #0f172a; }
         .level-meta      { font-size: 9px; color: #64748b; margin-top: 2px; }
         .level-validator { font-size: 10px; color: #4f46e5; margin-top: 2px; font-weight: 500; }
@@ -185,16 +183,6 @@
                         <div class="info-label">Demandeur</div>
                         <div class="info-value">{{ $order->user?->name ?? '—' }}</div>
                     </div>
-                    <div class="info-row">
-                        <div class="info-label">Boutique</div>
-                        <div class="info-value">{{ $order->boutique?->name ?? '—' }}</div>
-                    </div>
-                    @if($order->fournisseur)
-                    <div class="info-row">
-                        <div class="info-label">Fournisseur</div>
-                        <div class="info-value">{{ $order->fournisseur->name }}</div>
-                    </div>
-                    @endif
                     @if($order->submitted_at)
                     <div class="info-row">
                         <div class="info-label">Soumise le</div>
@@ -214,11 +202,6 @@
                     </div>
                     @endif
                 </div>
-            </div>
-
-            <div class="section">
-                <div class="section-title">Description / Objet</div>
-                <div class="desc-box">{{ $order->description }}</div>
             </div>
 
             @if($order->attachments && $order->attachments->count())
@@ -250,7 +233,6 @@
                             $dotClass   = $isRejected ? 'rejected' : ($isDone ? 'done' : ($isActive ? 'active' : ''));
                         @endphp
                         <div class="timeline-item {{ $isDone ? 'done' : '' }}">
-                            @if(!$loop->last) <div class="timeline-line"></div> @endif
                             <div class="timeline-dot {{ $dotClass }}"></div>
                             <div class="level-name">{{ $level->name }}</div>
                             @if($isActive)
@@ -282,9 +264,7 @@
         <table class="lines-table">
             <thead>
                 <tr>
-                    <th style="width:35%">Article</th>
-                    <th>Catégorie</th>
-                    <th>Fournisseur</th>
+                    <th style="width:45%">Article</th>
                     <th class="center">Qté</th>
                     <th class="center">Unité</th>
                     <th class="right">Prix unit.</th>
@@ -303,8 +283,6 @@
                             <div class="article-note">{{ $line->note }}</div>
                         @endif
                     </td>
-                    <td style="font-size:10px;color:#64748b;">{{ $line->article?->category?->name ?? '—' }}</td>
-                    <td style="font-size:10px;color:#64748b;">{{ $line->fournisseur?->name ?? '—' }}</td>
                     <td class="center">{{ number_format($line->quantity, 2, ',', '') }}</td>
                     <td class="center" style="color:#64748b;">{{ $line->article?->unit ?? '—' }}</td>
                     <td class="right">{{ number_format($line->unit_price, 0, ',', ' ') }}</td>
@@ -314,7 +292,7 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="6" class="right" style="padding-right:8px;">Total général</td>
+                    <td colspan="4" class="right" style="padding-right:8px;">Total général</td>
                     <td class="right">{{ number_format($order->amount, 0, ',', ' ') }} XOF</td>
                 </tr>
             </tfoot>

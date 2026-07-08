@@ -132,12 +132,15 @@ $watermark = Get-Watermark
 Write-Log "Watermark actuel : $($watermark.ToString('o'))"
 
 # ── 2. Recuperer les entetes de commandes fournisseur modifiees depuis le watermark ──
-# Jointure F_COLLABORATEUR (via CO_No) pour recuperer le vrai demandeur Sage.
+# Jointure F_COLLABORATEUR (via CO_No) pour le vrai demandeur, et F_COMPTET (via DO_Tiers)
+# pour les vraies coordonnees du fournisseur (nom, adresse, ville, tel, email, siret).
 $entetes = Invoke-SqlQuery $conn @"
 SELECT d.DO_Piece, d.DO_Date, d.DO_Tiers, d.DO_TotalHT, d.DO_TotalTTC, d.cbModification,
-       d.CO_No, c.CO_Nom, c.CO_Prenom, c.CO_EMail
+       d.CO_No, col.CO_Nom, col.CO_Prenom, col.CO_EMail,
+       ct.CT_Intitule, ct.CT_Adresse, ct.CT_Ville, ct.CT_Telephone, ct.CT_EMail AS CT_Email, ct.CT_Siret
 FROM F_DOCENTETE d
-LEFT JOIN F_COLLABORATEUR c ON c.CO_No = d.CO_No
+LEFT JOIN F_COLLABORATEUR col ON col.CO_No = d.CO_No
+LEFT JOIN F_COMPTET ct ON ct.CT_Num = d.DO_Tiers
 WHERE d.DO_Domaine = 1 AND d.DO_Type = 12 AND d.cbModification > @watermark
 ORDER BY d.cbModification ASC
 "@ -Params @{ watermark = $watermark }
@@ -205,6 +208,12 @@ foreach ($entete in $entetes) {
             numero       = $piece
             date         = $entete.DO_Date.ToString("yyyy-MM-dd")
             tiers        = $tiers
+            tiers_nom    = Get-SafeTrim $entete.CT_Intitule
+            tiers_adresse   = Get-SafeTrim $entete.CT_Adresse
+            tiers_ville     = Get-SafeTrim $entete.CT_Ville
+            tiers_telephone = Get-SafeTrim $entete.CT_Telephone
+            tiers_email     = Get-SafeTrim $entete.CT_Email
+            tiers_siret     = Get-SafeTrim $entete.CT_Siret
             montant_ht   = Get-SafeDouble $entete.DO_TotalHT
             montant_ttc  = Get-SafeDouble $entete.DO_TotalTTC
             lignes       = @(

@@ -28,6 +28,12 @@ class SageWebhookController extends Controller
             'numero'                  => ['required', 'string', 'max:255'],
             'date'                    => ['required', 'date'],
             'tiers'                   => ['required', 'string', 'max:255'],
+            'tiers_nom'               => ['nullable', 'string', 'max:255'],
+            'tiers_adresse'           => ['nullable', 'string', 'max:255'],
+            'tiers_ville'             => ['nullable', 'string', 'max:255'],
+            'tiers_telephone'         => ['nullable', 'string', 'max:255'],
+            'tiers_email'             => ['nullable', 'string', 'max:255'],
+            'tiers_siret'             => ['nullable', 'string', 'max:255'],
             'montant_ht'              => ['nullable', 'numeric', 'min:0'],
             'montant_ttc'             => ['nullable', 'numeric', 'min:0'],
             'lignes'                  => ['required', 'array', 'min:1'],
@@ -74,7 +80,14 @@ class SageWebhookController extends Controller
             throw new RuntimeException("La commande {$data['numero']} est déjà approuvée et ne peut plus être modifiée.");
         }
 
-        $fournisseur = $this->findOrCreateFournisseur($data['tiers']);
+        $fournisseur = $this->findOrCreateFournisseur($data['tiers'], [
+            'name'    => $data['tiers_nom'] ?? null,
+            'address' => $data['tiers_adresse'] ?? null,
+            'city'    => $data['tiers_ville'] ?? null,
+            'phone'   => $data['tiers_telephone'] ?? null,
+            'email'   => $data['tiers_email'] ?? null,
+            'siret'   => $data['tiers_siret'] ?? null,
+        ]);
         $firstLevel  = ValidationLevel::first_level();
 
         if (! $firstLevel) {
@@ -92,7 +105,7 @@ class SageWebhookController extends Controller
             'user_id'             => $userId,
             'fournisseur_id'      => $fournisseur->id,
             'title'               => $data['numero'],
-            'description'         => "Commande importée automatiquement depuis Sage100 (fournisseur : {$data['tiers']}).",
+            'description'         => "Commande importée automatiquement depuis Sage100 (fournisseur : {$fournisseur->name}).",
             'amount'              => $amount,
             'status'              => 'pending',
             'current_level_order' => $firstLevel->order,
@@ -131,17 +144,38 @@ class SageWebhookController extends Controller
         return $order;
     }
 
-    private function findOrCreateFournisseur(string $sageCode): Fournisseur
+    private function findOrCreateFournisseur(string $sageCode, array $details): Fournisseur
     {
-        return Fournisseur::firstOrCreate(
+        $fournisseur = Fournisseur::firstOrCreate(
             ['sage_code' => $sageCode],
             [
-                'name'        => "Fournisseur Sage {$sageCode} (à vérifier)",
+                'name'        => $details['name'] ?: $sageCode,
                 'code'        => "SAGE-{$sageCode}",
+                'email'       => $details['email'],
+                'phone'       => $details['phone'],
+                'address'     => $details['address'],
+                'city'        => $details['city'],
+                'siret'       => $details['siret'],
                 'is_active'   => true,
                 'is_approved' => false,
             ]
         );
+
+        // Tient a jour les coordonnees des fournisseurs pas encore valides par un admin
+        // (une fois approuve, on ne touche plus a ses donnees : un admin a pu les corriger).
+        if (! $fournisseur->wasRecentlyCreated && ! $fournisseur->is_approved) {
+            $updates = [];
+            foreach ($details as $field => $value) {
+                if ($value && $fournisseur->{$field} !== $value) {
+                    $updates[$field] = $value;
+                }
+            }
+            if ($updates) {
+                $fournisseur->update($updates);
+            }
+        }
+
+        return $fournisseur;
     }
 
     private function findOrCreateArticle(string $sageReference, ?string $designation, float $unitPrice): Article

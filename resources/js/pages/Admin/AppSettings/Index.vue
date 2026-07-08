@@ -52,10 +52,19 @@ const onLogoChange = (e: Event) => {
 };
 
 const submitCompany = () => {
-    companyForm.patch(route('admin.settings.company'), {
-        forceFormData: true,
-        preserveScroll: true,
-    });
+    companyForm
+        .transform((data) => ({
+            ...data,
+            _method: 'patch',
+        }))
+        .post(route('admin.settings.company'), {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                companyForm.company_logo = null;
+                if (logoInput.value) logoInput.value.value = '';
+            },
+        });
 };
 
 const deleteLogo = useForm({});

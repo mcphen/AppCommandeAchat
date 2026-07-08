@@ -171,6 +171,7 @@ foreach ($ligne in $toutesLesLignes) {
 }
 
 $maxSuccessfulModification = $watermark
+$firstErrorModification = $null
 $successCount = 0
 $errorCount = 0
 $skippedCount = 0
@@ -263,32 +264,83 @@ foreach ($entete in $entetes) {
         # en convertissant la chaine JSON en tableau d'octets avant l'envoi.
         $utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
 
-        $response = Invoke-RestMethod -Uri "$ApiBaseUrl/api/sage/purchase-orders" `
-            -Method Post `
-            -Headers @{ "X-API-Key" = $ApiToken } `
-            -ContentType "application/json; charset=utf-8" `
-            -Body $utf8Bytes `
-            -TimeoutSec 30
+        # Retry sur erreur de connexion (serveur sature par l'envoi en rafale) : jusqu'a
+        # 3 tentatives avec pause croissante avant d'abandonner cette commande.
+        $maxAttempts = 3
+        $attempt = 0
+        $sent = $false
+        $lastError = $null
 
-        Write-Log "  OK -> id=$($response.id) statut=$($response.status)"
-        $successCount++
-        if ($entete.cbModification -gt $maxSuccessfulModification) {
-            $maxSuccessfulModification = $entete.cbModification
+        while (-not $sent -and $attempt -lt $maxAttempts) {
+            $attempt++
+            try {
+                $response = Invoke-RestMethod -Uri "$ApiBaseUrl/api/sage/purchase-orders" `
+                    -Method Post `
+                    -Headers @{ "X-API-Key" = $ApiToken } `
+                    -ContentType "application/json; charset=utf-8" `
+                    -Body $utf8Bytes `
+                    -TimeoutSec 60
+
+                Write-Log "  OK -> id=$($response.id) statut=$($response.status)"
+                $successCount++
+                if ($entete.cbModification -gt $maxSuccessfulModification) {
+                    $maxSuccessfulModification = $entete.cbModification
+                }
+                $sent = $true
+            } catch {
+                $lastError = $_
+                $statusCode = $null
+                if ($_.Exception.Response) { $statusCode = [int]$_.Exception.Response.StatusCode }
+
+                # Une vraie erreur HTTP du serveur (422, 409...) ne se reglera pas en retentant : on abandonne direct.
+                if ($statusCode) {
+                    break
+                }
+
+                if ($attempt -lt $maxAttempts) {
+                    Write-Log "  Tentative $attempt/$maxAttempts echouee pour $piece (connexion), nouvel essai dans $($attempt * 2)s..." "WARN"
+                    Start-Sleep -Seconds ($attempt * 2)
+                }
+            }
         }
+
+        if (-not $sent) {
+            $statusCode = $null
+            if ($lastError.Exception.Response) { $statusCode = [int]$lastError.Exception.Response.StatusCode }
+            Write-Log "  ECHEC (HTTP $statusCode) apres $attempt tentative(s) : $($lastError.Exception.Message)" "ERROR"
+            $errorCount++
+            if (-not $firstErrorModification -or $entete.cbModification -lt $firstErrorModification) {
+                $firstErrorModification = $entete.cbModification
+            }
+        }
+
+        # Petite pause entre chaque commande pour ne pas saturer le serveur (PHP-FPM,
+        # envoi d'email synchrone aux validateurs...) sur un gros volume.
+        Start-Sleep -Milliseconds 300
     } catch {
         $statusCode = $null
         if ($_.Exception.Response) { $statusCode = [int]$_.Exception.Response.StatusCode }
         Write-Log "  ECHEC (HTTP $statusCode) : $($_.Exception.Message)" "ERROR"
         $errorCount++
-        # Pas d'avancement du watermark pour cette piece : elle sera retentee au prochain passage.
+        if (-not $firstErrorModification -or $entete.cbModification -lt $firstErrorModification) {
+            $firstErrorModification = $entete.cbModification
+        }
     }
 }
 
 $conn.Close()
 
 if (-not $DryRun) {
-    Set-Watermark $maxSuccessfulModification
-    Write-Log "Watermark avance a : $($maxSuccessfulModification.ToString('o'))"
+    # Le watermark ne doit jamais depasser la premiere vraie erreur HTTP rencontree,
+    # sinon les pieces en echec ne seraient plus jamais retentees au passage suivant
+    # (le filtre cbModification > @watermark les sauterait definitivement).
+    $finalWatermark = $maxSuccessfulModification
+    if ($firstErrorModification -and $firstErrorModification -lt $finalWatermark) {
+        $finalWatermark = $firstErrorModification.AddSeconds(-1)
+    }
+
+    Set-Watermark $finalWatermark
+    Write-Log "Watermark avance a : $($finalWatermark.ToString('o'))"
 }
 
 Write-Log "=== Fin synchro : $successCount succes, $errorCount echec(s), $skippedCount ignoree(s) (donnees incompletes) ==="

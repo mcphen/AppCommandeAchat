@@ -216,6 +216,7 @@ export interface Fournisseur {
     is_active: boolean;
     is_approved: boolean;
     order_lines_count?: number;
+    total_achats_valide?: number | string | null;
 }
 
 export interface Article {

@@ -110,6 +110,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('users', AdminUserController::class)->except(['show']);
         Route::resource('validation-levels', ValidationLevelController::class)->except(['show']);
         Route::resource('categories', CategoryController::class)->except(['show']);
+        Route::get('fournisseurs/export', [FournisseurController::class, 'export'])->name('fournisseurs.export');
+        Route::get('fournisseurs/dashboard', [FournisseurController::class, 'dashboard'])->name('fournisseurs.dashboard');
         Route::resource('fournisseurs', FournisseurController::class);
         // Catalogue de prix par fournisseur
         Route::get('fournisseurs/{fournisseur}/catalogue', [FournisseurArticleController::class, 'index'])->name('fournisseurs.catalogue.index');

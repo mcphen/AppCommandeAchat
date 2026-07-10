@@ -107,12 +107,15 @@ class SageWebhookController extends Controller
             ? $this->findOrCreateDemandeur($data['demandeur'])->id
             : $this->systemUserId();
 
-        // Une commande deja cloturee cote Sage (DO_Cloture) est de l'historique deja
-        // traite dans la vraie vie : elle n'a pas besoin de repasser par le circuit de
-        // validation interne, elle est importee directement comme approuvee.
-        $isCloture = (bool) ($data['cloture'] ?? false);
-
         [$deliveryStatus, $fullyReceivedAt] = $this->resolveDeliveryStatus($data['lignes']);
+
+        // Une commande deja cloturee cote Sage (DO_Cloture), OU deja receptionnee
+        // entierement, est forcement passee par tout le circuit d'approbation dans la
+        // vraie vie (on ne receptionne pas une commande jamais validee) - meme si
+        // DO_Cloture n'est pas encore coche cote Sage. Elle n'a pas besoin de repasser
+        // par le circuit de validation interne, elle est importee directement comme
+        // approuvee.
+        $isCloture = (bool) ($data['cloture'] ?? false) || $deliveryStatus === 'received';
 
         $attributes = [
             'user_id'             => $userId,

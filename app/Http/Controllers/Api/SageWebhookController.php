@@ -304,9 +304,21 @@ class SageWebhookController extends Controller
         );
     }
 
+    /**
+     * Compte systeme auquel rattacher les commandes sans demandeur Sage identifie.
+     * Auto-reparateur : le recree s'il a ete supprime par erreur, plutot que de
+     * planter toutes les commandes sans demandeur (deja arrive en prod).
+     */
     private function systemUserId(): int
     {
-        return User::where('email', 'sage100@system.local')->value('id');
+        return User::firstOrCreate(
+            ['email' => 'sage100@system.local'],
+            [
+                'name'     => 'Sage100 (import automatique)',
+                'password' => Hash::make(Str::random(40)),
+                'role_id'  => null,
+            ]
+        )->id;
     }
 
     private function log(?string $reference, ?int $orderId, string $status, ?string $error, array $payload): void

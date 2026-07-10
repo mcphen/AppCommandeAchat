@@ -125,16 +125,29 @@ refaire sur un nouveau projet :
    $utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes($json)
    Invoke-RestMethod ... -ContentType "application/json; charset=utf-8" -Body $utf8Bytes
    ```
-4. **Le "watermark" (curseur de synchro incrémentale) ne doit jamais dépasser
+4. **PowerShell 5.1 / .NET Framework négocie parfois du TLS 1.0 par défaut**,
+   que le serveur cible refuse silencieusement — la requête échoue avec une
+   erreur de connexion générique ("La connexion a été interrompue de manière
+   inattendue"), **jamais** une vraie erreur HTTP, même après plusieurs retry.
+   Piège sournois : un `Invoke-WebRequest` sur la page d'accueil du site
+   fonctionne (servie différemment), ce qui fait croire à tort que le réseau va
+   bien. Forcer TLS 1.2 en toute première ligne du script, avant le moindre
+   appel HTTP :
+
+   ```powershell
+   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+   ```
+
+5. **Le "watermark" (curseur de synchro incrémentale) ne doit jamais dépasser
    la date de la première vraie erreur du lot**, sinon les pièces en échec ne
    sont plus jamais retentées (le filtre `cbModification > @watermark` les
    saute pour toujours). Voir la logique `$firstErrorModification` en fin de
    script.
-5. **Retry avec backoff sur les erreurns de connexion** (pas sur les vraies
+6. **Retry avec backoff sur les erreurns de connexion** (pas sur les vraies
    erreurs HTTP 4xx qui ne se régleront pas en retentant), + **pause entre
    chaque commande** (300ms) pour ne pas saturer PHP-FPM sur un gros volume
    (1400+ commandes d'un coup au premier import).
-6. **Créer une migration défensive** (`Schema::hasColumn(...)` avant d'ajouter
+7. **Créer une migration défensive** (`Schema::hasColumn(...)` avant d'ajouter
    une colonne) si la base de prod a pu dériver du schéma attendu par les
    migrations du dépôt (arrive si la prod a été provisionnée à un moment
    différent de l'historique git).

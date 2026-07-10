@@ -62,6 +62,11 @@ param(
     [switch]$DryRun
 )
 
+# PowerShell 5.1 / .NET Framework negocie parfois un TLS trop ancien par defaut
+# (TLS 1.0), que beaucoup de serveurs web refusent silencieusement -> la requete
+# echoue avec une erreur de connexion generique, jamais une vraie erreur HTTP.
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
 $ErrorActionPreference = "Stop"
 $LogFile = Join-Path $PSScriptRoot "sync.log"
 

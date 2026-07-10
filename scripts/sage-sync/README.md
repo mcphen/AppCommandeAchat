@@ -164,6 +164,51 @@ Get-Content .\sync.log -Tail 30                                 # doit avancer t
 ```
 Historique détaillé : `taskschd.msc` → tâche → onglet **Historique**.
 
+### Étape 7 — Ne pas spammer le circuit de validation avec de l'historique déjà réglé
+
+Si on importe des documents anciens (ex : tout l'historique 2024), une bonne partie
+est déjà **clôturée**/livrée dans Sage — inutile de demander à un validateur de les
+approuver a posteriori. Deux colonnes Sage à exploiter :
+
+- `F_DOCENTETE.DO_Cloture` (0/1) → si clôturé, importer directement en statut final
+  de l'app (`approved`), sans passer par le circuit de validation ni notifier
+  personne (voir `$isCloture` dans `SageWebhookController::upsertOrder`).
+- `F_DOCLIGNE.DL_QteBL` (quantité livrée) comparée à `DL_Qte` (quantité commandée)
+  → permet de déduire `delivery_status` (`received`/`partially_received`/`null`)
+  automatiquement, sans attendre qu'un utilisateur confirme la réception à la main.
+
+**Ne pas se contenter d'un badge de synthèse calculé** : persister aussi le détail
+(`PurchaseOrderReception`/`PurchaseOrderReceptionLine`), sinon le badge global dit
+"reçue" mais la barre de progression par ligne de l'UI reste à 0% (incohérence).
+Champs Sage utiles : `DL_QteBL` (qté livrée), `DL_DateBL` (date), `DL_PieceBL`
+(n° de bon de livraison). Marquer les réceptions créées par le sync avec un préfixe
+reconnaissable dans `notes` (ex: `[Import Sage100]`) pour pouvoir les supprimer et
+recréer proprement à chaque resynchronisation sans dupliquer ni toucher aux
+réceptions saisies manuellement par un utilisateur.
+
+### Étape 8 — Se méfier des codes articles génériques réutilisés
+
+Sur ce projet, la majorité des `AR_Ref` ne sont pas des références catalogue
+uniques : ce sont des **codes génériques de dépense** réutilisés par les achats
+(ex: `CAISCHANT` = "caisse de chantier", utilisé 213 fois avec 68 désignations
+réelles différentes). Si on ne garde le libellé Sage (`DL_Design`) que lors de la
+création de l'article (`firstOrCreate`), l'app affiche pour toujours le tout premier
+libellé vu, même quand la ligne concerne en réalité autre chose.
+
+**Toujours dupliquer la désignation réelle sur la ligne de commande elle-même**
+(`purchase_order_lines.note`), en plus de l'utiliser pour nommer l'article générique
+à sa création — ne jamais compter sur le nom de l'article seul pour représenter le
+contenu réel d'une ligne. Vérifier l'ampleur du phénomène avant de se fier au
+matching par code seul :
+```sql
+SELECT AR_Ref, COUNT(DISTINCT DL_Design) AS NbDesignations, COUNT(*) AS NbLignes
+FROM F_DOCLIGNE
+WHERE DO_Domaine = 1 AND DO_Type = 12
+GROUP BY AR_Ref
+HAVING COUNT(DISTINCT DL_Design) > 1
+ORDER BY NbDesignations DESC
+```
+
 ---
 
 ## Partie 2 — Référence spécifique à ce projet (Construcsen / achats.construcsen.com)

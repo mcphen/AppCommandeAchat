@@ -135,7 +135,7 @@ Write-Log "Watermark actuel : $($watermark.ToString('o'))"
 # Jointure F_COLLABORATEUR (via CO_No) pour le vrai demandeur, et F_COMPTET (via DO_Tiers)
 # pour les vraies coordonnees du fournisseur (nom, adresse, ville, tel, email, siret).
 $entetes = Invoke-SqlQuery $conn @"
-SELECT d.DO_Piece, d.DO_Date, d.DO_Tiers, d.DO_TotalHT, d.DO_TotalTTC, d.cbModification,
+SELECT d.DO_Piece, d.DO_Date, d.DO_Tiers, d.DO_TotalHT, d.DO_TotalTTC, d.cbModification, d.DO_Cloture,
        d.CO_No, col.CO_Nom, col.CO_Prenom, col.CO_EMail,
        ct.CT_Intitule, ct.CT_Adresse, ct.CT_Ville, ct.CT_Telephone, ct.CT_EMail AS CT_Email, ct.CT_Siret
 FROM F_DOCENTETE d
@@ -156,7 +156,7 @@ if ($entetes.Rows.Count -eq 0) {
 # ── 3. Recuperer TOUTES les lignes en une seule requete, puis grouper cote PowerShell ──
 # (evite tout souci de correspondance de parametre SQL piece-par-piece)
 $toutesLesLignes = Invoke-SqlQuery $conn @"
-SELECT DO_Piece, AR_Ref, DL_Design, DL_Qte, DL_PrixUnitaire, DL_Ligne
+SELECT DO_Piece, AR_Ref, DL_Design, DL_Qte, DL_QteBL, DL_DateBL, DL_PieceBL, DL_PrixUnitaire, DL_Ligne
 FROM F_DOCLIGNE
 WHERE DO_Domaine = 1 AND DO_Type = 12
 ORDER BY DO_Piece, DL_Ligne ASC
@@ -217,15 +217,23 @@ foreach ($entete in $entetes) {
             tiers_siret     = Get-SafeTrim $entete.CT_Siret
             montant_ht   = Get-SafeDouble $entete.DO_TotalHT
             montant_ttc  = Get-SafeDouble $entete.DO_TotalTTC
+            cloture      = ($entete.DO_Cloture -isnot [System.DBNull] -and [int]$entete.DO_Cloture -eq 1)
             lignes       = @(
                 foreach ($ligne in $lignes) {
                     $article = Get-SafeTrim $ligne.AR_Ref
                     if (-not $article) { continue }
+                    $dateLivraison = $null
+                    if ($ligne.DL_DateBL -isnot [System.DBNull] -and $ligne.DL_DateBL -gt [datetime]"1900-01-01") {
+                        $dateLivraison = $ligne.DL_DateBL.ToString("yyyy-MM-dd")
+                    }
                     @{
-                        article        = $article
-                        designation    = Get-SafeTrim $ligne.DL_Design
-                        quantite       = Get-SafeDouble $ligne.DL_Qte
-                        prix_unitaire  = Get-SafeDouble $ligne.DL_PrixUnitaire
+                        article          = $article
+                        designation      = Get-SafeTrim $ligne.DL_Design
+                        quantite         = Get-SafeDouble $ligne.DL_Qte
+                        prix_unitaire    = Get-SafeDouble $ligne.DL_PrixUnitaire
+                        quantite_livree  = Get-SafeDouble $ligne.DL_QteBL
+                        date_livraison   = $dateLivraison
+                        piece_bl         = Get-SafeTrim $ligne.DL_PieceBL
                     }
                 }
             )

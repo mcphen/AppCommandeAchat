@@ -127,6 +127,11 @@ class SageWebhookController extends Controller
             'current_level_order' => $isCloture ? null : $firstLevel->order,
             'submitted_at'        => now(),
             'order_date'          => $data['date'],
+            // Une commande Sage existe deja comme commande reelle passee au fournisseur
+            // des sa creation dans Sage (pas de brouillon interne) : ordered_at doit
+            // etre rempli, sinon le tableau de bord Receptions ("Commandee le") et son
+            // tri par defaut restent casses pour toutes les commandes importees.
+            'ordered_at'          => $data['date'],
             'sage_reference'      => $data['numero'],
             'source'              => 'sage',
             'delivery_status'     => $deliveryStatus,
@@ -238,8 +243,17 @@ class SageWebhookController extends Controller
             return [null, null];
         }
 
+        // La vraie date de livraison Sage (DL_DateBL), pas la date d'import : sinon
+        // "Receptionnee le" affiche toujours la date du jour du sync au lieu de la
+        // vraie date de reception.
+        $dateLivraison = collect($lignes)
+            ->pluck('date_livraison')
+            ->filter()
+            ->map(fn ($d) => \Carbon\Carbon::parse($d))
+            ->max() ?? now();
+
         if ($totalLivree >= $totalQuantite) {
-            return ['received', now()];
+            return ['received', $dateLivraison];
         }
 
         return ['partially_received', null];

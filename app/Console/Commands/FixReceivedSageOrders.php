@@ -8,15 +8,60 @@ use Illuminate\Console\Command;
 class FixReceivedSageOrders extends Command
 {
     /**
-     * Corrige les commandes Sage deja entierement receptionnees mais restees
-     * "en attente" (survenu avant que le webhook applique cette regle
-     * automatiquement). Idempotent : peut etre relancee sans risque.
+     * Corrige trois effets de bord d'anciennes versions du webhook Sage, sur les
+     * commandes deja importees avant le fix :
+     *  1) commandes entierement receptionnees restees "en attente" au lieu
+     *     d'etre approuvees automatiquement ;
+     *  2) `fully_received_at` fige sur la date d'import (now()) au lieu de la
+     *     vraie date de livraison Sage (deja correcte sur la reception liee) ;
+     *  3) `ordered_at` jamais renseigne, ce qui casse l'affichage/tri du tableau
+     *     de bord Receptions ("Commandee le").
+     * Idempotent : peut etre relancee sans risque.
      */
     protected $signature = 'sage:fix-received-orders {--dry-run : Affiche ce qui serait corrige sans rien modifier}';
 
-    protected $description = 'Approuve automatiquement les commandes Sage deja entierement receptionnees mais restees en attente';
+    protected $description = 'Corrige le statut, les dates de commande/reception des commandes Sage deja importees';
 
     public function handle(): int
+    {
+        $dryRun = (bool) $this->option('dry-run');
+
+        $this->fixPendingStatus($dryRun);
+        $this->fixReceivedDate($dryRun);
+        $this->fixOrderedDate($dryRun);
+
+        if ($dryRun) {
+            $this->comment("Dry-run : rien n'a ete modifie. Relance sans --dry-run pour appliquer.");
+        }
+
+        return self::SUCCESS;
+    }
+
+    private function fixOrderedDate(bool $dryRun): void
+    {
+        $orders = PurchaseOrder::where('source', 'sage')
+            ->whereNull('ordered_at')
+            ->whereNotNull('order_date')
+            ->get();
+
+        if ($orders->isEmpty()) {
+            $this->info('Ordered_at : aucune commande a corriger.');
+
+            return;
+        }
+
+        $this->info("Ordered_at : {$orders->count()} commande(s) sans date de commande renseignee.");
+
+        foreach ($orders as $order) {
+            $this->line(" - {$order->sage_reference} : ordered_at -> {$order->order_date}");
+
+            if (! $dryRun) {
+                $order->update(['ordered_at' => $order->order_date]);
+            }
+        }
+    }
+
+    private function fixPendingStatus(bool $dryRun): void
     {
         $orders = PurchaseOrder::where('source', 'sage')
             ->where('status', 'pending')
@@ -24,30 +69,54 @@ class FixReceivedSageOrders extends Command
             ->get();
 
         if ($orders->isEmpty()) {
-            $this->info('Aucune commande a corriger.');
+            $this->info('Statuts : aucune commande a corriger.');
 
-            return self::SUCCESS;
+            return;
         }
 
-        $this->info("{$orders->count()} commande(s) trouvee(s) : reçue entièrement mais encore en attente.");
+        $this->info("Statuts : {$orders->count()} commande(s) reçue(s) entièrement mais encore en attente.");
 
         foreach ($orders as $order) {
             $this->line(" - {$order->sage_reference} ({$order->title})");
 
-            if (! $this->option('dry-run')) {
+            if (! $dryRun) {
                 $order->update([
                     'status'              => 'approved',
                     'current_level_order' => null,
                 ]);
             }
         }
+    }
 
-        if ($this->option('dry-run')) {
-            $this->comment('Dry-run : rien n\'a ete modifie. Relance sans --dry-run pour appliquer.');
-        } else {
-            $this->info('Corrige.');
+    private function fixReceivedDate(bool $dryRun): void
+    {
+        $orders = PurchaseOrder::where('source', 'sage')
+            ->where('delivery_status', 'received')
+            ->whereNotNull('fully_received_at')
+            ->with(['receptions' => fn ($q) => $q->orderByDesc('received_at')])
+            ->get();
+
+        $toFix = $orders->filter(function ($order) {
+            $realDate = $order->receptions->first()?->received_at;
+
+            return $realDate && ! $realDate->equalTo($order->fully_received_at);
+        });
+
+        if ($toFix->isEmpty()) {
+            $this->info('Dates : aucune commande a corriger.');
+
+            return;
         }
 
-        return self::SUCCESS;
+        $this->info("Dates : {$toFix->count()} commande(s) avec une fully_received_at incorrecte (date d'import au lieu de la vraie date Sage).");
+
+        foreach ($toFix as $order) {
+            $realDate = $order->receptions->first()->received_at;
+            $this->line(" - {$order->sage_reference} : {$order->fully_received_at} -> {$realDate}");
+
+            if (! $dryRun) {
+                $order->update(['fully_received_at' => $realDate]);
+            }
+        }
     }
 }

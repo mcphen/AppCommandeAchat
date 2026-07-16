@@ -10,7 +10,8 @@ use RuntimeException;
 class RestartPurchaseOrderValidation extends Command
 {
     protected $signature = 'purchase-orders:restart-validation
-                            {purchase_order : ID du bon de commande}';
+                            {purchase_order : ID du bon de commande}
+                            {--force : Relancer même si la commande est déjà réceptionnée (partiellement ou entièrement)}';
 
     protected $description = 'Réinitialise une commande approuvée et relance son circuit au premier niveau';
 
@@ -33,7 +34,7 @@ class RestartPurchaseOrderValidation extends Command
         }
 
         try {
-            $order = $service->restart($order);
+            $order = $service->restart($order, (bool) $this->option('force'));
         } catch (RuntimeException $exception) {
             $this->error($exception->getMessage());
 

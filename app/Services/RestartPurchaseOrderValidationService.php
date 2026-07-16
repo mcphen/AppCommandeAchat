@@ -10,7 +10,7 @@ use RuntimeException;
 
 class RestartPurchaseOrderValidationService
 {
-    public function restart(PurchaseOrder $purchaseOrder): PurchaseOrder
+    public function restart(PurchaseOrder $purchaseOrder, bool $force = false): PurchaseOrder
     {
         $firstLevel = ValidationLevel::first_level();
 
@@ -18,15 +18,15 @@ class RestartPurchaseOrderValidationService
             throw new RuntimeException('Aucun niveau de validation n\'est configuré.');
         }
 
-        $order = DB::transaction(function () use ($purchaseOrder, $firstLevel) {
+        $order = DB::transaction(function () use ($purchaseOrder, $firstLevel, $force) {
             $order = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
 
             if ($order->status !== 'approved') {
                 throw new RuntimeException('Seule une commande approuvée peut être relancée.');
             }
 
-            if ($order->delivery_status !== null) {
-                throw new RuntimeException('Une commande déjà confirmée ou réceptionnée ne peut pas être relancée.');
+            if (! $force && in_array($order->delivery_status, ['partially_received', 'received'], true)) {
+                throw new RuntimeException('Une commande déjà réceptionnée, même partiellement, ne peut pas être relancée.');
             }
 
             $order->validationLogs()->delete();
@@ -34,6 +34,10 @@ class RestartPurchaseOrderValidationService
                 'status'              => 'pending',
                 'current_level_order' => $firstLevel->order,
                 'submitted_at'        => now(),
+                'order_number'        => null,
+                'delivery_status'     => null,
+                'ordered_at'          => null,
+                'fully_received_at'   => null,
             ]);
 
             return $order->fresh();

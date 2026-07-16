@@ -264,7 +264,7 @@ const submitReception = () => {
                     </a>
                     <!-- Confirmer la commande (admin, approuvée, pas encore ordonnée) -->
                     <button
-                        v-if="isAdmin && order.status === 'approved' && !order.delivery_status"
+                        v-if="isAdmin && order.status === 'approved' && (!order.delivery_status || order.delivery_status === 'ordered')"
                         class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-100"
                         @click="restartValidation"
                     >

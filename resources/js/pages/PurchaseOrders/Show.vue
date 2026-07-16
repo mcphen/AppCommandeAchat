@@ -7,7 +7,7 @@ import {
     ArrowLeft, Building2, Calendar, CheckCircle2, Clock, DollarSign,
     Download, FileDown, FileText, Paperclip, Pencil, Truck,
     User, XCircle, Package, ShoppingCart, ClipboardCheck, X, AlertCircle, Receipt,
-    TrendingDown, TrendingUp, Tag,
+    TrendingDown, TrendingUp, Tag, RotateCcw,
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, reactive, ref } from 'vue';
@@ -108,6 +108,24 @@ const confirmOrder = async () => {
         reverseButtons: true,
     });
     if (result.isConfirmed) router.post(route('purchase-orders.mark-ordered', props.order.id));
+};
+
+const restartValidation = async () => {
+    const result = await Swal.fire({
+        title: 'Reprendre la validation depuis le début ?',
+        text: 'Toutes les validations déjà enregistrées seront annulées et la commande retournera au premier niveau.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Oui, relancer le circuit',
+        cancelButtonText: 'Conserver l’approbation',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+    });
+
+    if (result.isConfirmed) {
+        router.post(route('purchase-orders.restart-validation', props.order.id));
+    }
 };
 
 // ─── Reception modal ──────────────────────────────────────────────────────────
@@ -245,6 +263,14 @@ const submitReception = () => {
                         <span class="hidden sm:inline">PDF</span>
                     </a>
                     <!-- Confirmer la commande (admin, approuvée, pas encore ordonnée) -->
+                    <button
+                        v-if="isAdmin && order.status === 'approved' && !order.delivery_status"
+                        class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 shadow-sm transition-colors hover:bg-red-100"
+                        @click="restartValidation"
+                    >
+                        <RotateCcw class="h-4 w-4" />
+                        Reprendre la validation
+                    </button>
                     <button
                         v-if="isAdmin && order.status === 'approved' && !order.delivery_status"
                         class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"

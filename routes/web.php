@@ -101,6 +101,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Analytique (Admin uniquement)
     Route::middleware('role:admin')->group(function () {
+        Route::post('purchase-orders/{purchase_order}/restart-validation', [PurchaseOrderController::class, 'restartValidation'])
+            ->name('purchase-orders.restart-validation');
+
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
     });
 

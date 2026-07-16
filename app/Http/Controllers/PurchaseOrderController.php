@@ -7,6 +7,7 @@ use App\Models\Boutique;
 use App\Models\FournisseurArticle;
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
+use App\Notifications\OrderSubmittedNotification;
 use App\Services\AccountingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
@@ -319,6 +320,35 @@ class PurchaseOrderController extends Controller
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)
             ->with('success', "Commande confirmée. Numéro officiel : {$orderNumber}");
+    }
+
+    public function restartValidation(PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $firstLevel = ValidationLevel::first_level();
+        abort_unless($firstLevel, 422, 'Aucun niveau de validation n\'est configuré.');
+
+        DB::transaction(function () use ($purchaseOrder, $firstLevel) {
+            $order = PurchaseOrder::query()->lockForUpdate()->findOrFail($purchaseOrder->id);
+
+            abort_unless($order->status === 'approved', 422, 'Seule une commande approuvée peut être relancée.');
+            abort_unless($order->delivery_status === null, 422, 'Une commande déjà confirmée ou réceptionnée ne peut pas être relancée.');
+
+            $order->validationLogs()->delete();
+            $order->update([
+                'status'              => 'pending',
+                'current_level_order' => $firstLevel->order,
+                'submitted_at'        => now(),
+            ]);
+        });
+
+        $firstLevel->validators()
+            ->get()
+            ->each(fn ($validator) => $validator->notify(new OrderSubmittedNotification($purchaseOrder->fresh(), $firstLevel)));
+
+        return redirect()->route('purchase-orders.show', $purchaseOrder)
+            ->with('success', 'Le circuit de validation a été relancé depuis le premier niveau.');
     }
 
     public function downloadPdf(PurchaseOrder $purchaseOrder): HttpResponse

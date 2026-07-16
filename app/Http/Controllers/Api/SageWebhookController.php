@@ -109,22 +109,18 @@ class SageWebhookController extends Controller
 
         [$deliveryStatus, $fullyReceivedAt] = $this->resolveDeliveryStatus($data['lignes']);
 
-        // Une commande deja cloturee cote Sage (DO_Cloture), OU deja receptionnee
-        // entierement, est forcement passee par tout le circuit d'approbation dans la
-        // vraie vie (on ne receptionne pas une commande jamais validee) - meme si
-        // DO_Cloture n'est pas encore coche cote Sage. Elle n'a pas besoin de repasser
-        // par le circuit de validation interne, elle est importee directement comme
-        // approuvee.
-        $isCloture = (bool) ($data['cloture'] ?? false) || $deliveryStatus === 'received';
-
+        // Le suivi de livraison (delivery_status, fully_received_at, receptions) est
+        // purement informatif : meme entierement receptionnee ou cloturee cote Sage,
+        // une commande doit systematiquement repasser par le circuit de validation
+        // interne de l'app. On ne force jamais le statut a 'approved' automatiquement.
         $attributes = [
             'user_id'             => $userId,
             'fournisseur_id'      => $fournisseur->id,
             'title'               => $data['numero'],
             'description'         => "Commande importée automatiquement depuis Sage100 (fournisseur : {$fournisseur->name}).",
             'amount'              => $amount,
-            'status'              => $isCloture ? 'approved' : 'pending',
-            'current_level_order' => $isCloture ? null : $firstLevel->order,
+            'status'              => 'pending',
+            'current_level_order' => $firstLevel->order,
             'submitted_at'        => now(),
             'order_date'          => $data['date'],
             // Une commande Sage existe deja comme commande reelle passee au fournisseur
@@ -138,7 +134,7 @@ class SageWebhookController extends Controller
             'fully_received_at'   => $fullyReceivedAt,
         ];
 
-        $isNewOrReopened = ! $isCloture && (! $existing || $existing->status !== 'pending');
+        $isNewOrReopened = ! $existing || $existing->status !== 'pending';
 
         $order = $existing
             ? tap($existing)->update($attributes)

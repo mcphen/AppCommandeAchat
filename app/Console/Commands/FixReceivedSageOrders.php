@@ -8,25 +8,26 @@ use Illuminate\Console\Command;
 class FixReceivedSageOrders extends Command
 {
     /**
-     * Corrige trois effets de bord d'anciennes versions du webhook Sage, sur les
+     * Corrige deux effets de bord d'anciennes versions du webhook Sage, sur les
      * commandes deja importees avant le fix :
-     *  1) commandes entierement receptionnees restees "en attente" au lieu
-     *     d'etre approuvees automatiquement ;
-     *  2) `fully_received_at` fige sur la date d'import (now()) au lieu de la
+     *  1) `fully_received_at` fige sur la date d'import (now()) au lieu de la
      *     vraie date de livraison Sage (deja correcte sur la reception liee) ;
-     *  3) `ordered_at` jamais renseigne, ce qui casse l'affichage/tri du tableau
+     *  2) `ordered_at` jamais renseigne, ce qui casse l'affichage/tri du tableau
      *     de bord Receptions ("Commandee le").
+     *
+     * Ne touche plus au statut de validation : le suivi de livraison/cloture est
+     * purement informatif, une commande receptionnee ou cloturee cote Sage doit
+     * quand meme repasser par le circuit de validation interne de l'app.
      * Idempotent : peut etre relancee sans risque.
      */
     protected $signature = 'sage:fix-received-orders {--dry-run : Affiche ce qui serait corrige sans rien modifier}';
 
-    protected $description = 'Corrige le statut, les dates de commande/reception des commandes Sage deja importees';
+    protected $description = 'Corrige les dates de commande/reception des commandes Sage deja importees';
 
     public function handle(): int
     {
         $dryRun = (bool) $this->option('dry-run');
 
-        $this->fixPendingStatus($dryRun);
         $this->fixReceivedDate($dryRun);
         $this->fixOrderedDate($dryRun);
 
@@ -57,33 +58,6 @@ class FixReceivedSageOrders extends Command
 
             if (! $dryRun) {
                 $order->update(['ordered_at' => $order->order_date]);
-            }
-        }
-    }
-
-    private function fixPendingStatus(bool $dryRun): void
-    {
-        $orders = PurchaseOrder::where('source', 'sage')
-            ->where('status', 'pending')
-            ->where('delivery_status', 'received')
-            ->get();
-
-        if ($orders->isEmpty()) {
-            $this->info('Statuts : aucune commande a corriger.');
-
-            return;
-        }
-
-        $this->info("Statuts : {$orders->count()} commande(s) reçue(s) entièrement mais encore en attente.");
-
-        foreach ($orders as $order) {
-            $this->line(" - {$order->sage_reference} ({$order->title})");
-
-            if (! $dryRun) {
-                $order->update([
-                    'status'              => 'approved',
-                    'current_level_order' => null,
-                ]);
             }
         }
     }

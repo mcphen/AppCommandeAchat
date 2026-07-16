@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\AccountingEntry;
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
 use App\Notifications\OrderSubmittedNotification;
@@ -25,8 +26,18 @@ class RestartPurchaseOrderValidationService
                 throw new RuntimeException('Seule une commande approuvée peut être relancée.');
             }
 
-            if (! $force && in_array($order->delivery_status, ['partially_received', 'received'], true)) {
+            $isReceived = in_array($order->delivery_status, ['partially_received', 'received'], true);
+
+            if (! $force && $isReceived) {
                 throw new RuntimeException('Une commande déjà réceptionnée, même partiellement, ne peut pas être relancée.');
+            }
+
+            if ($force) {
+                $order->receptions()->get()->each(function ($reception) {
+                    AccountingEntry::where('reception_id', $reception->id)->delete();
+                    $reception->lines()->delete();
+                    $reception->delete();
+                });
             }
 
             $order->validationLogs()->delete();

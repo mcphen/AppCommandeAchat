@@ -9,6 +9,7 @@ use App\Models\Boutique;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\ValidationLevel;
+use App\Notifications\UserAccountCreatedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
@@ -38,7 +39,7 @@ class UserController extends Controller
 
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        User::create([
+        $user = User::create([
             'name'                => $request->name,
             'email'               => $request->email,
             'password'            => Hash::make($request->password),
@@ -46,6 +47,8 @@ class UserController extends Controller
             'validation_level_id' => $request->validation_level_id,
             'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
         ]);
+
+        $user->notify(new UserAccountCreatedNotification($request->password));
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Utilisateur créé avec succès.');

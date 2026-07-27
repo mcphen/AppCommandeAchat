@@ -337,6 +337,7 @@ const sendTest = () => {
                                     v-model="mailForm.mail_mailer"
                                     class="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 >
+                                    <option value="resend">Resend (API)</option>
                                     <option value="smtp">SMTP</option>
                                     <option value="sendmail">Sendmail</option>
                                     <option value="log">Log (developpement)</option>

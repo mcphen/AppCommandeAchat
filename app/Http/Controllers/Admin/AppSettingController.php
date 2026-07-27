@@ -27,7 +27,7 @@ class AppSettingController extends Controller
     public function updateMail(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'mail_mailer'       => ['required', 'in:smtp,sendmail,log'],
+            'mail_mailer'       => ['required', 'in:smtp,sendmail,log,resend'],
             'mail_host'         => ['nullable', 'string', 'max:255'],
             'mail_port'         => ['nullable', 'integer', 'min:1', 'max:65535'],
             'mail_encryption'   => ['nullable', 'in:tls,ssl,starttls'],

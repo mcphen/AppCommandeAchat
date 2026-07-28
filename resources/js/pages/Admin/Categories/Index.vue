@@ -319,7 +319,7 @@ const submit = () => {
                                 <select
                                     id="modal-parent"
                                     v-model="form.parent_id"
-                                    class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                                 >
                                     <option value="">— Aucune (catégorie racine) —</option>
                                     <option v-for="p in parentOptions" :key="p.id" :value="p.id">{{ p.name }}</option>

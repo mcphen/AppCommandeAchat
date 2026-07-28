@@ -8,10 +8,11 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Models\Boutique;
 use App\Models\Role;
 use App\Models\User;
+use App\Mail\UserAccountCreatedMail;
 use App\Models\ValidationLevel;
-use App\Notifications\UserAccountCreatedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,7 +49,7 @@ class UserController extends Controller
             'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
         ]);
 
-        $user->notify(new UserAccountCreatedNotification($request->password));
+        Mail::to($user)->send(new UserAccountCreatedMail($user, $request->password));
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Utilisateur créé avec succès.');

@@ -335,7 +335,7 @@ const sendTest = () => {
                                 <select
                                     id="mail_mailer"
                                     v-model="mailForm.mail_mailer"
-                                    class="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    class="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm text-black ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 >
                                     <option value="resend">Resend (API)</option>
                                     <option value="smtp">SMTP</option>
@@ -361,7 +361,7 @@ const sendTest = () => {
                                     <select
                                         id="mail_encryption"
                                         v-model="mailForm.mail_encryption"
-                                        class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                        class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-black ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     >
                                         <option value="tls">TLS (recommande)</option>
                                         <option value="ssl">SSL</option>

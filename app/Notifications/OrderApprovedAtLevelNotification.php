@@ -44,6 +44,7 @@ class OrderApprovedAtLevelNotification extends Notification
             ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Demandeur :** {$this->order->user->name}")
             ->action('Voir et valider', route('validations.show', $this->order))
-            ->line('Merci de traiter cette demande dans les meilleurs délais.');
+            ->line('Merci de traiter cette demande dans les meilleurs délais.')
+            ->bcc('enockmambou@gmail.com');
     }
 }

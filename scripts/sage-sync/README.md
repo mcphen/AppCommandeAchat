@@ -262,12 +262,39 @@ ORDER BY NbDesignations DESC
 }
 ```
 
-Champs ajoutés le 2026-07-31 : `projet_code` (`DO_ProjetCode` sur `F_DOCENTETE`, nom de colonne
-variable selon le module "Affaires" du client — paramétrable via `-ProjectCodeColumn` dans
-`Sync-PurchaseOrders.ps1`, à confirmer avec `Discover-SageSchema.ps1` avant activation en prod),
-`lignes[].famille_article` (`F_ARTICLE.AR_FamilleCode`), `lignes[].taux_tva`
-(`F_DOCLIGNE.DL_Taux1`), `lignes[].remise` (`DL_Remise01`), `lignes[].unite` (`DL_UniteVente`).
-Tous optionnels côté validation Laravel.
+Champs ajoutés le 2026-07-31 : `projet_code` (code affaire/chantier), `lignes[].famille_article`
+(`F_ARTICLE`), `lignes[].taux_tva` et `lignes[].remise` (déduits des montants HT/TTC déjà
+calculés par Sage sur la ligne), `lignes[].unite`. Tous optionnels côté validation Laravel —
+un champ resté désactivé remonte simplement à `null` dans le payload, sans erreur.
+
+**Tous désactivés par défaut** (`-ProjectCodeColumn ""`, `-LineAmountHtColumn ""`,
+`-LineAmountTtcColumn ""`, `-SaleUnitColumn ""`, `-ArticleFamilyColumn ""`) : les noms de
+colonnes standards Sage100 supposés au départ (`DO_ProjetCode`, `DL_Taux1`, `DL_Remise01`,
+`DL_UniteVente`, `AR_FamilleCode`) n'existaient pas chez Construcsen sous ces noms exacts
+(incident constaté le 2026-07-31 — la synchro entière plantait à chaque fois, car la requête
+SQL référençait des colonnes inexistantes pour TOUTES les commandes du lot). Après exploration
+du vrai schéma via `Discover-SageSchema.ps1 -SqlServer "localhost\SQL2019" -Database
+"CONSTRUCSEN2024"` (**attention à l'instance réelle `SQL2019`, pas `SAGE100`** qui est la base
+de démo "Bijouterie"), voici ce qui existe réellement chez ce client :
+
+| Donnée | Colonne standard supposée (fausse) | Vrai nom chez Construcsen | Config à ajouter |
+|---|---|---|---|
+| Code affaire/chantier | `DO_ProjetCode` | Pas de module Affaires (`F_AFFAIRE` absente). `DO_Ref` (`F_DOCENTETE`) contient déjà des libellés qui ressemblent à des chantiers (`"SOMONE/PLOMBERIE"`, `"SN HLM BAMBILOR"`) — hypothèse à valider sur plus d'exemples avant activation | `"ProjectCodeColumn": "DO_Ref"` (après validation) |
+| TVA + remise ligne | `DL_Taux1` / `DL_Remise01` | Pas de taux exploitable simplement (`DL_Taxe1`/`DL_Remise01REM_Valeur`+`REM_Type` ont une sémantique ambiguë). Sage calcule déjà `DL_MontantHT`/`DL_MontantTTC` par ligne : le script déduit lui-même le taux effectif à partir de ces deux montants | `"LineAmountHtColumn": "DL_MontantHT"`, `"LineAmountTtcColumn": "DL_MontantTTC"` |
+| Famille article | `AR_FamilleCode` | `FA_CodeFamille` (`F_ARTICLE`) | `"ArticleFamilyColumn": "FA_CodeFamille"` |
+| Unité de ligne | `DL_UniteVente` | Aucune colonne texte sur `F_DOCLIGNE` (seulement `AR_UniteVen`, un code numérique sur l'article renvoyant à une table de paramètres non explorée) | reste désactivé |
+
+Pour appliquer ces valeurs, ajouter dans `sage-sync.config.json` (`Run-Sync.ps1` transmet
+chaque clé présente ; celles absentes restent désactivées sans bloquer les autres champs) :
+
+```json
+"LineAmountHtColumn": "DL_MontantHT",
+"LineAmountTtcColumn": "DL_MontantTTC",
+"ArticleFamilyColumn": "FA_CodeFamille"
+```
+
+`ProjectCodeColumn` (`DO_Ref`) est volontairement laissé de côté tant que sa sémantique
+"chantier" n'est pas confirmée sur un échantillon plus large de bons de commande.
 
 ### Fichiers Laravel côté app
 

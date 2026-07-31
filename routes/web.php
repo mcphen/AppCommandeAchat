@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\BudgetController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\FournisseurArticleController;
 use App\Http\Controllers\Admin\FournisseurController;
+use App\Http\Controllers\Admin\SecurityLogController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\ValidationLevelController;
 use App\Http\Controllers\AttachmentController;
@@ -141,6 +142,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('budgets', BudgetController::class)->except(['show']);
         Route::get('accounting', [AccountingController::class, 'index'])->name('accounting.index');
         Route::get('accounting/export/{format}', [AccountingController::class, 'export'])->name('accounting.export')->where('format', 'fec|csv');
+
+        // Journal de sécurité (connexions, accès refusés, changements de compte)
+        Route::get('security-logs', [SecurityLogController::class, 'index'])->name('security-logs.index');
 
         // Configuration de l'application
         Route::get('settings', [AppSettingController::class, 'index'])->name('settings.index');

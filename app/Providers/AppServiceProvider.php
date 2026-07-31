@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\AuditLog;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -16,6 +21,30 @@ class AppServiceProvider extends ServiceProvider
     {
         // Appliquer la configuration SMTP stockée en base de données
         $this->applyMailSettings();
+
+        $this->registerAuthAuditListeners();
+    }
+
+    private function registerAuthAuditListeners(): void
+    {
+        Event::listen(Login::class, function (Login $event) {
+            AuditLog::record('login', 'Connexion réussie.', target: $event->user, actor: $event->user);
+        });
+
+        Event::listen(Logout::class, function (Logout $event) {
+            if ($event->user) {
+                AuditLog::record('logout', 'Déconnexion.', target: $event->user, actor: $event->user);
+            }
+        });
+
+        Event::listen(Failed::class, function (Failed $event) {
+            $email = $event->credentials['email'] ?? null;
+            AuditLog::record(
+                'login_failed',
+                $email ? "Tentative de connexion échouée pour {$email}." : 'Tentative de connexion échouée.',
+                target: $event->user,
+            );
+        });
     }
 
     private function applyMailSettings(): void

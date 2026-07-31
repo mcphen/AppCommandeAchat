@@ -25,6 +25,7 @@ class User extends Authenticatable
         'signature_path',
         'onboarding_completed_at',
         'checklist_dismissed_at',
+        'must_change_password',
     ];
 
     protected $hidden = [
@@ -39,6 +40,7 @@ class User extends Authenticatable
             'onboarding_completed_at'  => 'datetime',
             'checklist_dismissed_at'   => 'datetime',
             'password'                 => 'hashed',
+            'must_change_password'     => 'boolean',
         ];
     }
 

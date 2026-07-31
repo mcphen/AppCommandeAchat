@@ -40,6 +40,15 @@ if ($config.SqlUser) {
     $params.SqlPassword = $config.SqlPassword
 }
 
+# Optionnel : n'ajouter ces cles dans sage-sync.config.json que si le vrai nom de colonne
+# a ete confirme via Discover-SageSchema.ps1 (sections 8 et 9). Absentes du config =>
+# restent desactivees (defaut cote Sync-PurchaseOrders.ps1, cf. incident du 2026-07-31).
+foreach ($optionalColumn in @('ProjectCodeColumn', 'LineAmountHtColumn', 'LineAmountTtcColumn', 'SaleUnitColumn', 'ArticleFamilyColumn')) {
+    if ($config.PSObject.Properties.Name -contains $optionalColumn) {
+        $params[$optionalColumn] = $config.$optionalColumn
+    }
+}
+
 if ($DryRun) { $params.DryRun = $true }
 
 & (Join-Path $PSScriptRoot "Sync-PurchaseOrders.ps1") @params

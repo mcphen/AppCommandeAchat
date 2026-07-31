@@ -15,7 +15,6 @@ use App\Models\User;
 use App\Models\ValidationLevel;
 use App\Notifications\OrderAwaitingSubmissionNotification;
 use App\Notifications\OrderMissingDemandeurNotification;
-use App\Notifications\OrderSubmittedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -117,19 +116,16 @@ class SageWebhookController extends Controller
 
         [$deliveryStatus, $fullyReceivedAt] = $this->resolveDeliveryStatus($data['lignes']);
 
-        // Une commande importee depuis Sage n'est plus soumise automatiquement au
-        // circuit de validation : elle reste 'draft' (en attente de completion) tant
-        // que le demandeur ne l'a pas soumise lui-meme depuis l'app (avec au moins une
-        // piece jointe obligatoire, cf. PurchaseOrderController::submit). Elle ne repasse
-        // en 'pending' que si elle etait deja soumise (needs_revision/rejected relances
-        // par un nouveau sync Sage) ou deja en cours de validation.
-        $wasDraft     = $existing?->status === 'draft';
-        $targetStatus = (! $existing || $wasDraft) ? 'draft' : 'pending';
-
-        // Ne (re)initialiser le niveau de validation et la date de soumission que lors
-        // d'une veritable entree en 'pending' : jamais si la commande y est deja, sinon
-        // chaque resynchro Sage effacerait la progression des validateurs en cours.
-        $enteringPending = $targetStatus === 'pending' && $existing->status !== 'pending';
+        // Une commande importee depuis Sage n'est jamais soumise automatiquement au
+        // circuit de validation : elle est (re)mise en 'draft' (en attente de completion)
+        // tant que le demandeur ne l'a pas soumise lui-meme depuis l'app (avec au moins
+        // une piece jointe obligatoire, cf. PurchaseOrderController::submit). Seule
+        // exception : si un validateur a deja reellement approuve un niveau, on ne
+        // touche pas au statut/niveau en cours pour ne pas effacer sa decision a chaque
+        // resynchro Sage (qui peut arriver toutes les 1 a 10 min sur un simple changement
+        // de reception, sans rapport avec la validation).
+        $hasApprovalProgress = $existing?->validationLogs()->where('action', 'approved')->exists() ?? false;
+        $targetStatus = $hasApprovalProgress ? 'pending' : 'draft';
 
         // Le suivi de livraison (delivery_status, fully_received_at, receptions) est
         // purement informatif : meme entierement receptionnee ou cloturee cote Sage,
@@ -143,16 +139,8 @@ class SageWebhookController extends Controller
             'amount'              => $amount,
             'amount_ttc'          => $amountTtc,
             'status'              => $targetStatus,
-            'current_level_order' => match (true) {
-                $targetStatus === 'draft' => null,
-                $enteringPending          => $firstLevel->order,
-                default                   => $existing->current_level_order,
-            },
-            'submitted_at' => match (true) {
-                $targetStatus === 'draft' => null,
-                $enteringPending          => now(),
-                default                   => $existing->submitted_at,
-            },
+            'current_level_order' => $targetStatus === 'draft' ? null : $existing->current_level_order,
+            'submitted_at'        => $targetStatus === 'draft' ? null : $existing->submitted_at,
             'order_date'          => $data['date'],
             // Une commande Sage existe deja comme commande reelle passee au fournisseur
             // des sa creation dans Sage (pas de brouillon interne) : ordered_at doit
@@ -228,11 +216,11 @@ class SageWebhookController extends Controller
                     }
                 }
             }
-        } elseif ($enteringPending) {
-            foreach ($firstLevel->validators as $validator) {
-                $validator->notify(new OrderSubmittedNotification($order, $firstLevel));
-            }
         }
+        // Pas de notification aux validateurs ici : une commande n'entre en 'pending'
+        // que si elle avait deja une approbation reelle (cf. $hasApprovalProgress),
+        // jamais fraichement via le sync. La notification des validateurs se fait
+        // uniquement lors d'une vraie soumission (PurchaseOrderController::submit).
 
         return $order;
     }

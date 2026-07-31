@@ -59,11 +59,30 @@ param(
 
     [string]$StateFile = (Join-Path $PSScriptRoot "sync-state.json"),
 
-    # Nom reel de la colonne "code affaire/chantier" sur F_DOCENTETE. Le nom exact
-    # depend du module Sage100 "Affaires" active chez le client (souvent DO_ProjetCode,
-    # parfois different) : verifier avec Discover-SageSchema.ps1 avant la premiere
-    # execution en prod. Laisser vide ("") si le client n'a pas ce module.
-    [string]$ProjectCodeColumn = "DO_ProjetCode",
+    # Nom reel de la colonne "code affaire/chantier" sur F_DOCENTETE. Desactive par
+    # defaut (""). Chez Construcsen (2026-07-31) : pas de module "Affaires" (F_AFFAIRE
+    # absente), mais DO_Ref contient deja des libelles ressemblant a des chantiers
+    # ("SOMONE/PLOMBERIE", "SN HLM BAMBILOR"...) sur les BC (DO_Domaine=1, DO_Type=12) :
+    # valeur suggeree -ProjectCodeColumn "DO_Ref", a confirmer sur un echantillon plus large
+    # avant activation (c'est une hypothese semantique, pas une colonne dediee).
+    [string]$ProjectCodeColumn = "",
+
+    # Colonnes deja calculees par Sage pour le montant HT/TTC de la ligne (existent chez
+    # Construcsen : DL_MontantHT / DL_MontantTTC sur F_DOCLIGNE). A partir de ces deux
+    # montants (et de DL_Qte * DL_PrixUnitaire), le script deduit lui-meme un taux de TVA
+    # et un taux de remise effectifs par ligne — plus fiable que d'interpreter DL_Taxe1 /
+    # DL_Remise01REM_Valeur+REM_Type dont la semantique exacte (montant vs pourcentage,
+    # type de taxe) n'est pas garantie. Desactivees par defaut ("").
+    [string]$LineAmountHtColumn = "",   # valeur confirmee chez Construcsen : "DL_MontantHT"
+    [string]$LineAmountTtcColumn = "",  # valeur confirmee chez Construcsen : "DL_MontantTTC"
+
+    # Aucune colonne texte d'unite trouvee sur F_DOCLIGNE chez Construcsen (seulement
+    # AR_UniteVen, un code numerique sur l'article renvoyant a une table de parametres
+    # non exploree) : reste desactive tant qu'aucune source fiable n'est identifiee.
+    [string]$SaleUnitColumn = "",
+
+    # Confirme chez Construcsen : FA_CodeFamille (F_ARTICLE), PAS AR_FamilleCode.
+    [string]$ArticleFamilyColumn = "",
 
     [switch]$DryRun
 )
@@ -141,6 +160,30 @@ function Get-SafeNullableDouble($value) {
     return [double]$value
 }
 
+# Lit une colonne "optionnelle" (activee/desactivee selon les parametres ci-dessus) sans
+# jamais planter : si la colonne n'a pas ete selectionnee dans la requete (desactivee),
+# $Row.Table.Columns ne la contient pas et un acces direct $Row['X'] leverait une erreur.
+function Get-OptionalColumn($Row, [string]$ColumnName) {
+    if ($Row.Table.Columns.Contains($ColumnName)) { return $Row[$ColumnName] }
+    return $null
+}
+
+# Deduit un taux de TVA / remise effectif a partir des montants HT/TTC deja calcules par
+# Sage (DL_MontantHT / DL_MontantTTC), plutot que d'interpreter des colonnes dont la
+# semantique exacte (montant vs pourcentage, type de taxe) varie selon la config Sage100
+# du client. Retourne $null si les montants necessaires ne sont pas disponibles.
+function Get-LigneTauxTva($MontantHt, $MontantTtc) {
+    if ($null -eq $MontantHt -or $null -eq $MontantTtc -or $MontantHt -le 0) { return $null }
+    return [math]::Round((($MontantTtc / $MontantHt) - 1) * 100, 2)
+}
+
+function Get-LigneRemise($MontantHt, $Quantite, $PrixUnitaire) {
+    if ($null -eq $MontantHt) { return $null }
+    $brut = $Quantite * $PrixUnitaire
+    if ($brut -le 0) { return $null }
+    return [math]::Round((1 - ($MontantHt / $brut)) * 100, 2)
+}
+
 # ── 1. Connexion ────────────────────────────────────────────────────────────
 Write-Log "=== Debut synchro (DryRun=$($DryRun.IsPresent)) ==="
 try {
@@ -183,14 +226,27 @@ if ($entetes.Rows.Count -eq 0) {
 
 # ── 3. Recuperer TOUTES les lignes en une seule requete, puis grouper cote PowerShell ──
 # (evite tout souci de correspondance de parametre SQL piece-par-piece)
-# Jointure F_ARTICLE (via AR_Ref) pour recuperer la famille article (AR_FamilleCode),
-# utile pour rattacher automatiquement une categorie interne plus tard.
+# Colonnes montant HT/TTC/unite/famille ajoutees dynamiquement seulement si les parametres
+# correspondants sont renseignes (desactivees par defaut, cf. parametres en tete de script).
+# Alias fixes (AS DL_MontantHT / AS AR_FamilleCode / ...) pour que le reste du script
+# puisse toujours reference le meme nom, quel que soit le nom reel de la colonne client.
+$ligneExtraSelect = ""
+if ($LineAmountHtColumn)  { $ligneExtraSelect += ", l.$LineAmountHtColumn AS DL_MontantHT" }
+if ($LineAmountTtcColumn) { $ligneExtraSelect += ", l.$LineAmountTtcColumn AS DL_MontantTTC" }
+if ($SaleUnitColumn)      { $ligneExtraSelect += ", l.$SaleUnitColumn AS DL_UniteVente" }
+
+# Jointure F_ARTICLE (via AR_Ref) uniquement si necessaire, pour recuperer la famille
+# article (AR_FamilleCode), utile pour rattacher automatiquement une categorie interne.
+$articleJoin   = if ($ArticleFamilyColumn) { "LEFT JOIN F_ARTICLE ar ON ar.AR_Ref = l.AR_Ref" } else { "" }
+$articleSelect = if ($ArticleFamilyColumn) { ", ar.$ArticleFamilyColumn AS AR_FamilleCode" } else { "" }
+
 $toutesLesLignes = Invoke-SqlQuery $conn @"
 SELECT l.DO_Piece, l.AR_Ref, l.DL_Design, l.DL_Qte, l.DL_QteBL, l.DL_DateBL, l.DL_PieceBL,
-       l.DL_PrixUnitaire, l.DL_Ligne, l.DL_Taux1, l.DL_Remise01, l.DL_UniteVente,
-       ar.AR_FamilleCode
+       l.DL_PrixUnitaire, l.DL_Ligne
+       $ligneExtraSelect
+       $articleSelect
 FROM F_DOCLIGNE l
-LEFT JOIN F_ARTICLE ar ON ar.AR_Ref = l.AR_Ref
+$articleJoin
 WHERE l.DO_Domaine = 1 AND l.DO_Type = 12
 ORDER BY l.DO_Piece, l.DL_Ligne ASC
 "@
@@ -260,15 +316,20 @@ foreach ($entete in $entetes) {
                     if ($ligne.DL_DateBL -isnot [System.DBNull] -and $ligne.DL_DateBL -gt [datetime]"1900-01-01") {
                         $dateLivraison = $ligne.DL_DateBL.ToString("yyyy-MM-dd")
                     }
+                    $qte          = Get-SafeDouble $ligne.DL_Qte
+                    $prixUnitaire = Get-SafeDouble $ligne.DL_PrixUnitaire
+                    $montantHt    = Get-SafeNullableDouble (Get-OptionalColumn $ligne 'DL_MontantHT')
+                    $montantTtc   = Get-SafeNullableDouble (Get-OptionalColumn $ligne 'DL_MontantTTC')
+
                     @{
                         article          = $article
                         designation      = Get-SafeTrim $ligne.DL_Design
-                        famille_article  = Get-SafeNullableTrim $ligne.AR_FamilleCode
-                        quantite         = Get-SafeDouble $ligne.DL_Qte
-                        prix_unitaire    = Get-SafeDouble $ligne.DL_PrixUnitaire
-                        taux_tva         = Get-SafeNullableDouble $ligne.DL_Taux1
-                        remise           = Get-SafeNullableDouble $ligne.DL_Remise01
-                        unite            = Get-SafeNullableTrim $ligne.DL_UniteVente
+                        famille_article  = Get-SafeNullableTrim (Get-OptionalColumn $ligne 'AR_FamilleCode')
+                        quantite         = $qte
+                        prix_unitaire    = $prixUnitaire
+                        taux_tva         = Get-LigneTauxTva $montantHt $montantTtc
+                        remise           = Get-LigneRemise $montantHt $qte $prixUnitaire
+                        unite            = Get-SafeNullableTrim (Get-OptionalColumn $ligne 'DL_UniteVente')
                         quantite_livree  = Get-SafeDouble $ligne.DL_QteBL
                         date_livraison   = $dateLivraison
                         piece_bl         = Get-SafeTrim $ligne.DL_PieceBL

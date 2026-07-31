@@ -12,7 +12,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     LayoutDashboard, ShoppingCart, CheckSquare,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
-    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal,
+    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal, ShieldAlert,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -87,6 +87,7 @@ const adminNav = computed(() => {
         { title: 'Fournisseurs',         href: route('admin.fournisseurs.index'),      icon: Truck,      key: 'admin-fournisseurs' },
         { title: 'Budgets',              href: route('admin.budgets.index'),           icon: PiggyBank,  key: 'admin-budgets' },
         { title: 'Comptabilité',         href: route('admin.accounting.index'),        icon: BookOpen,          key: 'admin-accounting' },
+        { title: 'Journal de sécurité',  href: route('admin.security-logs.index'),     icon: ShieldAlert,       key: 'admin-security-logs' },
         { title: 'Configuration',        href: route('admin.settings.index'),          icon: SlidersHorizontal, key: 'admin-settings' },
     ];
 });

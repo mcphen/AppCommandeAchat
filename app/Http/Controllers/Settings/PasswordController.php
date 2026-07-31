@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,8 +36,11 @@ class PasswordController extends Controller
         ]);
 
         $request->user()->update([
-            'password' => Hash::make($validated['password']),
+            'password'              => Hash::make($validated['password']),
+            'must_change_password'  => false,
         ]);
+
+        AuditLog::record('password_changed', 'Mot de passe modifié par l\'utilisateur.', target: $request->user());
 
         return back();
     }

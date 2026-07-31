@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\AuditLog;
 use App\Models\Boutique;
 use App\Models\Role;
 use App\Models\User;
@@ -44,12 +45,15 @@ class UserController extends Controller
             'name'                => $request->name,
             'email'               => $request->email,
             'password'            => Hash::make($request->password),
+            'must_change_password' => true,
             'role_id'             => $request->role_id,
             'validation_level_id' => $request->validation_level_id,
             'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
         ]);
 
         Mail::to($user)->send(new UserAccountCreatedMail($user, $request->password));
+
+        AuditLog::record('user_created', "Compte créé avec le rôle « {$user->role?->name} ».", target: $user);
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Utilisateur créé avec succès.');
@@ -67,6 +71,8 @@ class UserController extends Controller
 
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
+        $previousRole = $user->role;
+
         $data = [
             'name'                => $request->name,
             'email'               => $request->email,
@@ -75,11 +81,26 @@ class UserController extends Controller
             'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
         ];
 
-        if ($request->filled('password')) {
+        $passwordReset = $request->filled('password');
+
+        if ($passwordReset) {
             $data['password'] = Hash::make($request->password);
+            $data['must_change_password'] = true;
         }
 
         $user->update($data);
+
+        if ($previousRole?->id !== $user->role_id) {
+            AuditLog::record(
+                'user_role_changed',
+                "Rôle changé de « {$previousRole?->name} » à « {$user->role?->name} ».",
+                target: $user,
+            );
+        }
+
+        if ($passwordReset) {
+            AuditLog::record('user_password_reset_by_admin', 'Mot de passe réinitialisé par un administrateur.', target: $user);
+        }
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Utilisateur mis à jour.');
@@ -88,6 +109,8 @@ class UserController extends Controller
     public function destroy(User $user): RedirectResponse
     {
         abort_if($user->id === auth()->id(), 403, 'Vous ne pouvez pas supprimer votre propre compte.');
+
+        AuditLog::record('user_deleted', "Compte « {$user->name} » ({$user->email}) supprimé.", target: $user);
 
         $user->delete();
 

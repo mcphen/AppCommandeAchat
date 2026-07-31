@@ -127,6 +127,7 @@ export interface PurchaseOrder {
     title: string;
     description: string;
     amount: string;
+    amount_ttc?: string | number | null;
     status: OrderStatus;
     order_number?: string | null;
     delivery_status?: DeliveryStatus | null;
@@ -134,8 +135,10 @@ export interface PurchaseOrder {
     fully_received_at?: string | null;
     current_level_order?: number;
     submitted_at?: string;
+    last_reminder_sent_at?: string | null;
     order_date?: string | null;
     sage_reference?: string | null;
+    project_code?: string | null;
     source?: 'manual' | 'sage';
     attachments?: PurchaseOrderAttachment[];
     lines?: PurchaseOrderLine[];
@@ -241,6 +244,9 @@ export interface PurchaseOrderLine {
     fournisseur?: Fournisseur | null;
     quantity: number;
     unit_price: number;
+    vat_rate?: number | string | null;
+    discount_rate?: number | string | null;
+    unit?: string | null;
     note?: string | null;
     subtotal?: number;
     quantity_received_total?: number;

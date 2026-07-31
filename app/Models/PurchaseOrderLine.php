@@ -11,11 +11,14 @@ class PurchaseOrderLine extends Model
     protected $fillable = [
         'purchase_order_id', 'article_id', 'fournisseur_id',
         'quantity', 'unit_price', 'note',
+        'vat_rate', 'discount_rate', 'unit',
     ];
 
     protected $casts = [
-        'quantity'   => 'decimal:2',
-        'unit_price' => 'decimal:2',
+        'quantity'      => 'decimal:2',
+        'unit_price'    => 'decimal:2',
+        'vat_rate'      => 'decimal:2',
+        'discount_rate' => 'decimal:2',
     ];
 
     protected $appends = ['subtotal', 'quantity_received_total'];

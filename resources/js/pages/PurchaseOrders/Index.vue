@@ -3,7 +3,8 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOrder, type SharedData, type User, type ValidationLevel } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Building2, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, RotateCcw, Search, ShieldCheck, ShoppingCart, X } from 'lucide-vue-next';
+import { AlertCircle, Bell, Building2, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, RotateCcw, Search, ShieldCheck, ShoppingCart, X } from 'lucide-vue-next';
+import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -143,6 +144,23 @@ const exportUrl = (format: string) => {
 
 const openOrderInNewTab = (order: PurchaseOrder) => {
     window.open(route('purchase-orders.show', order.id), '_blank');
+};
+
+const remindDemandeur = async (order: PurchaseOrder) => {
+    const result = await Swal.fire({
+        title: 'Relancer le demandeur ?',
+        text: `Un email de rappel sera envoyé à ${order.user?.name ?? 'le demandeur'} pour compléter et soumettre la commande "${order.title}".`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Relancer',
+        cancelButtonText: 'Annuler',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+    });
+    if (result.isConfirmed) {
+        router.post(route('purchase-orders.remind', order.id), {}, { preserveScroll: true, preserveState: true });
+    }
 };
 
 </script>
@@ -573,6 +591,25 @@ const openOrderInNewTab = (order: PurchaseOrder) => {
                                             <Download class="h-3.5 w-3.5" />
                                             <span class="hidden 2xl:inline">PDF</span>
                                         </a>
+
+                                        <button
+                                            v-if="isAdmin && order.status === 'draft' && order.user?.role"
+                                            type="button"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100"
+                                            :title="order.last_reminder_sent_at ? `Dernière relance : ${formatDate(order.last_reminder_sent_at)}` : 'Relancer le demandeur'"
+                                            @click="remindDemandeur(order)"
+                                        >
+                                            <Bell class="h-3.5 w-3.5" />
+                                            <span class="hidden 2xl:inline">Relancer</span>
+                                        </button>
+                                        <span
+                                            v-else-if="isAdmin && order.status === 'draft'"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700"
+                                            title="Aucun demandeur identifié : complétez et soumettez cette commande vous-même."
+                                        >
+                                            <AlertCircle class="h-3.5 w-3.5" />
+                                            <span class="hidden 2xl:inline">Sans demandeur</span>
+                                        </span>
 
                                     </div>
                                 </td>

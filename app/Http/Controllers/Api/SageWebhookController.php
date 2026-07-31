@@ -13,6 +13,8 @@ use App\Models\Role;
 use App\Models\SageWebhookLog;
 use App\Models\User;
 use App\Models\ValidationLevel;
+use App\Notifications\OrderAwaitingSubmissionNotification;
+use App\Notifications\OrderMissingDemandeurNotification;
 use App\Notifications\OrderSubmittedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -39,11 +41,16 @@ class SageWebhookController extends Controller
             'montant_ht'              => ['nullable', 'numeric', 'min:0'],
             'montant_ttc'             => ['nullable', 'numeric', 'min:0'],
             'cloture'                 => ['nullable', 'boolean'],
+            'projet_code'             => ['nullable', 'string', 'max:255'],
             'lignes'                  => ['required', 'array', 'min:1'],
             'lignes.*.article'        => ['required', 'string', 'max:255'],
             'lignes.*.designation'    => ['nullable', 'string', 'max:255'],
+            'lignes.*.famille_article'     => ['nullable', 'string', 'max:255'],
             'lignes.*.quantite'       => ['required', 'numeric', 'min:0.01'],
             'lignes.*.prix_unitaire'  => ['required', 'numeric', 'min:0'],
+            'lignes.*.taux_tva'            => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'lignes.*.remise'              => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'lignes.*.unite'                => ['nullable', 'string', 'max:50'],
             'lignes.*.quantite_livree'     => ['nullable', 'numeric', 'min:0'],
             'lignes.*.date_livraison'      => ['nullable', 'date'],
             'lignes.*.piece_bl'            => ['nullable', 'string', 'max:255'],
@@ -102,12 +109,27 @@ class SageWebhookController extends Controller
 
         $amount = $data['montant_ht'] ?? collect($data['lignes'])
             ->sum(fn ($l) => (float) $l['quantite'] * (float) $l['prix_unitaire']);
+        $amountTtc = $data['montant_ttc'] ?? null;
 
         $userId = isset($data['demandeur'])
             ? $this->findOrCreateDemandeur($data['demandeur'])->id
             : $this->systemUserId();
 
         [$deliveryStatus, $fullyReceivedAt] = $this->resolveDeliveryStatus($data['lignes']);
+
+        // Une commande importee depuis Sage n'est plus soumise automatiquement au
+        // circuit de validation : elle reste 'draft' (en attente de completion) tant
+        // que le demandeur ne l'a pas soumise lui-meme depuis l'app (avec au moins une
+        // piece jointe obligatoire, cf. PurchaseOrderController::submit). Elle ne repasse
+        // en 'pending' que si elle etait deja soumise (needs_revision/rejected relances
+        // par un nouveau sync Sage) ou deja en cours de validation.
+        $wasDraft     = $existing?->status === 'draft';
+        $targetStatus = (! $existing || $wasDraft) ? 'draft' : 'pending';
+
+        // Ne (re)initialiser le niveau de validation et la date de soumission que lors
+        // d'une veritable entree en 'pending' : jamais si la commande y est deja, sinon
+        // chaque resynchro Sage effacerait la progression des validateurs en cours.
+        $enteringPending = $targetStatus === 'pending' && $existing->status !== 'pending';
 
         // Le suivi de livraison (delivery_status, fully_received_at, receptions) est
         // purement informatif : meme entierement receptionnee ou cloturee cote Sage,
@@ -119,9 +141,18 @@ class SageWebhookController extends Controller
             'title'               => $data['numero'],
             'description'         => "Commande importée automatiquement depuis Sage100 (fournisseur : {$fournisseur->name}).",
             'amount'              => $amount,
-            'status'              => 'pending',
-            'current_level_order' => $firstLevel->order,
-            'submitted_at'        => now(),
+            'amount_ttc'          => $amountTtc,
+            'status'              => $targetStatus,
+            'current_level_order' => match (true) {
+                $targetStatus === 'draft' => null,
+                $enteringPending          => $firstLevel->order,
+                default                   => $existing->current_level_order,
+            },
+            'submitted_at' => match (true) {
+                $targetStatus === 'draft' => null,
+                $enteringPending          => now(),
+                default                   => $existing->submitted_at,
+            },
             'order_date'          => $data['date'],
             // Une commande Sage existe deja comme commande reelle passee au fournisseur
             // des sa creation dans Sage (pas de brouillon interne) : ordered_at doit
@@ -132,9 +163,10 @@ class SageWebhookController extends Controller
             'source'              => 'sage',
             'delivery_status'     => $deliveryStatus,
             'fully_received_at'   => $fullyReceivedAt,
+            'project_code'        => $data['projet_code'] ?? null,
         ];
 
-        $isNewOrReopened = ! $existing || $existing->status !== 'pending';
+        $isNewOrder = ! $existing;
 
         $order = $existing
             ? tap($existing)->update($attributes)
@@ -150,7 +182,13 @@ class SageWebhookController extends Controller
         $createdLines = [];
 
         foreach ($data['lignes'] as $ligne) {
-            $article = $this->findOrCreateArticle($ligne['article'], $ligne['designation'] ?? null, (float) $ligne['prix_unitaire']);
+            $article = $this->findOrCreateArticle(
+                $ligne['article'],
+                $ligne['designation'] ?? null,
+                (float) $ligne['prix_unitaire'],
+                $ligne['famille_article'] ?? null,
+                $ligne['unite'] ?? null,
+            );
 
             // Beaucoup de codes Sage (AR_Ref) sont des codes generiques de depense
             // reutilises par les achats (ex: "CAISCHANT") avec une designation
@@ -164,6 +202,9 @@ class SageWebhookController extends Controller
                 'quantity'          => $ligne['quantite'],
                 'unit_price'        => $ligne['prix_unitaire'],
                 'note'              => $ligne['designation'] ?? null,
+                'vat_rate'          => $ligne['taux_tva'] ?? null,
+                'discount_rate'     => $ligne['remise'] ?? null,
+                'unit'              => $ligne['unite'] ?? null,
             ]);
 
             $createdLines[] = ['line' => $line, 'data' => $ligne];
@@ -171,7 +212,23 @@ class SageWebhookController extends Controller
 
         $this->syncReception($order, $createdLines, $deliveryStatus);
 
-        if ($isNewOrReopened) {
+        if ($targetStatus === 'draft') {
+            // On ne relance pas le mail a chaque resynchro (toutes les 10 min) tant que
+            // le demandeur n'a pas soumis : seulement a la toute premiere creation.
+            if ($isNewOrder) {
+                if (isset($data['demandeur'])) {
+                    $order->user->notify(new OrderAwaitingSubmissionNotification($order));
+                } else {
+                    // Pas de demandeur reel identifie (rattachee au compte systeme) : personne
+                    // ne recevra jamais le mail de relance habituel. Sans ca, la commande reste
+                    // silencieusement bloquee en brouillon. On alerte les admins directement,
+                    // eux seuls pouvant la completer/soumettre a la place du demandeur absent.
+                    foreach (User::whereHas('role', fn ($q) => $q->where('slug', 'admin'))->get() as $admin) {
+                        $admin->notify(new OrderMissingDemandeurNotification($order));
+                    }
+                }
+            }
+        } elseif ($enteringPending) {
             foreach ($firstLevel->validators as $validator) {
                 $validator->notify(new OrderSubmittedNotification($order, $firstLevel));
             }
@@ -289,17 +346,37 @@ class SageWebhookController extends Controller
         return $fournisseur;
     }
 
-    private function findOrCreateArticle(string $sageReference, ?string $designation, float $unitPrice): Article
+    private function findOrCreateArticle(string $sageReference, ?string $designation, float $unitPrice, ?string $familyCode = null, ?string $unit = null): Article
     {
-        return Article::firstOrCreate(
+        $article = Article::firstOrCreate(
             ['sage_reference' => $sageReference],
-            [
-                'name'       => $designation ?: "Article Sage {$sageReference} (à vérifier)",
-                'reference'  => "SAGE-{$sageReference}",
-                'unit_price' => $unitPrice,
-                'is_active'  => false,
-            ]
+            array_filter([
+                'name'        => $designation ?: "Article Sage {$sageReference} (à vérifier)",
+                'reference'   => "SAGE-{$sageReference}",
+                'unit_price'  => $unitPrice,
+                'is_active'   => false,
+                'family_code' => $familyCode,
+                'unit'        => $unit,
+            ], fn ($value) => $value !== null)
         );
+
+        // Comme pour le fournisseur : tant que l'article n'a pas ete valide manuellement
+        // (is_active), on peut le completer avec de meilleures donnees Sage arrivees
+        // apres coup (ex: famille absente au premier import, presente ensuite).
+        if (! $article->wasRecentlyCreated && ! $article->is_active) {
+            $updates = [];
+            if ($familyCode && $article->family_code !== $familyCode) {
+                $updates['family_code'] = $familyCode;
+            }
+            if ($unit && $article->unit !== $unit) {
+                $updates['unit'] = $unit;
+            }
+            if ($updates) {
+                $article->update($updates);
+            }
+        }
+
+        return $article;
     }
 
     private function findOrCreateDemandeur(array $demandeur): User

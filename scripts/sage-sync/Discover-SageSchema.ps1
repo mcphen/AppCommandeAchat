@@ -142,6 +142,25 @@ if (Invoke-Query $conn "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE T
     Invoke-Query $conn "SELECT TOP 5 AR_Ref, AR_Design FROM F_ARTICLE ORDER BY AR_Ref" | Format-Table -AutoSize
 }
 
+Write-Host "`n=== 8. Colonnes 'code affaire/chantier' candidates sur F_DOCENTETE ===" -ForegroundColor Cyan
+Write-Host "A verifier avant d'activer -ProjectCodeColumn dans Sync-PurchaseOrders.ps1." -ForegroundColor DarkGray
+Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_DOCENTETE' AND (COLUMN_NAME LIKE '%Projet%' OR COLUMN_NAME LIKE '%Affaire%')" |
+    Format-Table -AutoSize
+if (Invoke-Query $conn "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'F_AFFAIRE'" | Select-Object -First 1) {
+    Write-Host "Table F_AFFAIRE presente (module Affaires actif) :" -ForegroundColor Green
+    Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_AFFAIRE' ORDER BY ORDINAL_POSITION" |
+        Format-Table -AutoSize
+} else {
+    Write-Host "Table F_AFFAIRE absente : le client n'a probablement pas le module Affaires." -ForegroundColor Yellow
+}
+
+Write-Host "`n=== 9. Colonnes TVA/remise/unite/famille utilisees par Sync-PurchaseOrders.ps1 ===" -ForegroundColor Cyan
+Write-Host "Confirme que DL_Taux1, DL_Remise01, DL_UniteVente (F_DOCLIGNE) et AR_FamilleCode (F_ARTICLE) existent bien sous ces noms." -ForegroundColor DarkGray
+Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_DOCLIGNE' AND COLUMN_NAME IN ('DL_Taux1', 'DL_CodeTaxe1', 'DL_Remise01', 'DL_UniteVente', 'DL_Unite')" |
+    Format-Table -AutoSize
+Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_ARTICLE' AND COLUMN_NAME LIKE '%Famille%'" |
+    Format-Table -AutoSize
+
 $conn.Close()
 Write-Host "`n=== Termine ===" -ForegroundColor Green
 Write-Host "Copie/colle le resultat de la section 4 (DO_Type) et 5 (echantillon) pour qu'on identifie" -ForegroundColor Green

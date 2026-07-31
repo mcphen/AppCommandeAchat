@@ -42,6 +42,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('purchase-orders/{purchase_order}/mark-ordered', [PurchaseOrderController::class, 'markOrdered'])
             ->name('purchase-orders.mark-ordered');
 
+        // Complétion & soumission des commandes importées de Sage (restent 'draft'
+        // tant que le demandeur n'a pas joint ses pièces et soumis lui-même)
+        Route::post('purchase-orders/{purchase_order}/attachments', [AttachmentController::class, 'store'])
+            ->name('attachments.store');
+        Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])
+            ->name('attachments.destroy');
+        Route::post('purchase-orders/{purchase_order}/submit', [PurchaseOrderController::class, 'submit'])
+            ->name('purchase-orders.submit');
+
         Route::post('purchase-orders/{purchase_order}/receptions', [ReceptionController::class, 'store'])
             ->name('purchase-orders.receptions.store');
         Route::patch('purchase-orders/{purchase_order}/receptions/{reception}/invoice', [ReceptionController::class, 'updateInvoice'])
@@ -103,6 +112,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::post('purchase-orders/{purchase_order}/restart-validation', [PurchaseOrderController::class, 'restartValidation'])
             ->name('purchase-orders.restart-validation');
+        Route::post('purchase-orders/{purchase_order}/remind', [PurchaseOrderController::class, 'remind'])
+            ->name('purchase-orders.remind');
 
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
     });

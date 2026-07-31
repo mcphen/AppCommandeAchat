@@ -7,6 +7,8 @@ use App\Models\Boutique;
 use App\Models\FournisseurArticle;
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
+use App\Notifications\OrderAwaitingSubmissionNotification;
+use App\Notifications\OrderSubmittedNotification;
 use App\Services\AccountingService;
 use App\Services\RestartPurchaseOrderValidationService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -61,7 +63,7 @@ class PurchaseOrderController extends Controller
     {
         // Les commandes proviennent de Sage100 (aucun demandeur propriétaire) : visibles par
         // tous les rôles autorisés sur cette route (demandeur, validateur, admin).
-        $query = PurchaseOrder::with(['attachments', 'boutique', 'user', 'validationLogs.user', 'validationLogs.validationLevel'])->latest();
+        $query = PurchaseOrder::with(['attachments', 'boutique', 'user.role', 'validationLogs.user', 'validationLogs.validationLevel'])->latest();
 
         if ($request->filled('boutique_id')) {
             $query->where('boutique_id', $request->integer('boutique_id'));
@@ -231,7 +233,7 @@ class PurchaseOrderController extends Controller
         $this->authorizeView($purchaseOrder);
 
         $purchaseOrder->load([
-            'user',
+            'user.role',
             'boutique',
             'fournisseur',
             'attachments',
@@ -337,6 +339,50 @@ class PurchaseOrderController extends Controller
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)
             ->with('success', 'Le circuit de validation a été relancé depuis le premier niveau.');
+    }
+
+    public function submit(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user->isAdmin() || $purchaseOrder->user_id === $user->id, 403);
+        abort_unless($purchaseOrder->status === 'draft', 422, 'Cette commande a déjà été soumise.');
+
+        if ($purchaseOrder->attachments()->count() === 0) {
+            return back()->withErrors(['attachments' => 'Au moins une pièce jointe est obligatoire avant de soumettre la commande.']);
+        }
+
+        $firstLevel = ValidationLevel::first_level();
+        abort_unless($firstLevel, 422, 'Aucun niveau de validation configuré.');
+
+        DB::transaction(function () use ($purchaseOrder, $firstLevel) {
+            $purchaseOrder->update([
+                'status'              => 'pending',
+                'current_level_order' => $firstLevel->order,
+                'submitted_at'        => now(),
+            ]);
+        });
+
+        foreach ($firstLevel->validators as $validator) {
+            $validator->notify(new OrderSubmittedNotification($purchaseOrder, $firstLevel));
+        }
+
+        return redirect()->route('purchase-orders.show', $purchaseOrder)
+            ->with('success', 'Commande soumise pour validation.');
+    }
+
+    public function remind(PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless($purchaseOrder->status === 'draft', 422, 'Cette commande n\'est plus en attente de soumission.');
+        // Commande sans demandeur reconnu (rattachee au compte systeme Sage100) : personne
+        // de reel a relancer. L'admin a deja ete notifie a l'import (OrderMissingDemandeurNotification)
+        // et doit completer/soumettre lui-meme la commande.
+        abort_unless($purchaseOrder->user->role_id !== null, 422, 'Cette commande n\'a pas de demandeur identifié : complétez-la et soumettez-la vous-même.');
+
+        $purchaseOrder->user->notify(new OrderAwaitingSubmissionNotification($purchaseOrder));
+        $purchaseOrder->update(['last_reminder_sent_at' => now()]);
+
+        return back()->with('success', 'Rappel envoyé au demandeur.');
     }
 
     public function downloadPdf(PurchaseOrder $purchaseOrder): HttpResponse

@@ -2,12 +2,12 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import OrderDiscussion from '@/components/OrderDiscussion.vue';
 import { type BreadcrumbItem, type PurchaseOrder, type PurchaseOrderLine, type ValidationLevel } from '@/types';
-import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft, Building2, Calendar, CheckCircle2, Clock, DollarSign,
     Download, FileDown, FileText, Paperclip, Pencil, Truck,
     User, XCircle, Package, ShoppingCart, ClipboardCheck, X, AlertCircle, Receipt,
-    TrendingDown, TrendingUp, Tag, RotateCcw,
+    TrendingDown, TrendingUp, Tag, RotateCcw, Upload, Send, Bell, Trash2,
 } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, reactive, ref } from 'vue';
@@ -35,6 +35,7 @@ const page = usePage();
 const authUser = computed(() => (page.props as any).auth?.user);
 const isAdmin  = computed(() => authUser.value?.role?.slug === 'admin');
 const isCreator = computed(() => authUser.value?.id === props.order.user_id);
+const canEditAttachments = computed(() => props.order.status === 'draft' && (isAdmin.value || isCreator.value));
 
 // ─── Status configs ──────────────────────────────────────────────────────────
 const statusConfig = {
@@ -88,6 +89,12 @@ const totalReceived = (line: PurchaseOrderLine): number =>
 const remaining = (line: PurchaseOrderLine): number =>
     Math.max(0, Number(line.quantity) - totalReceived(line));
 
+const lineSubtotalTtc = (line: PurchaseOrderLine): number => {
+    const ht  = Number(line.subtotal ?? Number(line.quantity) * Number(line.unit_price));
+    const tva = line.vat_rate !== null && line.vat_rate !== undefined ? Number(line.vat_rate) : 0;
+    return ht * (1 + tva / 100);
+};
+
 const receivedPercent = (line: PurchaseOrderLine): number => {
     const qty = Number(line.quantity);
     if (!qty) return 0;
@@ -125,6 +132,87 @@ const restartValidation = async () => {
 
     if (result.isConfirmed) {
         router.post(route('purchase-orders.restart-validation', props.order.id));
+    }
+};
+
+// ─── Pièces jointes & soumission (commandes importées de Sage, statut 'draft') ──
+const attachmentInput = ref<HTMLInputElement | null>(null);
+const attachmentForm = useForm({ files: [] as File[] });
+
+const onAttachmentFilesChange = (e: Event) => {
+    const files = (e.target as HTMLInputElement).files;
+    attachmentForm.files = files ? Array.from(files) : [];
+};
+
+const uploadAttachments = () => {
+    if (! attachmentForm.files.length) return;
+    attachmentForm.post(route('attachments.store', props.order.id), {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            attachmentForm.reset('files');
+            if (attachmentInput.value) attachmentInput.value.value = '';
+        },
+    });
+};
+
+const deleteAttachment = async (attachmentId: number) => {
+    const result = await Swal.fire({
+        title: 'Supprimer cette pièce jointe ?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Supprimer',
+        cancelButtonText: 'Annuler',
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+    });
+    if (result.isConfirmed) {
+        router.delete(route('attachments.destroy', attachmentId), { preserveScroll: true });
+    }
+};
+
+const submitOrder = async () => {
+    if (! props.order.attachments?.length) {
+        Swal.fire({
+            title: 'Pièce jointe obligatoire',
+            text: 'Vous devez joindre au moins un document avant de soumettre cette commande.',
+            icon: 'warning',
+            confirmButtonColor: '#2563eb',
+        });
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: 'Soumettre cette commande ?',
+        text: 'Elle sera envoyée au circuit de validation et ne pourra plus être modifiée.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Soumettre',
+        cancelButtonText: 'Annuler',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+    });
+    if (result.isConfirmed) {
+        router.post(route('purchase-orders.submit', props.order.id));
+    }
+};
+
+const remindDemandeur = async () => {
+    const result = await Swal.fire({
+        title: 'Relancer le demandeur ?',
+        text: `Un email de rappel sera envoyé à ${props.order.user?.name ?? 'le demandeur'} pour compléter et soumettre cette commande.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Relancer',
+        cancelButtonText: 'Annuler',
+        confirmButtonColor: '#2563eb',
+        cancelButtonColor: '#6b7280',
+        reverseButtons: true,
+    });
+    if (result.isConfirmed) {
+        router.post(route('purchase-orders.remind', props.order.id), {}, { preserveScroll: true });
     }
 };
 
@@ -243,6 +331,10 @@ const submitReception = () => {
                             <span v-if="order.order_number" class="inline-flex items-center gap-1 rounded-full bg-blue-50 px-3 py-1 font-mono text-xs font-bold text-blue-700">
                                 {{ order.order_number }}
                             </span>
+                            <!-- Code affaire / chantier -->
+                            <span v-if="order.project_code" class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 font-mono text-xs font-bold text-amber-700">
+                                Chantier : {{ order.project_code }}
+                            </span>
                             <span v-if="order.status === 'pending'" class="text-sm text-muted-foreground">
                                 Niveau {{ order.current_level_order }} — {{ levels.find(l => l.order === order.current_level_order)?.name }}
                             </span>
@@ -262,6 +354,34 @@ const submitReception = () => {
                         <FileDown class="h-4 w-4" />
                         <span class="hidden sm:inline">PDF</span>
                     </a>
+                    <!-- Soumettre (demandeur ou admin, commande importée de Sage en brouillon) -->
+                    <button
+                        v-if="(isAdmin || isCreator) && order.status === 'draft'"
+                        class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
+                        @click="submitOrder"
+                    >
+                        <Send class="h-4 w-4" />
+                        Soumettre pour validation
+                    </button>
+                    <!-- Relancer le demandeur (admin, commande en brouillon, demandeur identifié) -->
+                    <button
+                        v-if="isAdmin && order.status === 'draft' && order.user?.role"
+                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                        @click="remindDemandeur"
+                        :title="order.last_reminder_sent_at ? `Dernière relance : ${formatDate(order.last_reminder_sent_at)}` : 'Aucune relance envoyée'"
+                    >
+                        <Bell class="h-4 w-4" />
+                        <span class="hidden sm:inline">Relancer le demandeur</span>
+                    </button>
+                    <!-- Commande sans demandeur reconnu : seul un admin peut la compléter/soumettre -->
+                    <span
+                        v-else-if="isAdmin && order.status === 'draft'"
+                        class="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700"
+                        title="Code collaborateur Sage non reconnu : personne d'autre ne peut compléter cette commande."
+                    >
+                        <AlertCircle class="h-4 w-4" />
+                        <span class="hidden sm:inline">Aucun demandeur identifié</span>
+                    </span>
                     <!-- Confirmer la commande (admin, approuvée, pas encore ordonnée) -->
                     <button
                         v-if="isAdmin && order.status === 'approved' && (!order.delivery_status || order.delivery_status === 'ordered')"
@@ -302,8 +422,15 @@ const submitReception = () => {
                             <div class="flex items-center gap-3">
                                 <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50"><DollarSign class="h-4 w-4 text-blue-600" /></div>
                                 <div>
-                                    <p class="text-xs text-muted-foreground">Montant</p>
+                                    <p class="text-xs text-muted-foreground">Montant HT</p>
                                     <p class="font-bold text-foreground">{{ formatAmount(order.amount) }}</p>
+                                </div>
+                            </div>
+                            <div v-if="order.amount_ttc" class="flex items-center gap-3">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50"><DollarSign class="h-4 w-4 text-blue-600" /></div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Montant TTC (TVA {{ formatAmount(Number(order.amount_ttc) - Number(order.amount)) }})</p>
+                                    <p class="font-bold text-foreground">{{ formatAmount(order.amount_ttc) }}</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3">
@@ -445,9 +572,13 @@ const submitReception = () => {
                             <thead>
                                 <tr class="border-b bg-muted/20">
                                     <th class="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground">Article</th>
+                                    <th class="hidden text-left px-4 py-2.5 font-medium text-xs text-muted-foreground md:table-cell">Fournisseur</th>
                                     <th class="text-center px-4 py-2.5 font-medium text-xs text-muted-foreground">Qté cmd</th>
-                                    <th class="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground">Prix unit.</th>
-                                    <th class="text-right px-5 py-2.5 font-medium text-xs text-muted-foreground">Sous-total</th>
+                                    <th class="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground">Prix unit. HT</th>
+                                    <th class="hidden text-center px-3 py-2.5 font-medium text-xs text-muted-foreground sm:table-cell">TVA</th>
+                                    <th class="hidden text-center px-3 py-2.5 font-medium text-xs text-muted-foreground sm:table-cell">Remise</th>
+                                    <th class="text-right px-5 py-2.5 font-medium text-xs text-muted-foreground">Sous-total HT</th>
+                                    <th class="hidden text-right px-5 py-2.5 font-medium text-xs text-muted-foreground lg:table-cell">Sous-total TTC</th>
                                     <th v-if="order.delivery_status" class="text-center px-4 py-2.5 font-medium text-xs text-muted-foreground">Réception</th>
                                 </tr>
                             </thead>
@@ -458,11 +589,19 @@ const submitReception = () => {
                                         <p v-if="line.article?.reference" class="text-xs text-muted-foreground font-mono">{{ line.article.reference }}</p>
                                         <p v-if="line.note" class="text-xs text-muted-foreground italic mt-0.5">{{ line.note }}</p>
                                     </td>
+                                    <td class="hidden px-4 py-3 text-sm text-muted-foreground md:table-cell">{{ line.fournisseur?.name ?? '—' }}</td>
                                     <td class="px-4 py-3 text-center text-sm text-foreground">
-                                        {{ line.quantity }} <span class="text-xs text-muted-foreground">{{ line.article?.unit }}</span>
+                                        {{ line.quantity }} <span class="text-xs text-muted-foreground">{{ line.unit ?? line.article?.unit }}</span>
                                     </td>
                                     <td class="px-4 py-3 text-right text-sm text-foreground">{{ formatAmount(Number(line.unit_price)) }}</td>
+                                    <td class="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
+                                        {{ line.vat_rate !== null && line.vat_rate !== undefined ? `${line.vat_rate}%` : '—' }}
+                                    </td>
+                                    <td class="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
+                                        {{ line.discount_rate !== null && line.discount_rate !== undefined ? `${line.discount_rate}%` : '—' }}
+                                    </td>
                                     <td class="px-5 py-3 text-right font-semibold text-foreground">{{ formatAmount(Number(line.subtotal)) }}</td>
+                                    <td class="hidden px-5 py-3 text-right text-sm text-muted-foreground lg:table-cell">{{ formatAmount(lineSubtotalTtc(line)) }}</td>
                                     <!-- Colonne réception -->
                                     <td v-if="order.delivery_status" class="px-4 py-3">
                                         <div class="flex flex-col items-center gap-1 min-w-[90px]">
@@ -489,8 +628,9 @@ const submitReception = () => {
                             </tbody>
                             <tfoot>
                                 <tr class="border-t bg-muted/20">
-                                    <td :colspan="order.delivery_status ? 3 : 3" class="px-5 py-3 text-sm font-semibold text-right text-foreground">Total</td>
+                                    <td colspan="6" class="px-5 py-3 text-sm font-semibold text-right text-foreground">Total</td>
                                     <td class="px-5 py-3 text-right font-bold text-foreground">{{ formatAmount(Number(order.amount)) }}</td>
+                                    <td class="hidden px-5 py-3 text-right font-bold text-foreground lg:table-cell">{{ formatAmount(order.amount_ttc ?? order.lines.reduce((sum, l) => sum + lineSubtotalTtc(l), 0)) }}</td>
                                     <td v-if="order.delivery_status" />
                                 </tr>
                             </tfoot>
@@ -503,15 +643,23 @@ const submitReception = () => {
                             <Paperclip class="h-4 w-4" />
                             Pieces jointes ({{ order.attachments?.length ?? 0 }})
                         </h2>
-                        <div v-if="order.attachments?.length" class="flex flex-col gap-2">
-                            <a
+
+                        <p v-if="order.status === 'draft' && !order.attachments?.length" class="mb-4 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                            <AlertCircle class="h-4 w-4 shrink-0" />
+                            Au moins une pièce jointe est obligatoire avant de pouvoir soumettre cette commande.
+                        </p>
+
+                        <div v-if="order.attachments?.length" class="mb-4 flex flex-col gap-2">
+                            <div
                                 v-for="attachment in order.attachments"
                                 :key="attachment.id"
-                                :href="route('attachments.download', attachment.id)"
-                                target="_blank"
                                 class="group flex items-center justify-between rounded-xl border bg-muted/30 px-4 py-3 transition-colors hover:bg-muted/50"
                             >
-                                <div class="flex min-w-0 items-center gap-3">
+                                <a
+                                    :href="route('attachments.download', attachment.id)"
+                                    target="_blank"
+                                    class="flex min-w-0 flex-1 items-center gap-3"
+                                >
                                     <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-red-50">
                                         <FileText class="h-4 w-4 text-red-600" />
                                     </div>
@@ -519,11 +667,59 @@ const submitReception = () => {
                                         <p class="truncate text-sm font-medium text-foreground">{{ attachment.file_name }}</p>
                                         <p class="text-xs text-muted-foreground">{{ formatSize(attachment.file_size) }}</p>
                                     </div>
+                                </a>
+                                <div class="flex shrink-0 items-center gap-1">
+                                    <button
+                                        v-if="canEditAttachments"
+                                        type="button"
+                                        class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-red-50 hover:text-red-600"
+                                        title="Supprimer"
+                                        @click="deleteAttachment(attachment.id)"
+                                    >
+                                        <Trash2 class="h-4 w-4" />
+                                    </button>
+                                    <a :href="route('attachments.download', attachment.id)" target="_blank" class="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" title="Télécharger">
+                                        <Download class="h-4 w-4" />
+                                    </a>
                                 </div>
-                                <Download class="h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
-                            </a>
+                            </div>
                         </div>
-                        <p v-else class="text-sm text-muted-foreground">Aucune piece jointe</p>
+                        <p v-else-if="order.status !== 'draft'" class="text-sm text-muted-foreground">Aucune piece jointe</p>
+
+                        <!-- Ajout de pièce(s) jointe(s) : demandeur ou admin, tant que la commande est en brouillon -->
+                        <div v-if="canEditAttachments" class="flex flex-col gap-2 rounded-xl border border-dashed p-4">
+                            <input
+                                ref="attachmentInput"
+                                type="file"
+                                multiple
+                                class="hidden"
+                                @change="onAttachmentFilesChange"
+                            />
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    class="inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                                    @click="attachmentInput?.click()"
+                                >
+                                    <Paperclip class="h-3.5 w-3.5" />
+                                    Choisir un ou plusieurs fichiers
+                                </button>
+                                <span v-if="attachmentForm.files.length" class="text-xs text-muted-foreground">
+                                    {{ attachmentForm.files.length }} fichier(s) sélectionné(s)
+                                </span>
+                                <button
+                                    v-if="attachmentForm.files.length"
+                                    type="button"
+                                    class="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+                                    :disabled="attachmentForm.processing"
+                                    @click="uploadAttachments"
+                                >
+                                    <Upload class="h-3.5 w-3.5" />
+                                    Envoyer
+                                </button>
+                            </div>
+                            <p v-if="attachmentForm.errors.files" class="text-xs text-red-600">{{ attachmentForm.errors.files }}</p>
+                        </div>
                     </div>
                 </div>
 

@@ -15,6 +15,7 @@ class PurchaseOrder extends Model
         'title',
         'description',
         'amount',
+        'amount_ttc',
         'status',
         'current_level_order',
         'submitted_at',
@@ -25,11 +26,15 @@ class PurchaseOrder extends Model
         'sage_reference',
         'source',
         'order_date',
+        'project_code',
+        'last_reminder_sent_at',
     ];
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'amount_ttc' => 'decimal:2',
         'submitted_at' => 'datetime',
+        'last_reminder_sent_at' => 'datetime',
         'ordered_at' => 'datetime',
         'fully_received_at' => 'datetime',
         'order_date' => 'date',

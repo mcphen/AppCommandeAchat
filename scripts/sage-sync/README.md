@@ -251,12 +251,23 @@ ORDER BY NbDesignations DESC
   "tiers_siret": "...",
   "montant_ht": 600000,
   "montant_ttc": 600000,
+  "projet_code": "CHANTIER-042",
   "lignes": [
-    { "article": "LOC", "designation": "LOCATION BETONNIERE", "quantite": 20, "prix_unitaire": 30000 }
+    {
+      "article": "LOC", "designation": "LOCATION BETONNIERE", "famille_article": "LOCATION",
+      "quantite": 20, "prix_unitaire": 30000, "taux_tva": 18, "remise": 0, "unite": "JOUR"
+    }
   ],
   "demandeur": { "code": "8", "nom": "GERARD AFANOU", "email": "" }
 }
 ```
+
+Champs ajoutés le 2026-07-31 : `projet_code` (`DO_ProjetCode` sur `F_DOCENTETE`, nom de colonne
+variable selon le module "Affaires" du client — paramétrable via `-ProjectCodeColumn` dans
+`Sync-PurchaseOrders.ps1`, à confirmer avec `Discover-SageSchema.ps1` avant activation en prod),
+`lignes[].famille_article` (`F_ARTICLE.AR_FamilleCode`), `lignes[].taux_tva`
+(`F_DOCLIGNE.DL_Taux1`), `lignes[].remise` (`DL_Remise01`), `lignes[].unite` (`DL_UniteVente`).
+Tous optionnels côté validation Laravel.
 
 ### Fichiers Laravel côté app
 

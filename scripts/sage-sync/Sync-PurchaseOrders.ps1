@@ -59,6 +59,12 @@ param(
 
     [string]$StateFile = (Join-Path $PSScriptRoot "sync-state.json"),
 
+    # Nom reel de la colonne "code affaire/chantier" sur F_DOCENTETE. Le nom exact
+    # depend du module Sage100 "Affaires" active chez le client (souvent DO_ProjetCode,
+    # parfois different) : verifier avec Discover-SageSchema.ps1 avant la premiere
+    # execution en prod. Laisser vide ("") si le client n'a pas ce module.
+    [string]$ProjectCodeColumn = "DO_ProjetCode",
+
     [switch]$DryRun
 )
 
@@ -122,6 +128,19 @@ function Get-SafeDouble($value) {
     return [double]$value
 }
 
+# Variantes "nullable" pour les champs optionnels (taux TVA, remise, code affaire...) ou
+# 0/"" a un sens different de "non renseigne" : on veut vraiment $null en JSON, pas 0.
+function Get-SafeNullableTrim($value) {
+    if ($null -eq $value -or $value -is [System.DBNull]) { return $null }
+    $trimmed = [string]$value.Trim()
+    return $(if ($trimmed) { $trimmed } else { $null })
+}
+
+function Get-SafeNullableDouble($value) {
+    if ($null -eq $value -or $value -is [System.DBNull]) { return $null }
+    return [double]$value
+}
+
 # ── 1. Connexion ────────────────────────────────────────────────────────────
 Write-Log "=== Debut synchro (DryRun=$($DryRun.IsPresent)) ==="
 try {
@@ -139,10 +158,14 @@ Write-Log "Watermark actuel : $($watermark.ToString('o'))"
 # ── 2. Recuperer les entetes de commandes fournisseur modifiees depuis le watermark ──
 # Jointure F_COLLABORATEUR (via CO_No) pour le vrai demandeur, et F_COMPTET (via DO_Tiers)
 # pour les vraies coordonnees du fournisseur (nom, adresse, ville, tel, email, siret).
+# Colonne "code affaire" ajoutee dynamiquement via $ProjectCodeColumn (nom variable
+# selon config Sage100 du client, cf. parametre en tete de script).
+$projectCodeSelect = if ($ProjectCodeColumn) { ", d.$ProjectCodeColumn AS DO_ProjetCode" } else { "" }
 $entetes = Invoke-SqlQuery $conn @"
 SELECT d.DO_Piece, d.DO_Date, d.DO_Tiers, d.DO_TotalHT, d.DO_TotalTTC, d.cbModification, d.DO_Cloture,
        d.CO_No, col.CO_Nom, col.CO_Prenom, col.CO_EMail,
        ct.CT_Intitule, ct.CT_Adresse, ct.CT_Ville, ct.CT_Telephone, ct.CT_EMail AS CT_Email, ct.CT_Siret
+       $projectCodeSelect
 FROM F_DOCENTETE d
 LEFT JOIN F_COLLABORATEUR col ON col.CO_No = d.CO_No
 LEFT JOIN F_COMPTET ct ON ct.CT_Num = d.DO_Tiers
@@ -160,11 +183,16 @@ if ($entetes.Rows.Count -eq 0) {
 
 # ── 3. Recuperer TOUTES les lignes en une seule requete, puis grouper cote PowerShell ──
 # (evite tout souci de correspondance de parametre SQL piece-par-piece)
+# Jointure F_ARTICLE (via AR_Ref) pour recuperer la famille article (AR_FamilleCode),
+# utile pour rattacher automatiquement une categorie interne plus tard.
 $toutesLesLignes = Invoke-SqlQuery $conn @"
-SELECT DO_Piece, AR_Ref, DL_Design, DL_Qte, DL_QteBL, DL_DateBL, DL_PieceBL, DL_PrixUnitaire, DL_Ligne
-FROM F_DOCLIGNE
-WHERE DO_Domaine = 1 AND DO_Type = 12
-ORDER BY DO_Piece, DL_Ligne ASC
+SELECT l.DO_Piece, l.AR_Ref, l.DL_Design, l.DL_Qte, l.DL_QteBL, l.DL_DateBL, l.DL_PieceBL,
+       l.DL_PrixUnitaire, l.DL_Ligne, l.DL_Taux1, l.DL_Remise01, l.DL_UniteVente,
+       ar.AR_FamilleCode
+FROM F_DOCLIGNE l
+LEFT JOIN F_ARTICLE ar ON ar.AR_Ref = l.AR_Ref
+WHERE l.DO_Domaine = 1 AND l.DO_Type = 12
+ORDER BY l.DO_Piece, l.DL_Ligne ASC
 "@
 
 $lignesParPiece = @{}
@@ -223,6 +251,7 @@ foreach ($entete in $entetes) {
             montant_ht   = Get-SafeDouble $entete.DO_TotalHT
             montant_ttc  = Get-SafeDouble $entete.DO_TotalTTC
             cloture      = ($entete.DO_Cloture -isnot [System.DBNull] -and [int]$entete.DO_Cloture -eq 1)
+            projet_code  = if ($ProjectCodeColumn) { Get-SafeNullableTrim $entete.DO_ProjetCode } else { $null }
             lignes       = @(
                 foreach ($ligne in $lignes) {
                     $article = Get-SafeTrim $ligne.AR_Ref
@@ -234,8 +263,12 @@ foreach ($entete in $entetes) {
                     @{
                         article          = $article
                         designation      = Get-SafeTrim $ligne.DL_Design
+                        famille_article  = Get-SafeNullableTrim $ligne.AR_FamilleCode
                         quantite         = Get-SafeDouble $ligne.DL_Qte
                         prix_unitaire    = Get-SafeDouble $ligne.DL_PrixUnitaire
+                        taux_tva         = Get-SafeNullableDouble $ligne.DL_Taux1
+                        remise           = Get-SafeNullableDouble $ligne.DL_Remise01
+                        unite            = Get-SafeNullableTrim $ligne.DL_UniteVente
                         quantite_livree  = Get-SafeDouble $ligne.DL_QteBL
                         date_livraison   = $dateLivraison
                         piece_bl         = Get-SafeTrim $ligne.DL_PieceBL

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import OrderDiscussion from '@/components/OrderDiscussion.vue';
-import { type BreadcrumbItem, type PurchaseOrder, type ValidationLevel } from '@/types';
+import { type BreadcrumbItem, type PurchaseOrder, type PurchaseOrderLine, type ValidationLevel } from '@/types';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
-import { AlertTriangle, ArrowLeft, Building2, Calendar, CheckCircle2, DollarSign, Download, FileDown, FileText, Loader2, Paperclip, User, XCircle } from 'lucide-vue-next';
+import { AlertTriangle, ArrowLeft, Building2, Calendar, CheckCircle2, DollarSign, Download, FileDown, FileText, Loader2, Package, Paperclip, Truck, User, XCircle } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 
@@ -67,6 +67,12 @@ const getLogForLevel = (levelId: number) => {
     return props.order.validation_logs?.find(log => log.validation_level_id === levelId) ?? null;
 };
 
+const lineSubtotalTtc = (line: PurchaseOrderLine): number => {
+    const ht  = Number(line.subtotal ?? Number(line.quantity) * Number(line.unit_price));
+    const tva = line.vat_rate !== null && line.vat_rate !== undefined ? Number(line.vat_rate) : 0;
+    return ht * (1 + tva / 100);
+};
+
 const progressSummary = () => {
     const totalLevels = props.levels.length;
 
@@ -111,8 +117,15 @@ const progressSummary = () => {
                             <div class="flex items-center gap-3">
                                 <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50"><DollarSign class="h-4 w-4 text-blue-600" /></div>
                                 <div>
-                                    <p class="text-xs text-muted-foreground">Montant</p>
+                                    <p class="text-xs text-muted-foreground">Montant HT</p>
                                     <p class="text-lg font-bold text-foreground">{{ formatAmount(order.amount) }}</p>
+                                </div>
+                            </div>
+                            <div v-if="order.amount_ttc" class="flex items-center gap-3">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50"><DollarSign class="h-4 w-4 text-blue-600" /></div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Montant TTC (TVA {{ formatAmount(Number(order.amount_ttc) - Number(order.amount)) }})</p>
+                                    <p class="text-lg font-bold text-foreground">{{ formatAmount(order.amount_ttc) }}</p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3">
@@ -120,6 +133,13 @@ const progressSummary = () => {
                                 <div>
                                     <p class="text-xs text-muted-foreground">Demandeur</p>
                                     <p class="font-medium text-foreground">{{ order.user?.name }}</p>
+                                </div>
+                            </div>
+                            <div v-if="order.fournisseur" class="flex items-center gap-3">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50"><Truck class="h-4 w-4 text-orange-600" /></div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Fournisseur</p>
+                                    <p class="font-medium text-foreground">{{ order.fournisseur.name }} <span class="text-muted-foreground">({{ order.fournisseur.code }})</span></p>
                                 </div>
                             </div>
                             <div class="flex items-center gap-3 md:col-span-2">
@@ -141,6 +161,58 @@ const progressSummary = () => {
                             <p class="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Description</p>
                             <p class="whitespace-pre-wrap text-sm leading-relaxed text-foreground">{{ order.description }}</p>
                         </div>
+                    </div>
+
+                    <div v-if="order.lines && order.lines.length > 0" class="rounded-2xl border bg-card shadow-sm overflow-hidden">
+                        <div class="flex items-center justify-between px-6 py-4 border-b">
+                            <h2 class="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                                <Package class="h-4 w-4" />
+                                Lignes de commande ({{ order.lines.length }})
+                            </h2>
+                        </div>
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="border-b bg-muted/20">
+                                    <th class="text-left px-5 py-2.5 font-medium text-xs text-muted-foreground">Article</th>
+                                    <th class="hidden text-left px-4 py-2.5 font-medium text-xs text-muted-foreground md:table-cell">Fournisseur</th>
+                                    <th class="text-center px-4 py-2.5 font-medium text-xs text-muted-foreground">Qté</th>
+                                    <th class="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground">Prix unit. HT</th>
+                                    <th class="hidden text-center px-3 py-2.5 font-medium text-xs text-muted-foreground sm:table-cell">TVA</th>
+                                    <th class="hidden text-center px-3 py-2.5 font-medium text-xs text-muted-foreground sm:table-cell">Remise</th>
+                                    <th class="text-right px-5 py-2.5 font-medium text-xs text-muted-foreground">Sous-total HT</th>
+                                    <th class="hidden text-right px-5 py-2.5 font-medium text-xs text-muted-foreground lg:table-cell">Sous-total TTC</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y">
+                                <tr v-for="line in order.lines" :key="line.id" class="hover:bg-muted/10">
+                                    <td class="px-5 py-3">
+                                        <p class="font-medium text-foreground">{{ line.article?.name ?? '—' }}</p>
+                                        <p v-if="line.article?.reference" class="text-xs text-muted-foreground font-mono">{{ line.article.reference }}</p>
+                                        <p v-if="line.note" class="text-xs text-muted-foreground italic mt-0.5">{{ line.note }}</p>
+                                    </td>
+                                    <td class="hidden px-4 py-3 text-sm text-muted-foreground md:table-cell">{{ line.fournisseur?.name ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-center text-sm text-foreground">
+                                        {{ line.quantity }} <span class="text-xs text-muted-foreground">{{ line.unit ?? line.article?.unit }}</span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right text-sm text-foreground">{{ formatAmount(Number(line.unit_price)) }}</td>
+                                    <td class="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
+                                        {{ line.vat_rate !== null && line.vat_rate !== undefined ? `${line.vat_rate}%` : '—' }}
+                                    </td>
+                                    <td class="hidden px-3 py-3 text-center text-xs text-muted-foreground sm:table-cell">
+                                        {{ line.discount_rate !== null && line.discount_rate !== undefined ? `${line.discount_rate}%` : '—' }}
+                                    </td>
+                                    <td class="px-5 py-3 text-right font-semibold text-foreground">{{ formatAmount(Number(line.subtotal)) }}</td>
+                                    <td class="hidden px-5 py-3 text-right text-sm text-muted-foreground lg:table-cell">{{ formatAmount(lineSubtotalTtc(line)) }}</td>
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="border-t bg-muted/20">
+                                    <td colspan="6" class="px-5 py-3 text-sm font-semibold text-right text-foreground">Total</td>
+                                    <td class="px-5 py-3 text-right font-bold text-foreground">{{ formatAmount(Number(order.amount)) }}</td>
+                                    <td class="hidden px-5 py-3 text-right font-bold text-foreground lg:table-cell">{{ formatAmount(order.amount_ttc ?? order.lines.reduce((sum, l) => sum + lineSubtotalTtc(l), 0)) }}</td>
+                                </tr>
+                            </tfoot>
+                        </table>
                     </div>
 
                     <div class="rounded-2xl border bg-card p-6 shadow-sm">

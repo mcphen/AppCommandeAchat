@@ -3,7 +3,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOrder, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { Building2, Calendar, CheckSquare, Clock, Eye, FileText, Filter, RotateCcw } from 'lucide-vue-next';
+import { Building2, Calendar, CheckSquare, Clock, Eye, FileText, Filter, Paperclip, RotateCcw } from 'lucide-vue-next';
 import { computed } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -127,6 +127,10 @@ const hasActiveFilters = computed(() => !!props.filters.boutique_id);
                                                 <p class="max-w-[140px] truncate font-semibold text-foreground sm:max-w-xs">{{ order.title }}</p>
                                                 <p class="mt-0.5 line-clamp-1 max-w-[140px] text-xs text-muted-foreground sm:max-w-xs">{{ order.description }}</p>
                                                 <p class="mt-1 text-xs text-muted-foreground">{{ progressLabel(order, levelsCount) }}</p>
+                                                <p v-if="order.attachments?.length" class="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                                                    <Paperclip class="h-3 w-3" />
+                                                    {{ order.attachments.length }} pièce{{ order.attachments.length > 1 ? 's' : '' }} jointe{{ order.attachments.length > 1 ? 's' : '' }}
+                                                </p>
                                             </div>
                                         </div>
                                     </td>

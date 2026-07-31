@@ -58,7 +58,10 @@ class ValidationController extends Controller
         $purchaseOrder->load([
             'user',
             'boutique',
+            'fournisseur',
             'attachments',
+            'lines.article.category',
+            'lines.fournisseur',
             'validationLogs.validationLevel',
             'validationLogs.user',
             'validationLogs.delegatedBy',

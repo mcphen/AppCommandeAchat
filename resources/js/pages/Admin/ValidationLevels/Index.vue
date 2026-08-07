@@ -51,6 +51,7 @@ const form = useForm({
     name: '',
     order: 1,
     description: '',
+    type: 'validation',
 });
 
 const openModal = () => {
@@ -66,6 +67,7 @@ const openEditModal = (level: ValidationLevel & { validators_count: number }) =>
     form.name        = level.name;
     form.order       = level.order;
     form.description = level.description ?? '';
+    form.type        = level.type;
     form.clearErrors();
     showModal.value = true;
 };
@@ -228,6 +230,14 @@ const submit = () => {
                                             {{ level.order }}
                                         </div>
                                         <p class="font-semibold text-foreground text-sm">{{ level.name }}</p>
+                                        <span
+                                            class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                            :class="level.type === 'approbation'
+                                                ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
+                                                : 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'"
+                                        >
+                                            {{ level.type === 'approbation' ? 'Approbation' : 'Validation' }}
+                                        </span>
                                         <p v-if="level.description" class="mt-1 text-xs text-muted-foreground line-clamp-2">{{ level.description }}</p>
                                         <div class="mt-3 flex items-center justify-center gap-1 text-xs"
                                             :class="level.validators_count === 0 ? 'text-amber-600 dark:text-amber-300' : 'text-muted-foreground'">
@@ -284,6 +294,7 @@ const submit = () => {
                             <tr class="border-b bg-muted/30">
                                 <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ordre</th>
                                 <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nom</th>
+                                <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</th>
                                 <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</th>
                                 <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Validateurs</th>
                                 <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
@@ -297,6 +308,16 @@ const submit = () => {
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 font-semibold text-foreground">{{ level.name }}</td>
+                                <td class="px-6 py-4">
+                                    <span
+                                        class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
+                                        :class="level.type === 'approbation'
+                                            ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
+                                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'"
+                                    >
+                                        {{ level.type === 'approbation' ? 'Approbation' : 'Validation' }}
+                                    </span>
+                                </td>
                                 <td class="px-6 py-4 text-sm text-muted-foreground max-w-xs">{{ level.description ?? '—' }}</td>
                                 <td class="px-6 py-4">
                                     <span
@@ -417,6 +438,23 @@ const submit = () => {
                                     />
                                     <p v-if="form.errors.name" class="text-xs text-red-500">{{ form.errors.name }}</p>
                                 </div>
+                            </div>
+
+                            <!-- Type d'étape -->
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-medium text-foreground" for="modal-type">
+                                    Type d'étape <span class="text-red-500">*</span>
+                                </label>
+                                <select
+                                    id="modal-type"
+                                    v-model="form.type"
+                                    class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    :class="{ 'border-red-400': form.errors.type }"
+                                >
+                                    <option value="validation">Validation</option>
+                                    <option value="approbation">Approbation</option>
+                                </select>
+                                <p v-if="form.errors.type" class="text-xs text-red-500">{{ form.errors.type }}</p>
                             </div>
 
                             <!-- Description -->

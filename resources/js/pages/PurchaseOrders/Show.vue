@@ -745,7 +745,15 @@ const submitReception = () => {
                                     <span v-else>{{ level.order }}</span>
                                 </div>
                                 <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-semibold leading-tight text-foreground">{{ level.name }}</p>
+                                    <div class="flex items-center gap-1.5">
+                                        <p class="text-sm font-semibold leading-tight text-foreground">{{ level.name }}</p>
+                                        <span
+                                            v-if="level.type === 'approbation'"
+                                            class="inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:bg-violet-950/30 dark:text-violet-300"
+                                        >
+                                            Approbation
+                                        </span>
+                                    </div>
                                     <p v-if="level.description" class="mt-0.5 text-xs text-muted-foreground">{{ level.description }}</p>
                                     <template v-if="getLogForLevel(level.id)">
                                         <div class="mt-1.5 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs"

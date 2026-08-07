@@ -31,8 +31,7 @@
         /* ── Layout 2 colonnes ───────────────────────────────── */
         .cols { display: table; width: 100%; border-spacing: 14px 0; margin-bottom: 18px; }
         .col  { display: table-cell; vertical-align: top; }
-        .col-left  { width: 55%; }
-        .col-right { width: 45%; }
+        .col-left  { width: 100%; }
 
         /* ── Section ─────────────────────────────────────────── */
         .section       { margin-bottom: 18px; }
@@ -63,19 +62,6 @@
         .article-name { font-weight: 600; }
         .article-ref  { font-size: 9px; color: #94a3b8; font-family: monospace; }
         .article-note { font-size: 9px; color: #64748b; font-style: italic; }
-
-        /* ── Timeline validation ──────────────────────────────── */
-        .timeline      { position: relative; padding-left: 18px; }
-        .timeline-item { position: relative; margin-bottom: 12px; }
-        .timeline-item:last-child { margin-bottom: 0; }
-        .timeline-dot  { position: absolute; left: -18px; top: 2px; width: 12px; height: 12px; border-radius: 50%; border: 2px solid #e2e8f0; background: #fff; }
-        .timeline-dot.done     { background: #10b981; border-color: #10b981; }
-        .timeline-dot.active   { background: #4f46e5; border-color: #4f46e5; }
-        .timeline-dot.rejected { background: #ef4444; border-color: #ef4444; }
-        .level-name      { font-weight: 600; font-size: 11px; color: #0f172a; }
-        .level-meta      { font-size: 9px; color: #64748b; margin-top: 2px; }
-        .level-validator { font-size: 10px; color: #4f46e5; margin-top: 2px; font-weight: 500; }
-        .level-comment   { font-size: 9px; color: #64748b; font-style: italic; margin-top: 2px; background: #f1f5f9; padding: 3px 6px; border-radius: 4px; }
 
         /* ── Signatures ───────────────────────────────────────── */
         .signatures  { display: table; width: 100%; border-spacing: 12px 0; margin-top: 24px; }
@@ -112,26 +98,11 @@
         <div class="header-left">
             {{-- Logo entreprise --}}
             @if(!empty($logoB64))
-            <img src="{{ $logoB64 }}" alt="{{ $companyName }}" style="max-height:48px; max-width:160px; object-fit:contain; margin-bottom:6px; display:block;" />
+            <img src="{{ $logoB64 }}" alt="{{ $companyName }}" style="max-height:80px; max-width:260px; object-fit:contain; margin-bottom:6px; display:block;" />
             @endif
-            <h1>{{ $companyName }}</h1>
-            @if($companyAddress)
-            <p style="margin-top:2px;">{{ $companyAddress }}</p>
-            @endif
-            @if($companyPhone || $companyEmail)
-            <p style="margin-top:2px;">
-                @if($companyPhone){{ $companyPhone }}@endif
-                @if($companyPhone && $companyEmail) &nbsp;·&nbsp; @endif
-                @if($companyEmail){{ $companyEmail }}@endif
-            </p>
-            @endif
-            @if($companyNif || $companyRccm)
-            <p style="margin-top:2px; font-size:9px; color:#94a3b8;">
-                @if($companyNif)NIF : {{ $companyNif }}@endif
-                @if($companyNif && $companyRccm) &nbsp;·&nbsp; @endif
-                @if($companyRccm)RCCM : {{ $companyRccm }}@endif
-            </p>
-            @endif
+           
+            
+            
             <p style="margin-top:6px; font-size:10px; color:#64748b;">
                 {{ $order->boutique?->name ?? 'Aucune boutique' }}@if($order->boutique) &nbsp;—&nbsp; {{ $order->boutique->code }}@endif
             </p>
@@ -155,8 +126,8 @@
         </div>
         <div class="header-right">
             <div class="bc-label">Numéro de commande</div>
-            @if($order->order_number)
-                <div class="bc-number">{{ $order->order_number }}</div>
+            @if($order->title)
+                <div class="bc-number">{{ $order->title }}</div>
             @else
                 <div class="bc-number" style="color:#94a3b8;">#{{ str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</div>
             @endif
@@ -218,42 +189,6 @@
                 @endforeach
             </div>
             @endif
-        </div>
-
-        <div class="col col-right">
-            <div class="section">
-                <div class="section-title">Circuit de validation</div>
-                <div class="timeline">
-                    @foreach($levels as $level)
-                        @php
-                            $log        = $order->validationLogs->firstWhere('validation_level_id', $level->id);
-                            $isDone     = $order->status === 'approved' || ($order->status === 'pending' && $order->current_level_order > $level->order);
-                            $isActive   = $order->status === 'pending' && $order->current_level_order === $level->order;
-                            $isRejected = $log && $log->action === 'rejected';
-                            $dotClass   = $isRejected ? 'rejected' : ($isDone ? 'done' : ($isActive ? 'active' : ''));
-                        @endphp
-                        <div class="timeline-item {{ $isDone ? 'done' : '' }}">
-                            <div class="timeline-dot {{ $dotClass }}"></div>
-                            <div class="level-name">{{ $level->name }}</div>
-                            @if($isActive)
-                                <div class="level-meta">En attente de validation</div>
-                            @elseif($isDone && !$isRejected)
-                                <div class="level-meta" style="color:#10b981;">Validé</div>
-                            @elseif($isRejected)
-                                <div class="level-meta" style="color:#ef4444;">Refusé</div>
-                            @else
-                                <div class="level-meta">En attente</div>
-                            @endif
-                            @if($log)
-                                <div class="level-validator">{{ $log->user?->name ?? '—' }} — {{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
-                                @if($log->comment)
-                                    <div class="level-comment">"{{ $log->comment }}"</div>
-                                @endif
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
         </div>
     </div>
 

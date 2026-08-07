@@ -7,9 +7,24 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ValidationLevel extends Model
 {
-    protected $fillable = ['name', 'order', 'description'];
+    protected $fillable = ['name', 'order', 'description', 'type'];
 
     protected $casts = ['order' => 'integer'];
+
+    public function isApproval(): bool
+    {
+        return $this->type === 'approbation';
+    }
+
+    public function actionNoun(): string
+    {
+        return $this->isApproval() ? 'approbation' : 'validation';
+    }
+
+    public function actionPastParticiple(): string
+    {
+        return $this->isApproval() ? 'approuvée' : 'validée';
+    }
 
     public function validators(): HasMany
     {

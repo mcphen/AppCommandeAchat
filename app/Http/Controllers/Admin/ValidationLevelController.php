@@ -37,6 +37,7 @@ class ValidationLevelController extends Controller
             'name'        => ['required', 'string', 'max:255'],
             'order'       => ['required', 'integer', 'min:1', 'unique:validation_levels,order'],
             'description' => ['nullable', 'string', 'max:500'],
+            'type'        => ['required', 'in:validation,approbation'],
         ]);
 
         ValidationLevel::create($data);
@@ -58,6 +59,7 @@ class ValidationLevelController extends Controller
             'name'        => ['required', 'string', 'max:255'],
             'order'       => ['required', 'integer', 'min:1', "unique:validation_levels,order,{$validationLevel->id}"],
             'description' => ['nullable', 'string', 'max:500'],
+            'type'        => ['required', 'in:validation,approbation'],
         ]);
 
         $validationLevel->update($data);

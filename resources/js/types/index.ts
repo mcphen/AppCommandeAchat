@@ -53,6 +53,7 @@ export interface ValidationLevel {
     id: number;
     name: string;
     order: number;
+    type: 'validation' | 'approbation';
     description?: string;
     validators_count?: number;
 }

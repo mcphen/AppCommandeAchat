@@ -4,14 +4,15 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import {
     AlertTriangle, ArrowRight, BarChart2, Clock, ShoppingBag,
-    Tag, TrendingUp, Users, CheckCircle2, XCircle, Timer,
+    Tag, TrendingUp, Users, CheckCircle2, XCircle, Timer, PackageCheck,
+    Download, Truck,
 } from 'lucide-vue-next';
 import {
     BarElement, CategoryScale, Chart as ChartJS, Legend,
     LinearScale, Tooltip, LineElement, PointElement, Filler,
 } from 'chart.js';
 import { Bar, Line } from 'vue-chartjs';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 ChartJS.register(BarElement, CategoryScale, LinearScale, Tooltip, Legend, LineElement, PointElement, Filler);
 
@@ -50,6 +51,11 @@ interface MonthlyByBoutique {
     }[];
 }
 
+interface PeriodSeries {
+    labels: string[];
+    data: number[];
+}
+
 interface DelayEntry {
     name: string;
     avg_hours: number;
@@ -60,6 +66,12 @@ interface DelayEntry {
 interface ValidatorDelay extends DelayEntry {
     approved: number;
     rejected: number;
+}
+
+interface LeadTimeEntry {
+    name: string;
+    avg_days: number;
+    orders_count: number;
 }
 
 interface RejectionRate {
@@ -75,6 +87,8 @@ const props = defineProps<{
     topFournisseurs: TopItem[];
     topCategories: TopItem[];
     monthlyByBoutique: MonthlyByBoutique;
+    deliveredByPeriod: { monthly: PeriodSeries; quarterly: PeriodSeries };
+    fournisseurLeadTimes: LeadTimeEntry[];
     validationDelays: { byLevel: DelayEntry[]; byValidator: ValidatorDelay[] };
     rejectionRates: RejectionRate[];
 }>();
@@ -163,6 +177,51 @@ const hasLineData = computed(() =>
     props.monthlyByBoutique.datasets.some(d => d.data.some(v => v > 0))
 );
 
+// ---- Montant livré par période (mensuel / trimestriel) ----
+const deliveredPeriod = ref<'monthly' | 'quarterly'>('monthly');
+
+const deliveredSeries = computed(() => props.deliveredByPeriod[deliveredPeriod.value]);
+
+const deliveredTotal = computed(() =>
+    deliveredSeries.value.data.reduce((sum, v) => sum + v, 0)
+);
+
+const hasDeliveredData = computed(() => deliveredSeries.value.data.some(v => v > 0));
+
+const deliveredBarData = computed(() => ({
+    labels: deliveredSeries.value.labels,
+    datasets: [{
+        label: 'Montant livré',
+        data: deliveredSeries.value.data,
+        backgroundColor: '#0ea5e9cc',
+        borderRadius: 6,
+        borderSkipped: false,
+    }],
+}));
+
+const exportDeliveredUrl = computed(() =>
+    route('analytics.export-delivered', { period: deliveredPeriod.value })
+);
+
+const deliveredBarOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+        legend: { display: false },
+        tooltip: {
+            padding: 10,
+            cornerRadius: 8,
+            callbacks: {
+                label: (ctx: any) => ' ' + formatAmountShort(ctx.raw) + ' XOF',
+            },
+        },
+    },
+    scales: {
+        x: { grid: { display: false }, border: { display: false } },
+        y: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { callback: (v: any) => formatAmountShort(v) } },
+    },
+};
+
 // ---- Délai moyen par niveau (bar) ----
 const delayByLevelData = computed(() => ({
     labels: props.validationDelays.byLevel.map(l => l.name),
@@ -203,6 +262,13 @@ const rateColor = (rate: number) => {
     if (rate >= 50) return 'bg-red-500';
     if (rate >= 25) return 'bg-amber-400';
     return 'bg-emerald-500';
+};
+
+// ---- Délai de livraison par fournisseur ----
+const leadTimeBadgeClass = (days: number) => {
+    if (days >= 15) return 'bg-red-50 text-red-700';
+    if (days >= 7) return 'bg-amber-50 text-amber-700';
+    return 'bg-emerald-50 text-emerald-700';
 };
 </script>
 
@@ -361,6 +427,84 @@ const rateColor = (rate: number) => {
                     <div v-else class="h-64">
                         <Line :data="monthlyByBoutique" :options="lineOptions" />
                     </div>
+                </div>
+            </section>
+
+            <!-- ============================== -->
+            <!-- 3bis. MONTANT LIVRÉ PAR PÉRIODE -->
+            <!-- ============================== -->
+            <section>
+                <div class="mb-3 flex items-center gap-2">
+                    <PackageCheck class="h-4 w-4 text-sky-500" />
+                    <h2 class="font-semibold text-foreground">Montant des commandes livrées</h2>
+                    <span class="ml-1 text-xs text-muted-foreground">réceptions complètes et partielles</span>
+                    <div class="ml-auto flex items-center gap-2">
+                        <div class="inline-flex rounded-lg border bg-muted/40 p-0.5 text-xs font-medium">
+                            <button
+                                @click="deliveredPeriod = 'monthly'"
+                                class="rounded-md px-3 py-1.5 transition-colors"
+                                :class="deliveredPeriod === 'monthly' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+                            >
+                                Mensuel
+                            </button>
+                            <button
+                                @click="deliveredPeriod = 'quarterly'"
+                                class="rounded-md px-3 py-1.5 transition-colors"
+                                :class="deliveredPeriod === 'quarterly' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+                            >
+                                Trimestriel
+                            </button>
+                        </div>
+                        <a
+                            :href="exportDeliveredUrl"
+                            class="inline-flex items-center gap-1.5 rounded-lg border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                        >
+                            <Download class="h-3.5 w-3.5" />
+                            Exporter
+                        </a>
+                    </div>
+                </div>
+                <div class="rounded-2xl border bg-card p-5 shadow-sm">
+                    <div class="mb-4 flex items-baseline gap-2">
+                        <span class="text-2xl font-bold text-foreground">{{ formatAmount(deliveredTotal) }}</span>
+                        <span class="text-xs text-muted-foreground">
+                            total livré — {{ deliveredPeriod === 'monthly' ? '12 derniers mois' : '8 derniers trimestres' }}
+                        </span>
+                    </div>
+                    <div v-if="!hasDeliveredData" class="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                        Pas encore de livraisons enregistrées sur cette période
+                    </div>
+                    <div v-else class="h-56">
+                        <Bar :data="deliveredBarData" :options="deliveredBarOptions" />
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================================== -->
+            <!-- 3ter. DÉLAI DE LIVRAISON PAR FOURNISSEUR -->
+            <!-- ==================================== -->
+            <section>
+                <div class="mb-3 flex items-center gap-2">
+                    <Truck class="h-4 w-4 text-orange-500" />
+                    <h2 class="font-semibold text-foreground">Délai moyen de livraison par fournisseur</h2>
+                    <span class="ml-auto text-xs text-muted-foreground">confirmation → réception complète</span>
+                </div>
+                <div class="rounded-2xl border bg-card shadow-sm overflow-hidden">
+                    <div v-if="fournisseurLeadTimes.length === 0" class="p-8 text-center text-sm text-muted-foreground">
+                        Pas encore de commandes entièrement réceptionnées
+                    </div>
+                    <ul v-else class="divide-y divide-border">
+                        <li v-for="lt in fournisseurLeadTimes" :key="lt.name"
+                            class="flex items-center justify-between px-5 py-3 text-sm">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-foreground">{{ lt.name }}</span>
+                                <span class="text-xs text-muted-foreground">{{ lt.orders_count }} cmd</span>
+                            </div>
+                            <span class="rounded-full px-2.5 py-1 text-xs font-semibold" :class="leadTimeBadgeClass(lt.avg_days)">
+                                {{ lt.avg_days }}j moy.
+                            </span>
+                        </li>
+                    </ul>
                 </div>
             </section>
 

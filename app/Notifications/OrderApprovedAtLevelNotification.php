@@ -26,7 +26,7 @@ class OrderApprovedAtLevelNotification extends Notification
         return [
             'type'        => 'order_approved_at_level',
             'title'       => 'Commande en attente de votre validation',
-            'body'        => "La commande \"{$this->order->title}\" a été validée au niveau {$this->approvedLevel->name} et requiert votre approbation au niveau {$this->nextLevel->name}.",
+            'body'        => "La commande \"{$this->order->title}\" a été {$this->approvedLevel->actionPastParticiple()} au niveau {$this->approvedLevel->name} et requiert votre {$this->nextLevel->actionNoun()} au niveau {$this->nextLevel->name}.",
             'url'         => route('validations.show', $this->order),
             'order_id'    => $this->order->id,
             'order_title' => $this->order->title,
@@ -39,7 +39,7 @@ class OrderApprovedAtLevelNotification extends Notification
         return (new MailMessage)
             ->subject("Commande en attente de votre validation — {$this->order->title}")
             ->greeting("Bonjour {$notifiable->name},")
-            ->line("La commande suivante a été approuvée au niveau **{$this->approvedLevel->name}** et requiert maintenant votre validation au niveau **{$this->nextLevel->name}**.")
+            ->line("La commande suivante a été {$this->approvedLevel->actionPastParticiple()} au niveau **{$this->approvedLevel->name}** et requiert maintenant votre {$this->nextLevel->actionNoun()} au niveau **{$this->nextLevel->name}**.")
             ->line("**Commande :** {$this->order->title}")
             ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Demandeur :** {$this->order->user->name}")

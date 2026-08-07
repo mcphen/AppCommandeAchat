@@ -26,7 +26,7 @@ class OrderRejectedNotification extends Notification
         return [
             'type'        => 'order_rejected',
             'title'       => 'Commande refusée',
-            'body'        => "La commande \"{$this->order->title}\" a été refusée au niveau {$this->level->name}." . ($this->reason ? " Motif : {$this->reason}" : ''),
+            'body'        => "La commande \"{$this->order->title}\" a été refusée au niveau {$this->level->name} ({$this->level->actionNoun()})." . ($this->reason ? " Motif : {$this->reason}" : ''),
             'url'         => route('purchase-orders.show', $this->order),
             'order_id'    => $this->order->id,
             'order_title' => $this->order->title,
@@ -39,7 +39,7 @@ class OrderRejectedNotification extends Notification
         return (new MailMessage)
             ->subject("Commande refusée — {$this->order->title}")
             ->greeting("Bonjour {$notifiable->name},")
-            ->line("La commande d'achat a été **refusée** au niveau **{$this->level->name}**.")
+            ->line("La commande d'achat a été **refusée** au niveau **{$this->level->name}** ({$this->level->actionNoun()}).")
             ->line("**Commande :** {$this->order->title}")
             ->line("**Montant :** " . number_format($this->order->amount, 0, ',', ' ') . ' FCFA')
             ->line("**Motif du refus :**")

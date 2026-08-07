@@ -22,6 +22,7 @@ const form = useForm({
     name: props.level?.name ?? '',
     order: props.level?.order ?? props.nextOrder ?? 1,
     description: props.level?.description ?? '',
+    type: props.level?.type ?? 'validation',
 });
 
 const submit = () => {
@@ -77,6 +78,19 @@ const submit = () => {
                             />
                             <p v-if="form.errors.name" class="text-xs text-red-500">{{ form.errors.name }}</p>
                         </div>
+                    </div>
+
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium text-foreground">Type d'étape <span class="text-red-500">*</span></label>
+                        <select
+                            v-model="form.type"
+                            class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                            :class="{ 'border-red-400': form.errors.type }"
+                        >
+                            <option value="validation">Validation</option>
+                            <option value="approbation">Approbation</option>
+                        </select>
+                        <p v-if="form.errors.type" class="text-xs text-red-500">{{ form.errors.type }}</p>
                     </div>
 
                     <div class="flex flex-col gap-1.5">

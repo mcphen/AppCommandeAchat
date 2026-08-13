@@ -7,8 +7,7 @@ use App\Models\Article;
 use App\Models\Fournisseur;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
-use App\Models\PurchaseOrderReception;
-use App\Models\PurchaseOrderReceptionLine;
+use App\Models\Project;
 use App\Models\Role;
 use App\Models\SageWebhookLog;
 use App\Models\User;
@@ -114,7 +113,9 @@ class SageWebhookController extends Controller
             ? $this->findOrCreateDemandeur($data['demandeur'])->id
             : $this->systemUserId();
 
-        [$deliveryStatus, $fullyReceivedAt] = $this->resolveDeliveryStatus($data['lignes']);
+        $project = isset($data['projet_code']) && trim($data['projet_code']) !== ''
+            ? Project::findOrCreateFromCode($data['projet_code'])
+            : null;
 
         // Une commande importee depuis Sage n'est jamais soumise automatiquement au
         // circuit de validation : elle est (re)mise en 'draft' (en attente de completion)
@@ -127,10 +128,10 @@ class SageWebhookController extends Controller
         $hasApprovalProgress = $existing?->validationLogs()->where('action', 'approved')->exists() ?? false;
         $targetStatus = $hasApprovalProgress ? 'pending' : 'draft';
 
-        // Le suivi de livraison (delivery_status, fully_received_at, receptions) est
-        // purement informatif : meme entierement receptionnee ou cloturee cote Sage,
-        // une commande doit systematiquement repasser par le circuit de validation
-        // interne de l'app. On ne force jamais le statut a 'approved' automatiquement.
+        // Le suivi de livraison (delivery_status, fully_received_at, receptions) est gere
+        // exclusivement depuis l'app (reception manuelle par un utilisateur) : le sync Sage
+        // ne le deduit plus automatiquement des quantites BL, pour ne jamais afficher une
+        // commande "receptionnee" sans qu'une vraie reception ait ete saisie cote app.
         $attributes = [
             'user_id'             => $userId,
             'fournisseur_id'      => $fournisseur->id,
@@ -149,9 +150,8 @@ class SageWebhookController extends Controller
             'ordered_at'          => $data['date'],
             'sage_reference'      => $data['numero'],
             'source'              => 'sage',
-            'delivery_status'     => $deliveryStatus,
-            'fully_received_at'   => $fullyReceivedAt,
             'project_code'        => $data['projet_code'] ?? null,
+            'project_id'          => $project?->id,
         ];
 
         $isNewOrder = ! $existing;
@@ -161,13 +161,6 @@ class SageWebhookController extends Controller
             : PurchaseOrder::create($attributes);
 
         $order->lines()->delete();
-        // Les receptions liees aux anciennes lignes ont deja disparu via cascadeOnDelete
-        // sur purchase_order_line_id. On nettoie aussi l'entete de reception qu'on avait
-        // eventuellement cree lors d'un sync precedent, pour ne pas en accumuler un
-        // nouveau vide/orphelin a chaque resynchronisation.
-        $order->receptions()->where('notes', 'like', self::SAGE_RECEPTION_MARKER . '%')->delete();
-
-        $createdLines = [];
 
         foreach ($data['lignes'] as $ligne) {
             $article = $this->findOrCreateArticle(
@@ -183,7 +176,7 @@ class SageWebhookController extends Controller
             // differente a chaque fois. On garde donc TOUJOURS la designation reelle
             // de cette ligne dans `note`, independamment du nom (generique) de
             // l'article lie, pour ne jamais perdre le vrai detail de la commande.
-            $line = PurchaseOrderLine::create([
+            PurchaseOrderLine::create([
                 'purchase_order_id' => $order->id,
                 'article_id'        => $article->id,
                 'fournisseur_id'    => $fournisseur->id,
@@ -194,11 +187,7 @@ class SageWebhookController extends Controller
                 'discount_rate'     => $ligne['remise'] ?? null,
                 'unit'              => $ligne['unite'] ?? null,
             ]);
-
-            $createdLines[] = ['line' => $line, 'data' => $ligne];
         }
-
-        $this->syncReception($order, $createdLines, $deliveryStatus);
 
         if ($targetStatus === 'draft') {
             // On ne relance pas le mail a chaque resynchro (toutes les 10 min) tant que
@@ -223,81 +212,6 @@ class SageWebhookController extends Controller
         // uniquement lors d'une vraie soumission (PurchaseOrderController::submit).
 
         return $order;
-    }
-
-    private const SAGE_RECEPTION_MARKER = '[Import Sage100]';
-
-    /**
-     * Persiste le detail de reception (quantite livree par ligne), pas seulement le
-     * badge de synthese sur la commande, pour que la barre de progression par ligne
-     * dans l'app reste coherente avec ce qui a reellement ete livre dans Sage.
-     *
-     * @param  array<int, array{line: PurchaseOrderLine, data: array}>  $createdLines
-     */
-    private function syncReception(PurchaseOrder $order, array $createdLines, ?string $deliveryStatus): void
-    {
-        if (! $deliveryStatus) {
-            return;
-        }
-
-        $livrees = array_filter($createdLines, fn ($item) => (float) ($item['data']['quantite_livree'] ?? 0) > 0);
-
-        if (! $livrees) {
-            return;
-        }
-
-        $dates = collect($livrees)->pluck('data.date_livraison')->filter()->map(fn ($d) => \Carbon\Carbon::parse($d));
-        $receivedAt = $dates->max() ?? now();
-
-        $pieces = collect($livrees)->pluck('data.piece_bl')->filter()->unique()->implode(', ');
-
-        $reception = PurchaseOrderReception::create([
-            'purchase_order_id' => $order->id,
-            'received_by'       => $this->systemUserId(),
-            'received_at'       => $receivedAt,
-            'type'              => $deliveryStatus === 'received' ? 'complete' : 'partial',
-            'notes'             => self::SAGE_RECEPTION_MARKER . ($pieces ? " BL: {$pieces}" : ''),
-        ]);
-
-        foreach ($livrees as $item) {
-            PurchaseOrderReceptionLine::create([
-                'reception_id'           => $reception->id,
-                'purchase_order_line_id' => $item['line']->id,
-                'quantity_received'      => (float) $item['data']['quantite_livree'],
-            ]);
-        }
-    }
-
-    /**
-     * Deduit le statut de livraison a partir des quantites livrees Sage (DL_QteBL)
-     * comparees aux quantites commandees (DL_Qte), pour refleter ce qui a deja ete
-     * livre dans la vraie vie plutot que de tout afficher comme "non livre".
-     *
-     * @return array{0: ?string, 1: ?\Illuminate\Support\Carbon}
-     */
-    private function resolveDeliveryStatus(array $lignes): array
-    {
-        $totalQuantite = collect($lignes)->sum(fn ($l) => (float) $l['quantite']);
-        $totalLivree   = collect($lignes)->sum(fn ($l) => (float) ($l['quantite_livree'] ?? 0));
-
-        if ($totalLivree <= 0) {
-            return [null, null];
-        }
-
-        // La vraie date de livraison Sage (DL_DateBL), pas la date d'import : sinon
-        // "Receptionnee le" affiche toujours la date du jour du sync au lieu de la
-        // vraie date de reception.
-        $dateLivraison = collect($lignes)
-            ->pluck('date_livraison')
-            ->filter()
-            ->map(fn ($d) => \Carbon\Carbon::parse($d))
-            ->max() ?? now();
-
-        if ($totalLivree >= $totalQuantite) {
-            return ['received', $dateLivraison];
-        }
-
-        return ['partially_received', null];
     }
 
     private function findOrCreateFournisseur(string $sageCode, array $details): Fournisseur

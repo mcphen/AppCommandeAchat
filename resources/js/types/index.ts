@@ -67,6 +67,13 @@ export interface Boutique {
     is_active: boolean;
 }
 
+export interface Project {
+    id: number;
+    code: string;
+    name: string;
+    is_active: boolean;
+}
+
 export interface User {
     id: number;
     name: string;
@@ -122,9 +129,11 @@ export interface PurchaseOrder {
     user_id: number;
     boutique_id?: number | null;
     fournisseur_id?: number | null;
+    project_id?: number | null;
     user?: User;
     boutique?: Boutique | null;
     fournisseur?: Fournisseur | null;
+    project?: Project | null;
     title: string;
     description: string;
     amount: string;

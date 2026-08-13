@@ -12,8 +12,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 const page  = usePage<SharedData>();
 const role  = computed(() => page.props.auth.user?.role?.slug);
-const show  = computed(() => page.props.show_onboarding);
 const name  = computed(() => page.props.auth.user?.name?.split(' ')[0] ?? 'vous');
+
+// Fermeture optimiste : ne dépend pas du succès de la requête serveur,
+// sinon un échec réseau/CSRF laisse le modal bloqué sans moyen de le fermer.
+const dismissed = ref(false);
+const show = computed(() => !dismissed.value && page.props.show_onboarding);
 
 // ─── Slides par rôle ─────────────────────────────────────────────────────────
 
@@ -182,6 +186,7 @@ const completing = ref(false);
 const complete = () => {
     if (completing.value) return;
     completing.value = true;
+    dismissed.value = true;
     router.post(route('onboarding.complete'), {}, {
         preserveScroll: true,
         onFinish: () => { completing.value = false; },

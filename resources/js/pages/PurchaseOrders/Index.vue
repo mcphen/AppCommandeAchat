@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOrder, type SharedData, type User, type ValidationLevel } from '@/types';
+import { type Boutique, type BreadcrumbItem, type PaginatedData, type Project, type PurchaseOrder, type SharedData, type User, type ValidationLevel } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { AlertCircle, Bell, Building2, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, RotateCcw, Search, ShieldCheck, ShoppingCart, X } from 'lucide-vue-next';
+import { AlertCircle, Bell, Building2, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, HardHat, RotateCcw, Search, ShieldCheck, ShoppingCart, X } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 
@@ -16,11 +16,13 @@ const props = defineProps<{
     orders: PaginatedData<PurchaseOrder>;
     amountTotal: number;
     boutiques: Boutique[];
+    projects: Pick<Project, 'id' | 'code' | 'name'>[];
     demandeurs: Pick<User, 'id' | 'name'>[];
     levels: Pick<ValidationLevel, 'id' | 'name' | 'order'>[];
     levelsCount: number;
     filters: {
         boutique_id?: string;
+        project_id?: string;
         status?: string;
         user_id?: string;
         date_from?: string;
@@ -39,6 +41,7 @@ const isAdmin = computed(() => user.value?.role?.slug === 'admin');
 const showFilters = ref(
     !!(
         props.filters.boutique_id ||
+        props.filters.project_id ||
         props.filters.status ||
         props.filters.user_id ||
         props.filters.date_from ||
@@ -53,6 +56,7 @@ const showExportMenu = ref(false);
 const localFilters = ref({
     search: props.filters.search ?? '',
     boutique_id: props.filters.boutique_id ?? '',
+    project_id: props.filters.project_id ?? '',
     status: props.filters.status ?? '',
     user_id: props.filters.user_id ?? '',
     date_from: props.filters.date_from ?? '',
@@ -85,6 +89,7 @@ const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 
 const boutiqueName = (id?: string) => props.boutiques.find((boutique) => String(boutique.id) === id)?.name ?? 'Société';
+const projectName = (id?: string) => props.projects.find((project) => String(project.id) === id)?.name ?? 'Chantier';
 const demandeurName = (id?: string) => props.demandeurs.find((demandeur) => String(demandeur.id) === id)?.name ?? 'Demandeur';
 const levelName = (order?: string) => props.levels.find((level) => String(level.order) === order)?.name ?? `Niveau ${order}`;
 
@@ -129,7 +134,7 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
-    localFilters.value = { search: '', boutique_id: '', status: '', user_id: '', date_from: '', date_to: '', amount_min: '', amount_max: '', level_order: '' };
+    localFilters.value = { search: '', boutique_id: '', project_id: '', status: '', user_id: '', date_from: '', date_to: '', amount_min: '', amount_max: '', level_order: '' };
     router.get(route('purchase-orders.index'), {}, { preserveState: true, preserveScroll: true, replace: true });
 };
 
@@ -320,6 +325,17 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                             </div>
 
                             <div>
+                                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Chantier</label>
+                                <select
+                                    v-model="localFilters.project_id"
+                                    class="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                >
+                                    <option value="">Tous</option>
+                                    <option v-for="project in projects" :key="project.id" :value="String(project.id)">{{ project.name }}</option>
+                                </select>
+                            </div>
+
+                            <div>
                                 <label class="mb-1.5 block text-xs font-medium text-muted-foreground">Statut</label>
                                 <select
                                     v-model="localFilters.status"
@@ -420,6 +436,10 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                     <span v-if="filters.boutique_id" class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                         Société : {{ boutiqueName(filters.boutique_id) }}
                         <button class="ml-1 rounded-full hover:bg-primary/20" @click="localFilters.boutique_id = ''; applyFilters()"><X class="h-3 w-3" /></button>
+                    </span>
+                    <span v-if="filters.project_id" class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                        Chantier : {{ projectName(filters.project_id) }}
+                        <button class="ml-1 rounded-full hover:bg-primary/20" @click="localFilters.project_id = ''; applyFilters()"><X class="h-3 w-3" /></button>
                     </span>
                     <span v-if="filters.status" class="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
                         Statut : {{ statusConfig[filters.status as keyof typeof statusConfig]?.label ?? filters.status }}
@@ -525,6 +545,10 @@ const remindDemandeur = async (order: PurchaseOrder) => {
 
                                         <div class="min-w-0">
                                             <p class="truncate font-semibold text-foreground">{{ order.title }}</p>
+                                            <span v-if="order.project" class="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-700">
+                                                <HardHat class="h-3 w-3" />
+                                                {{ order.project.name }}
+                                            </span>
                                             <p class="mt-1 text-xs text-muted-foreground">{{ progressLabel(order) }}</p>
                                             <p v-if="validatorsSummary(order)" class="mt-1 text-xs font-medium text-emerald-600">
                                                 {{ validatorsSummary(order) }}

@@ -27,6 +27,7 @@ class PurchaseOrder extends Model
         'source',
         'order_date',
         'project_code',
+        'project_id',
         'last_reminder_sent_at',
     ];
 
@@ -54,6 +55,11 @@ class PurchaseOrder extends Model
     public function fournisseur(): BelongsTo
     {
         return $this->belongsTo(Fournisseur::class);
+    }
+
+    public function project(): BelongsTo
+    {
+        return $this->belongsTo(Project::class);
     }
 
     public function attachments(): HasMany

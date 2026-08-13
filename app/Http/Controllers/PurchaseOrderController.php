@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AppSetting;
 use App\Models\Boutique;
 use App\Models\FournisseurArticle;
+use App\Models\Project;
 use App\Models\PurchaseOrder;
 use App\Models\ValidationLevel;
 use App\Notifications\OrderAwaitingSubmissionNotification;
@@ -34,6 +35,7 @@ class PurchaseOrderController extends Controller
             'orders'      => $orders,
             'amountTotal' => (float) $amountTotal,
             'boutiques'   => Boutique::where('is_active', true)->orderBy('name')->get(),
+            'projects'    => Project::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
             'demandeurs'  => $user->isAdmin() ? \App\Models\User::whereHas('role', fn ($q) => $q->where('slug', 'demandeur'))->orderBy('name')->get(['id', 'name']) : [],
             'levels'      => ValidationLevel::orderBy('order')->get(['id', 'name', 'order']),
             'levelsCount' => ValidationLevel::count(),
@@ -63,10 +65,14 @@ class PurchaseOrderController extends Controller
     {
         // Les commandes proviennent de Sage100 (aucun demandeur propriétaire) : visibles par
         // tous les rôles autorisés sur cette route (demandeur, validateur, admin).
-        $query = PurchaseOrder::with(['attachments', 'boutique', 'user.role', 'validationLogs.user', 'validationLogs.validationLevel'])->latest();
+        $query = PurchaseOrder::with(['attachments', 'boutique', 'project', 'user.role', 'validationLogs.user', 'validationLogs.validationLevel'])->latest();
 
         if ($request->filled('boutique_id')) {
             $query->where('boutique_id', $request->integer('boutique_id'));
+        }
+
+        if ($request->filled('project_id')) {
+            $query->where('project_id', $request->integer('project_id'));
         }
 
         if ($request->filled('status')) {
@@ -113,6 +119,7 @@ class PurchaseOrderController extends Controller
     {
         return [
             'boutique_id' => $request->string('boutique_id')->toString(),
+            'project_id'  => $request->string('project_id')->toString(),
             'status'      => $request->string('status')->toString(),
             'user_id'     => $request->string('user_id')->toString(),
             'date_from'   => $request->string('date_from')->toString(),
@@ -236,6 +243,7 @@ class PurchaseOrderController extends Controller
             'user.role',
             'boutique',
             'fournisseur',
+            'project',
             'attachments',
             'lines.article.category',
             'lines.fournisseur',

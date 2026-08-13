@@ -332,8 +332,8 @@ const submitReception = () => {
                                 {{ order.order_number }}
                             </span>
                             <!-- Code affaire / chantier -->
-                            <span v-if="order.project_code" class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 font-mono text-xs font-bold text-amber-700">
-                                Chantier : {{ order.project_code }}
+                            <span v-if="order.project" class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 font-mono text-xs font-bold text-amber-700">
+                                Chantier : {{ order.project.name }}
                             </span>
                             <span v-if="order.status === 'pending'" class="text-sm text-muted-foreground">
                                 Niveau {{ order.current_level_order }} — {{ levels.find(l => l.order === order.current_level_order)?.name }}

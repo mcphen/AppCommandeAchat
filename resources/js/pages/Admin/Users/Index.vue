@@ -17,8 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { type BreadcrumbItem, type PaginatedData, type User } from '@/types';
 import { Head, Link, router, useForm } from '@inertiajs/vue3';
-import { Plus, Pencil, Trash2, Users, Shield, CheckSquare, ShoppingCart, KeyRound } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { Plus, Pencil, Trash2, Users, Shield, CheckSquare, ShoppingCart, KeyRound, Search } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import Swal from 'sweetalert2';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -27,7 +27,22 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Utilisateurs', href: '/admin/users' },
 ];
 
-const props = defineProps<{ users: PaginatedData<User> }>();
+const props = defineProps<{ users: PaginatedData<User>; filters?: { search?: string } }>();
+
+// Recherche côté serveur, avec conservation de l'état local (sélection) entre les requêtes
+const search = ref(props.filters?.search ?? '');
+let searchTimeout: ReturnType<typeof setTimeout> | undefined;
+
+watch(search, (value) => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => {
+        router.get(
+            route('admin.users.index'),
+            value ? { search: value } : {},
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    }, 350);
+});
 
 const roleConfig = {
     admin: { label: 'Admin', classes: 'bg-violet-50 text-violet-700', icon: Shield },
@@ -57,26 +72,41 @@ const deleteUser = async (user: User) => {
 };
 
 // Sélection multiple + réinitialisation groupée du mot de passe
-const selectedIds = ref<number[]>([]);
+// On garde les utilisateurs sélectionnés dans une Map (et non une liste d'ids de la page
+// courante) afin que la sélection survive à un changement de page ou une recherche.
+const selectedUsersMap = ref<Map<number, User>>(new Map());
 const isResetModalOpen = ref(false);
 
+const selectedIds = computed(() => Array.from(selectedUsersMap.value.keys()));
+const selectedUsers = computed(() => Array.from(selectedUsersMap.value.values()));
+
+const isSelected = (userId: number) => selectedUsersMap.value.has(userId);
+
 const allSelected = computed(
-    () => props.users.data.length > 0 && selectedIds.value.length === props.users.data.length,
+    () => props.users.data.length > 0 && props.users.data.every((u) => isSelected(u.id)),
 );
 
 const toggleSelectAll = (checked: boolean) => {
-    selectedIds.value = checked ? props.users.data.map((u) => u.id) : [];
-};
-
-const toggleUser = (userId: number, checked: boolean) => {
-    if (checked) {
-        if (!selectedIds.value.includes(userId)) selectedIds.value.push(userId);
-    } else {
-        selectedIds.value = selectedIds.value.filter((id) => id !== userId);
+    for (const user of props.users.data) {
+        if (checked) {
+            selectedUsersMap.value.set(user.id, user);
+        } else {
+            selectedUsersMap.value.delete(user.id);
+        }
     }
 };
 
-const selectedUsers = computed(() => props.users.data.filter((u) => selectedIds.value.includes(u.id)));
+const toggleUser = (user: User, checked: boolean) => {
+    if (checked) {
+        selectedUsersMap.value.set(user.id, user);
+    } else {
+        selectedUsersMap.value.delete(user.id);
+    }
+};
+
+const clearSelection = () => {
+    selectedUsersMap.value.clear();
+};
 
 const resetForm = useForm({
     user_ids: [] as number[],
@@ -106,7 +136,7 @@ const submitReset = (e: Event) => {
         preserveScroll: true,
         onSuccess: () => {
             closeResetModal();
-            selectedIds.value = [];
+            clearSelection();
         },
     });
 };
@@ -145,6 +175,16 @@ const submitReset = (e: Event) => {
                 </div>
             </div>
 
+            <div class="relative">
+                <Search class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                    v-model="search"
+                    type="search"
+                    placeholder="Rechercher un utilisateur par nom ou e-mail…"
+                    class="w-full rounded-xl border border-input bg-card py-2.5 pl-10 pr-4 text-sm shadow-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring sm:max-w-sm"
+                />
+            </div>
+
             <div class="overflow-hidden rounded-2xl border bg-card shadow-sm">
                 <template v-if="users.data.length > 0">
                     <div class="overflow-x-auto">
@@ -152,7 +192,7 @@ const submitReset = (e: Event) => {
                             <thead>
                                 <tr class="border-b bg-muted/30">
                                     <th class="w-10 px-4 py-3.5 sm:px-6">
-                                        <Checkbox :model-value="allSelected" @update:model-value="toggleSelectAll" aria-label="Tout sélectionner" />
+                                        <Checkbox :checked="allSelected" @update:checked="toggleSelectAll" aria-label="Tout sélectionner" />
                                     </th>
                                     <th class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Utilisateur</th>
                                     <th class="px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:px-6">Role</th>
@@ -167,12 +207,12 @@ const submitReset = (e: Event) => {
                                     v-for="user in users.data"
                                     :key="user.id"
                                     class="transition-colors hover:bg-muted/20"
-                                    :class="{ 'bg-primary/5': selectedIds.includes(user.id) }"
+                                    :class="{ 'bg-primary/5': isSelected(user.id) }"
                                 >
                                     <td class="px-4 py-4 sm:px-6">
                                         <Checkbox
-                                            :model-value="selectedIds.includes(user.id)"
-                                            @update:model-value="(checked) => toggleUser(user.id, !!checked)"
+                                            :checked="isSelected(user.id)"
+                                            @update:checked="(checked) => toggleUser(user, !!checked)"
                                             :aria-label="`Sélectionner ${user.name}`"
                                         />
                                     </td>
@@ -239,6 +279,8 @@ const submitReset = (e: Event) => {
                                 v-for="link in users.links"
                                 :key="link.label"
                                 :href="link.url ?? '#'"
+                                preserve-state
+                                preserve-scroll
                                 :class="[
                                     'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
                                     link.active ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted',
@@ -249,6 +291,16 @@ const submitReset = (e: Event) => {
                         </div>
                     </div>
                 </template>
+
+                <EmptyState
+                    v-else-if="search"
+                    :icon="Search"
+                    icon-bg="bg-indigo-50"
+                    icon-color="text-indigo-500"
+                    title="Aucun résultat"
+                    :description="`Aucun utilisateur ne correspond à « ${search} ».`"
+                    :bordered="false"
+                />
 
                 <EmptyState
                     v-else

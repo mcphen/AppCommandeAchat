@@ -123,6 +123,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Administration (Admin uniquement)
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('boutiques', BoutiqueController::class)->except(['show']);
+        Route::post('users/bulk-reset-password', [AdminUserController::class, 'bulkResetPassword'])->name('users.bulk-reset-password');
         Route::resource('users', AdminUserController::class)->except(['show']);
         Route::resource('validation-levels', ValidationLevelController::class)->except(['show']);
         Route::resource('categories', CategoryController::class)->except(['show']);

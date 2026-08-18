@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\BulkResetPasswordRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\AuditLog;
 use App\Models\Boutique;
 use App\Models\Role;
 use App\Models\User;
+use App\Mail\PasswordResetByAdminMail;
 use App\Mail\UserAccountCreatedMail;
 use App\Models\ValidationLevel;
 use Illuminate\Http\RedirectResponse;
@@ -104,6 +106,27 @@ class UserController extends Controller
 
         return redirect()->route('admin.users.index')
             ->with('success', 'Utilisateur mis à jour.');
+    }
+
+    public function bulkResetPassword(BulkResetPasswordRequest $request): RedirectResponse
+    {
+        $users = User::whereIn('id', $request->user_ids)->get();
+
+        foreach ($users as $user) {
+            $user->update([
+                'password'             => Hash::make($request->password),
+                'must_change_password' => true,
+            ]);
+
+            Mail::to($user)->send(new PasswordResetByAdminMail($user, $request->password, $request->cc_email));
+
+            AuditLog::record('user_password_reset_by_admin', 'Mot de passe réinitialisé par un administrateur (action groupée).', target: $user);
+        }
+
+        return redirect()->route('admin.users.index')
+            ->with('success', $users->count() > 1
+                ? "Mot de passe réinitialisé pour {$users->count()} utilisateurs."
+                : 'Mot de passe réinitialisé.');
     }
 
     public function destroy(User $user): RedirectResponse

@@ -161,6 +161,96 @@ Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMN
 Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_ARTICLE' AND COLUMN_NAME LIKE '%Famille%'" |
     Format-Table -AutoSize
 
+Write-Host "`n=== 10. Facture fournisseur rattachee au BC (DO_FactureFrs / DO_FactureFile) ===" -ForegroundColor Cyan
+Write-Host "Aucun DO_Type dedie 'facture' cote Achats : la facture prestataire est probablement" -ForegroundColor DarkGray
+Write-Host "rattachee directement au bon de commande via ces colonnes de F_DOCENTETE." -ForegroundColor DarkGray
+Invoke-Query $conn @"
+SELECT TOP 20 DO_Piece, DO_Date, DO_Tiers, DO_FactureFrs, DO_NbFacture, DO_FactureFile, DO_FactureElec, DO_BLFact
+FROM F_DOCENTETE
+WHERE DO_Domaine = 1 AND DO_Type = 12 AND DO_FactureFrs IS NOT NULL AND DO_FactureFrs <> ''
+ORDER BY DO_Date DESC
+"@ | Format-Table -AutoSize
+
+Write-Host "`n--- 10bis. Volume de BC avec/sans facture fournisseur renseignee ---" -ForegroundColor Cyan
+Invoke-Query $conn @"
+SELECT
+    SUM(CASE WHEN DO_FactureFrs IS NOT NULL AND DO_FactureFrs <> '' THEN 1 ELSE 0 END) AS AvecFactureFrs,
+    SUM(CASE WHEN DO_FactureFrs IS NULL OR DO_FactureFrs = '' THEN 1 ELSE 0 END) AS SansFactureFrs,
+    SUM(CASE WHEN DO_FactureFile IS NOT NULL THEN 1 ELSE 0 END) AS AvecFactureFile
+FROM F_DOCENTETE
+WHERE DO_Domaine = 1 AND DO_Type = 12
+"@ | Format-Table -AutoSize
+
+Write-Host "`n--- 10ter. Table(s) media candidates pour le fichier joint (F_DOCENTETEMEDIA...) ---" -ForegroundColor Cyan
+$mediaTables = Invoke-Query $conn "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME LIKE '%MEDIA%' OR TABLE_NAME LIKE '%DOCUMENT%' OR TABLE_NAME LIKE '%PIECEJOINTE%' ORDER BY TABLE_NAME"
+$mediaTables | Format-Table -AutoSize
+foreach ($mt in $mediaTables) {
+    $tableName = $mt.TABLE_NAME
+    Write-Host "`n--- Colonnes de $tableName ---" -ForegroundColor Magenta
+    Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = '$tableName' ORDER BY ORDINAL_POSITION" |
+        Format-Table -AutoSize
+}
+
+Write-Host "`n=== 11. Pieces jointes des BC dans F_DOCENTETEMEDIA (GED Sage) ===" -ForegroundColor Cyan
+Write-Host "DO_FactureFrs est vide sur tous les BC (voir section 10bis) : la facture prestataire" -ForegroundColor DarkGray
+Write-Host "est plus probablement un fichier joint (scan/PDF) sur le BC via F_DOCENTETEMEDIA." -ForegroundColor DarkGray
+if (Invoke-Query $conn "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'F_DOCENTETEMEDIA'" | Select-Object -First 1) {
+    Write-Host "`n--- 11a. Repartition des pieces jointes par DO_Type (tous domaines confondus) ---" -ForegroundColor Cyan
+    Invoke-Query $conn @"
+SELECT DO_Type, COUNT(*) AS NbPiecesJointes, COUNT(DISTINCT DO_Piece) AS NbDocumentsDistincts
+FROM F_DOCENTETEMEDIA
+GROUP BY DO_Type
+ORDER BY DO_Type
+"@ | Format-Table -AutoSize
+
+    Write-Host "`n--- 11b. Echantillon de pieces jointes pour chaque DO_Type rencontre (10/12/16/17) ---" -ForegroundColor Cyan
+    foreach ($t in 10, 12, 16, 17) {
+        Write-Host "`n    DO_Type = $t :" -ForegroundColor Magenta
+        Invoke-Query $conn @"
+SELECT TOP 10 DO_Piece, DO_Type, DM_Intitule, DM_Fichier, DM_TypeMIME, DM_Origine, DM_GedId, cbCreation
+FROM F_DOCENTETEMEDIA
+WHERE DO_Type = $t
+ORDER BY cbCreation DESC
+"@ | Format-Table -AutoSize
+    }
+
+    Write-Host "`n--- 11c. Recherche 'facture' OU 'prestataire' dans DM_Intitule/DM_Fichier (toutes pieces confondues) ---" -ForegroundColor Cyan
+    Invoke-Query $conn @"
+SELECT TOP 30 DO_Piece, DO_Type, DM_Intitule, DM_Fichier, DM_TypeMIME, cbCreation
+FROM F_DOCENTETEMEDIA
+WHERE DM_Intitule LIKE '%facture%' OR DM_Fichier LIKE '%facture%'
+   OR DM_Intitule LIKE '%Facture%' OR DM_Fichier LIKE '%Facture%'
+   OR DM_Intitule LIKE '%prestataire%' OR DM_Fichier LIKE '%prestataire%'
+   OR DM_Intitule LIKE '%Prestataire%' OR DM_Fichier LIKE '%Prestataire%'
+ORDER BY cbCreation DESC
+"@ | Format-Table -AutoSize
+
+    Write-Host "`n--- 11d. Toutes les valeurs distinctes de DM_Origine (pour comprendre comment ces fichiers sont arrives) ---" -ForegroundColor Cyan
+    Invoke-Query $conn "SELECT DISTINCT DM_Origine, COUNT(*) AS Nombre FROM F_DOCENTETEMEDIA GROUP BY DM_Origine" | Format-Table -AutoSize
+} else {
+    Write-Host "Table F_DOCENTETEMEDIA absente." -ForegroundColor Yellow
+}
+
+Write-Host "`n--- 11e. Recherche 'prestataire' dans les tiers F_COMPTET (CT_Intitule/CT_Qualite) ---" -ForegroundColor Cyan
+Write-Host "Le client parle peut-etre du tiers lui-meme (le prestataire), pas d'un document." -ForegroundColor DarkGray
+Invoke-Query $conn @"
+SELECT TOP 30 CT_Num, CT_Intitule, CT_Type, CT_Qualite
+FROM F_COMPTET
+WHERE CT_Intitule LIKE '%prestataire%' OR CT_Intitule LIKE '%Prestataire%'
+   OR CT_Qualite LIKE '%prestataire%' OR CT_Qualite LIKE '%Prestataire%'
+"@ | Format-Table -AutoSize
+
+Write-Host "`n=== 12. DO_Type utilises specifiquement par les tiers 'PRESTATAIRE...' ===" -ForegroundColor Cyan
+Write-Host "Verifie si les prestataires passent TOUJOURS par DO_Type=12, ou parfois par un autre type." -ForegroundColor DarkGray
+Invoke-Query $conn @"
+SELECT d.DO_Domaine, d.DO_Type, COUNT(*) AS Nombre, MIN(d.DO_Piece) AS ExemplePiece
+FROM F_DOCENTETE d
+INNER JOIN F_COMPTET ct ON ct.CT_Num = d.DO_Tiers
+WHERE ct.CT_Intitule LIKE '%PRESTATAIRE%'
+GROUP BY d.DO_Domaine, d.DO_Type
+ORDER BY d.DO_Domaine, d.DO_Type
+"@ | Format-Table -AutoSize
+
 $conn.Close()
 Write-Host "`n=== Termine ===" -ForegroundColor Green
 Write-Host "Copie/colle le resultat de la section 4 (DO_Type) et 5 (echantillon) pour qu'on identifie" -ForegroundColor Green

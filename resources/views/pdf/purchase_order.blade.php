@@ -72,6 +72,7 @@
         .sig-name    { font-size: 10px; font-weight: 600; color: #0f172a; margin-top: 4px; }
         .sig-date    { font-size: 9px; color: #94a3b8; margin-top: 2px; }
         .sig-pending { margin-top: 28px; border-top: 1px solid #e2e8f0; }
+        .sig-ok      { display:inline-block; border:3px solid #059669; color:#059669; font-size:18px; font-weight:800; letter-spacing:0.1em; padding:2px 12px; border-radius:6px; transform:rotate(-6deg); margin-top:10px; }
 
         /* ── Attachments ──────────────────────────────────────── */
         .att-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f1f5f9; font-size: 10px; }
@@ -240,15 +241,6 @@
     <div class="section" style="margin-top:8px;">
         <div class="section-title">Signatures et approbations</div>
         <div class="signatures">
-            <div class="sig-col">
-                <div class="sig-box">
-                    <div class="sig-label">Demandeur</div>
-                    <div class="sig-name">{{ $order->user?->name ?? '—' }}</div>
-                    @if($order->submitted_at)
-                    <div class="sig-date">{{ \Carbon\Carbon::parse($order->submitted_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
-                    @endif
-                </div>
-            </div>
             @foreach($levels as $level)
                 @php
                     $log = $order->validationLogs->where('action', 'approved')->firstWhere('validation_level_id', $level->id);
@@ -265,11 +257,15 @@
                     <div class="sig-box">
                         <div class="sig-label">{{ $level->name }}</div>
                         @if($log)
-                            @if($sigImg)
-                                <img src="{{ $sigImg }}" class="sig-image" alt="Signature {{ $log->user?->name }}" />
+                            @if($loop->last)
+                                <div class="sig-ok">OK</div>
+                            @else
+                                @if($sigImg)
+                                    <img src="{{ $sigImg }}" class="sig-image" alt="Signature {{ $log->user?->name }}" />
+                                @endif
+                                <div class="sig-name">{{ $log->user?->name ?? '—' }}</div>
+                                <div class="sig-date">{{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
                             @endif
-                            <div class="sig-name">{{ $log->user?->name ?? '—' }}</div>
-                            <div class="sig-date">{{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
                         @else
                             <div class="sig-pending"></div>
                         @endif

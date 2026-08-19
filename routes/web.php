@@ -43,15 +43,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('purchase-orders/{purchase_order}/mark-ordered', [PurchaseOrderController::class, 'markOrdered'])
             ->name('purchase-orders.mark-ordered');
 
-        // Complétion & soumission des commandes importées de Sage (restent 'draft'
-        // tant que le demandeur n'a pas joint ses pièces et soumis lui-même)
-        Route::post('purchase-orders/{purchase_order}/attachments', [AttachmentController::class, 'store'])
-            ->name('attachments.store');
-        Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])
-            ->name('attachments.destroy');
-        Route::post('purchase-orders/{purchase_order}/submit', [PurchaseOrderController::class, 'submit'])
-            ->name('purchase-orders.submit');
-
         Route::post('purchase-orders/{purchase_order}/receptions', [ReceptionController::class, 'store'])
             ->name('purchase-orders.receptions.store');
         Route::patch('purchase-orders/{purchase_order}/receptions/{reception}/invoice', [ReceptionController::class, 'updateInvoice'])
@@ -60,6 +51,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Tableau de bord réceptions / livraisons
         Route::get('receptions', [ReceptionController::class, 'index'])
             ->name('receptions.index');
+    });
+
+    // Complétion & soumission des commandes importées de Sage (restent 'draft'
+    // tant que personne n'a joint les pièces et soumis) : Demandeur + Admin,
+    // ainsi que le validateur de niveau 1 qui peut aussi compléter/soumettre à sa place.
+    Route::middleware('role:demandeur,validateur,admin')->group(function () {
+        Route::post('purchase-orders/{purchase_order}/attachments', [AttachmentController::class, 'store'])
+            ->name('attachments.store');
+        Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])
+            ->name('attachments.destroy');
+        Route::post('purchase-orders/{purchase_order}/submit', [PurchaseOrderController::class, 'submit'])
+            ->name('purchase-orders.submit');
     });
 
     // Commentaires & discussion (tous rôles authentifiés)

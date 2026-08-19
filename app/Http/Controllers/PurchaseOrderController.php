@@ -352,7 +352,7 @@ class PurchaseOrderController extends Controller
     public function submit(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
         $user = $request->user();
-        abort_unless($user->isAdmin() || $purchaseOrder->user_id === $user->id, 403);
+        abort_unless($user->isAdmin() || $purchaseOrder->user_id === $user->id || $user->isValidateurNiveau1(), 403);
         abort_unless($purchaseOrder->status === 'draft', 422, 'Cette commande a déjà été soumise.');
 
         if ($purchaseOrder->attachments()->count() === 0) {

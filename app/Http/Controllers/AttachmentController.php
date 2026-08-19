@@ -67,7 +67,7 @@ class AttachmentController extends Controller
 
     private function authorizeEdit(PurchaseOrder $order, $user): void
     {
-        abort_unless($user->isAdmin() || $order->user_id === $user->id, 403);
+        abort_unless($user->isAdmin() || $order->user_id === $user->id || $user->isValidateurNiveau1(), 403);
         abort_unless($order->status === 'draft', 422, 'Les pièces jointes ne peuvent être modifiées qu\'avant soumission de la commande.');
     }
 }

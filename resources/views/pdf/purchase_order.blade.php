@@ -147,8 +147,12 @@
             <div class="section">
                 <div class="section-title">Détails de la commande</div>
                 <div class="amount-box">
-                    <div class="lbl">Montant total</div>
+                    <div class="lbl">Montant total HT</div>
                     <div class="val">{{ number_format($order->amount, 0, ',', ' ') }} XOF</div>
+                    @if($order->amount_ttc)
+                    <div class="lbl" style="margin-top:8px;">Montant total TTC</div>
+                    <div class="val">{{ number_format($order->amount_ttc, 0, ',', ' ') }} XOF</div>
+                    @endif
                 </div>
                 <div class="info-grid">
                     <div class="info-row">
@@ -228,9 +232,15 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="4" class="right" style="padding-right:8px;">Total général</td>
+                    <td colspan="4" class="right" style="padding-right:8px;">Total général HT</td>
                     <td class="right">{{ number_format($order->amount, 0, ',', ' ') }} XOF</td>
                 </tr>
+                @if($order->amount_ttc)
+                <tr>
+                    <td colspan="4" class="right" style="padding-right:8px;">Total général TTC</td>
+                    <td class="right">{{ number_format($order->amount_ttc, 0, ',', ' ') }} XOF</td>
+                </tr>
+                @endif
             </tfoot>
         </table>
     </div>

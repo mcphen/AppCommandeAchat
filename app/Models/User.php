@@ -146,6 +146,11 @@ class User extends Authenticatable
         return $this->role?->slug === 'validateur';
     }
 
+    public function isValidateurNiveau1(): bool
+    {
+        return $this->isValidateur() && $this->validationLevel?->order === 1;
+    }
+
     public function canValidate(): bool
     {
         return $this->isAdmin() || $this->isValidateur();

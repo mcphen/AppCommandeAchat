@@ -517,7 +517,10 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                     Société
                                 </th>
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
-                                    Montant
+                                    Montant HT
+                                </th>
+                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
+                                    Montant TTC
                                 </th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</th>
                                 <th v-if="isAdmin" class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">
@@ -568,6 +571,10 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                 </td>
 
                                 <td class="hidden px-4 py-4 font-medium text-foreground lg:table-cell">{{ formatAmount(order.amount) }}</td>
+
+                                <td class="hidden px-4 py-4 font-medium text-foreground lg:table-cell">
+                                    {{ order.amount_ttc ? formatAmount(order.amount_ttc) : '—' }}
+                                </td>
 
                                 <td class="px-4 py-4">
                                     <span

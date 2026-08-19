@@ -35,7 +35,8 @@ const page = usePage();
 const authUser = computed(() => (page.props as any).auth?.user);
 const isAdmin  = computed(() => authUser.value?.role?.slug === 'admin');
 const isCreator = computed(() => authUser.value?.id === props.order.user_id);
-const canEditAttachments = computed(() => props.order.status === 'draft' && (isAdmin.value || isCreator.value));
+const isValidateurNiveau1 = computed(() => authUser.value?.role?.slug === 'validateur' && authUser.value?.validation_level?.order === 1);
+const canEditAttachments = computed(() => props.order.status === 'draft' && (isAdmin.value || isCreator.value || isValidateurNiveau1.value));
 
 // ─── Status configs ──────────────────────────────────────────────────────────
 const statusConfig = {
@@ -354,9 +355,9 @@ const submitReception = () => {
                         <FileDown class="h-4 w-4" />
                         <span class="hidden sm:inline">PDF</span>
                     </a>
-                    <!-- Soumettre (demandeur ou admin, commande importée de Sage en brouillon) -->
+                    <!-- Soumettre (demandeur, validateur niveau 1 ou admin, commande importée de Sage en brouillon) -->
                     <button
-                        v-if="(isAdmin || isCreator) && order.status === 'draft'"
+                        v-if="(isAdmin || isCreator || isValidateurNiveau1) && order.status === 'draft'"
                         class="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-blue-700"
                         @click="submitOrder"
                     >

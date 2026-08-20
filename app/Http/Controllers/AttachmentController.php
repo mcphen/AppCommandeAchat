@@ -6,12 +6,12 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderAttachment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttachmentController extends Controller
 {
-    public function download(PurchaseOrderAttachment $attachment): Response
+    public function download(PurchaseOrderAttachment $attachment): StreamedResponse
     {
         $user  = auth()->user();
         $order = $attachment->purchaseOrder;
@@ -67,7 +67,7 @@ class AttachmentController extends Controller
 
     private function authorizeEdit(PurchaseOrder $order, $user): void
     {
-        abort_unless($user->isAdmin() || $order->user_id === $user->id || $user->isValidateurNiveau1(), 403);
+        abort_unless($user->isAdmin() || $order->user_id === $user->id || $user->isFirstLevelValidatorOf($order->circuit_id), 403);
         abort_unless($order->status === 'draft', 422, 'Les pièces jointes ne peuvent être modifiées qu\'avant soumission de la commande.');
     }
 }

@@ -54,9 +54,7 @@ class RestartPurchaseOrderValidationService
             return $order->fresh();
         });
 
-        $firstLevel->validators()
-            ->get()
-            ->each(fn ($validator) => $validator->notify(new OrderSubmittedNotification($order, $firstLevel)));
+        OrderSubmittedNotification::sendToLevel($order, $firstLevel);
 
         return $order;
     }

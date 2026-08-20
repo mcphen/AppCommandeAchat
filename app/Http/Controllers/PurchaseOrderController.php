@@ -370,9 +370,7 @@ class PurchaseOrderController extends Controller
             ]);
         });
 
-        foreach ($firstLevel->validators as $validator) {
-            $validator->notify(new OrderSubmittedNotification($purchaseOrder, $firstLevel));
-        }
+        OrderSubmittedNotification::sendToLevel($purchaseOrder, $firstLevel);
 
         return redirect()->route('purchase-orders.show', $purchaseOrder)
             ->with('success', 'Commande soumise pour validation.');

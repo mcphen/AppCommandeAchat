@@ -35,13 +35,13 @@ if ($notifs->isEmpty()) {
     echo "Aucune notification trouvee : le bouton 'Soumettre' n'a peut-etre jamais ete clique avec succes.\n";
 }
 
-echo "\n=== Historique des resynchros Sage pour cette piece (SAGE_reference) ===\n";
-$logs = \App\Models\SageWebhookLog::where('reference', $po->sage_reference)
+echo "\n=== Historique des resynchros Sage pour cette piece (sage_reference) ===\n";
+$logs = \App\Models\SageWebhookLog::where('sage_reference', $po->sage_reference)
     ->orderBy('created_at')
-    ->get(['status', 'created_at', 'error']);
+    ->get(['status', 'created_at', 'error_message']);
 
 foreach ($logs as $l) {
-    echo "- {$l->created_at} : {$l->status}" . ($l->error ? " ({$l->error})" : '') . "\n";
+    echo "- {$l->created_at} : {$l->status}" . ($l->error_message ? " ({$l->error_message})" : '') . "\n";
 }
 
 echo "\n=== Logs de validation (approbations/rejets) ===\n";

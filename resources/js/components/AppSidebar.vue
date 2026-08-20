@@ -12,7 +12,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     LayoutDashboard, ShoppingCart, CheckSquare, GitBranch,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
-    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal, ShieldAlert,
+    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal, ShieldAlert, ScrollText,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -196,6 +196,18 @@ const adminNav = computed(() => {
                                         <component :is="item.icon" class="h-4 w-4 shrink-0" />
                                         <span class="font-medium text-sm">{{ item.title }}</span>
                                     </Link>
+                                </SidebarMenuButton>
+                            </SidebarMenuItem>
+                            <SidebarMenuItem v-if="role === 'admin'">
+                                <SidebarMenuButton
+                                    as-child
+                                    :tooltip="'Journal des logs'"
+                                    class="h-9 rounded-lg transition-all"
+                                >
+                                    <a href="/log-viewer" target="_blank" rel="noopener" class="flex items-center gap-3">
+                                        <ScrollText class="h-4 w-4 shrink-0" />
+                                        <span class="font-medium text-sm">Journal des logs</span>
+                                    </a>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         </SidebarMenu>

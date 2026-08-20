@@ -3,10 +3,12 @@
 namespace App\Providers;
 
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +25,10 @@ class AppServiceProvider extends ServiceProvider
         $this->applyMailSettings();
 
         $this->registerAuthAuditListeners();
+
+        // Restreint l'acces a /log-viewer aux admins (cf. config/log-viewer.php,
+        // middleware AuthorizeLogViewer qui verifie cette gate).
+        Gate::define('viewLogViewer', fn (User $user) => $user->isAdmin());
     }
 
     private function registerAuthAuditListeners(): void

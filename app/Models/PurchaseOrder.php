@@ -10,6 +10,7 @@ class PurchaseOrder extends Model
 {
     protected $fillable = [
         'user_id',
+        'circuit_id',
         'boutique_id',
         'fournisseur_id',
         'title',
@@ -45,6 +46,11 @@ class PurchaseOrder extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function circuit(): BelongsTo
+    {
+        return $this->belongsTo(Circuit::class);
     }
 
     public function boutique(): BelongsTo
@@ -95,11 +101,13 @@ class PurchaseOrder extends Model
 
     public function currentLevel(): ?ValidationLevel
     {
-        if (! $this->current_level_order) {
+        if (! $this->current_level_order || ! $this->circuit_id) {
             return null;
         }
 
-        return ValidationLevel::where('order', $this->current_level_order)->first();
+        return ValidationLevel::where('circuit_id', $this->circuit_id)
+            ->where('order', $this->current_level_order)
+            ->first();
     }
 
     public function isDraft(): bool         { return $this->status === 'draft'; }

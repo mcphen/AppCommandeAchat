@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\AppSetting;
 use App\Models\Boutique;
+use App\Models\Circuit;
 use App\Models\FournisseurArticle;
 use App\Models\Project;
 use App\Models\PurchaseOrder;
+use App\Models\User;
 use App\Models\ValidationLevel;
 use App\Notifications\OrderAwaitingSubmissionNotification;
 use App\Notifications\OrderSubmittedNotification;
@@ -24,6 +26,34 @@ class PurchaseOrderController extends Controller
 {
     public function index(Request $request): Response
     {
+        return $this->renderIndex($request, []);
+    }
+
+    /**
+     * Meme page que index(), mais figee sur le circuit "prestation" (section separee
+     * dans le menu, pour les commandes DO_Souche=1 remontees depuis Sage).
+     */
+    public function prestations(Request $request): Response
+    {
+        $circuitId = Circuit::where('code', 'prestation')->value('id');
+        $request->merge(['circuit_id' => $circuitId]);
+
+        return $this->renderIndex($request, [
+            'listRouteName'    => 'prestations.index',
+            'exportRouteName'  => 'prestations.export',
+            'breadcrumbLabel'  => 'Prestations',
+            'breadcrumbHref'   => '/prestations',
+            'pageTitleAdmin'   => 'Prestations de service',
+            'pageTitleUser'    => 'Mes prestations',
+            'eyebrowAdmin'     => 'Pilotage des prestations',
+            'eyebrowUser'      => 'Suivi des prestations',
+            'descriptionAdmin' => 'Visualisez les prestations du groupe, leur circuit de validation et leur niveau de progression.',
+            'descriptionUser'  => 'Retrouvez vos prestations, leurs statuts et les actions utiles depuis une seule page.',
+        ], $circuitId);
+    }
+
+    private function renderIndex(Request $request, array $sectionProps, ?int $circuitId = null): Response
+    {
         $user  = $request->user();
         $query = $this->buildQuery($request, $user);
 
@@ -31,19 +61,34 @@ class PurchaseOrderController extends Controller
 
         $orders = $query->paginate(10)->withQueryString();
 
-        return Inertia::render('PurchaseOrders/Index', [
+        $levelsQuery = $circuitId ? ValidationLevel::where('circuit_id', $circuitId) : ValidationLevel::query();
+
+        return Inertia::render('PurchaseOrders/Index', array_merge([
             'orders'      => $orders,
             'amountTotal' => (float) $amountTotal,
             'boutiques'   => Boutique::where('is_active', true)->orderBy('name')->get(),
             'projects'    => Project::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
-            'demandeurs'  => $user->isAdmin() ? \App\Models\User::whereHas('role', fn ($q) => $q->where('slug', 'demandeur'))->orderBy('name')->get(['id', 'name']) : [],
-            'levels'      => ValidationLevel::orderBy('order')->get(['id', 'name', 'order']),
-            'levelsCount' => ValidationLevel::count(),
+            'demandeurs'  => $user->isAdmin() ? User::whereHas('role', fn ($q) => $q->where('slug', 'demandeur'))->orderBy('name')->get(['id', 'name']) : [],
+            'levels'      => (clone $levelsQuery)->orderBy('order')->get(['id', 'name', 'order', 'circuit_id']),
+            'levelsCount' => (clone $levelsQuery)->count(),
             'filters'     => $this->getFilters($request),
-        ]);
+        ], $sectionProps));
     }
 
     public function export(Request $request, string $format): \Symfony\Component\HttpFoundation\Response
+    {
+        return $this->doExport($request, $format);
+    }
+
+    public function prestationsExport(Request $request, string $format): \Symfony\Component\HttpFoundation\Response
+    {
+        $circuitId = Circuit::where('code', 'prestation')->value('id');
+        $request->merge(['circuit_id' => $circuitId]);
+
+        return $this->doExport($request, $format);
+    }
+
+    private function doExport(Request $request, string $format): \Symfony\Component\HttpFoundation\Response
     {
         abort_unless(in_array($format, ['csv', 'excel', 'pdf']), 404);
 
@@ -52,7 +97,9 @@ class PurchaseOrderController extends Controller
             ->with(['boutique', 'user', 'validationLogs.user', 'validationLogs.validationLevel'])
             ->get();
 
-        $levels = ValidationLevel::orderBy('order')->get();
+        $levels = $request->filled('circuit_id')
+            ? ValidationLevel::where('circuit_id', $request->integer('circuit_id'))->orderBy('order')->get()
+            : ValidationLevel::orderBy('order')->get();
 
         return match ($format) {
             'csv'   => $this->exportCsv($orders),
@@ -65,7 +112,11 @@ class PurchaseOrderController extends Controller
     {
         // Les commandes proviennent de Sage100 (aucun demandeur propriétaire) : visibles par
         // tous les rôles autorisés sur cette route (demandeur, validateur, admin).
-        $query = PurchaseOrder::with(['attachments', 'boutique', 'project', 'user.role', 'validationLogs.user', 'validationLogs.validationLevel'])->latest();
+        $query = PurchaseOrder::with(['attachments', 'boutique', 'circuit', 'project', 'user.role', 'validationLogs.user', 'validationLogs.validationLevel'])->latest();
+
+        if ($request->filled('circuit_id')) {
+            $query->where('circuit_id', $request->integer('circuit_id'));
+        }
 
         if ($request->filled('boutique_id')) {
             $query->where('boutique_id', $request->integer('boutique_id'));
@@ -242,6 +293,7 @@ class PurchaseOrderController extends Controller
         $purchaseOrder->load([
             'user.role',
             'boutique',
+            'circuit',
             'fournisseur',
             'project',
             'attachments',
@@ -256,7 +308,7 @@ class PurchaseOrderController extends Controller
             'comments.user',
         ]);
 
-        $levels = ValidationLevel::orderBy('order')->get();
+        $levels = ValidationLevel::where('circuit_id', $purchaseOrder->circuit_id)->orderBy('order')->get();
 
         // ─── Calcul des économies pour les commandes approuvées avec lignes ──
         $savings = null;
@@ -352,15 +404,17 @@ class PurchaseOrderController extends Controller
     public function submit(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
         $user = $request->user();
-        abort_unless($user->isAdmin() || $purchaseOrder->user_id === $user->id || $user->isValidateurNiveau1(), 403);
+        abort_unless($user->isAdmin() || $purchaseOrder->user_id === $user->id || $user->isFirstLevelValidatorOf($purchaseOrder->circuit_id), 403);
         abort_unless($purchaseOrder->status === 'draft', 422, 'Cette commande a déjà été soumise.');
 
         if ($purchaseOrder->attachments()->count() === 0) {
             return back()->withErrors(['attachments' => 'Au moins une pièce jointe est obligatoire avant de soumettre la commande.']);
         }
 
-        $firstLevel = ValidationLevel::first_level();
-        abort_unless($firstLevel, 422, 'Aucun niveau de validation configuré.');
+        abort_unless($purchaseOrder->circuit_id, 422, 'Cette commande n\'a pas de circuit de validation déterminé.');
+
+        $firstLevel = ValidationLevel::first_level($purchaseOrder->circuit_id);
+        abort_unless($firstLevel, 422, 'Aucun niveau de validation configuré pour ce circuit.');
 
         DB::transaction(function () use ($purchaseOrder, $firstLevel) {
             $purchaseOrder->update([

@@ -74,8 +74,8 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth'  => [
                 'user' => $user ? array_merge($user->toArray(), [
-                    'role'             => $user->role,
-                    'validation_level' => $user->validationLevel,
+                    'role'              => $user->role,
+                    'validation_levels' => $user->validationLevels()->with('circuit')->get(),
                 ]) : null,
             ],
             'flash' => [

@@ -8,6 +8,7 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\AuditLog;
 use App\Models\Boutique;
+use App\Models\Circuit;
 use App\Models\Role;
 use App\Models\User;
 use App\Mail\PasswordResetByAdminMail;
@@ -26,7 +27,7 @@ class UserController extends Controller
     {
         $search = trim((string) $request->query('search', ''));
 
-        $users = User::with(['role', 'validationLevel', 'boutique'])
+        $users = User::with(['role', 'validationLevels.circuit', 'boutique'])
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
@@ -47,7 +48,8 @@ class UserController extends Controller
     {
         return Inertia::render('Admin/Users/Form', [
             'roles'     => Role::all(),
-            'levels'    => ValidationLevel::orderBy('order')->get(),
+            'levels'    => ValidationLevel::with('circuit')->orderBy('circuit_id')->orderBy('order')->get(),
+            'circuits'  => Circuit::orderBy('name')->get(),
             'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -60,9 +62,10 @@ class UserController extends Controller
             'password'            => Hash::make($request->password),
             'must_change_password' => true,
             'role_id'             => $request->role_id,
-            'validation_level_id' => $request->validation_level_id,
             'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
         ]);
+
+        $user->validationLevels()->sync(array_filter($request->input('validation_level_ids', [])));
 
         Mail::to($user)->send(new UserAccountCreatedMail($user, $request->password));
 
@@ -75,9 +78,10 @@ class UserController extends Controller
     public function edit(User $user): Response
     {
         return Inertia::render('Admin/Users/Form', [
-            'user'      => $user->load(['role', 'validationLevel', 'boutique']),
+            'user'      => $user->load(['role', 'validationLevels.circuit', 'boutique']),
             'roles'     => Role::all(),
-            'levels'    => ValidationLevel::orderBy('order')->get(),
+            'levels'    => ValidationLevel::with('circuit')->orderBy('circuit_id')->orderBy('order')->get(),
+            'circuits'  => Circuit::orderBy('name')->get(),
             'boutiques' => Boutique::where('is_active', true)->orderBy('name')->get(),
         ]);
     }
@@ -90,7 +94,6 @@ class UserController extends Controller
             'name'                => $request->name,
             'email'               => $request->email,
             'role_id'             => $request->role_id,
-            'validation_level_id' => $request->validation_level_id,
             'boutique_id'         => $this->resolveBoutiqueId($request->role_id, $request->boutique_id),
         ];
 
@@ -102,6 +105,8 @@ class UserController extends Controller
         }
 
         $user->update($data);
+
+        $user->validationLevels()->sync(array_filter($request->input('validation_level_ids', [])));
 
         if ($previousRole?->id !== $user->role_id) {
             AuditLog::record(

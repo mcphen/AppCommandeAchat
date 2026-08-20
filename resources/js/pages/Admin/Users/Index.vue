@@ -242,10 +242,12 @@ const submitReset = (e: Event) => {
                                         <span v-else class="text-xs text-muted-foreground">Groupe</span>
                                     </td>
                                     <td class="hidden px-4 py-4 lg:table-cell sm:px-6">
-                                        <span v-if="user.validation_level" class="text-sm text-foreground">
-                                            {{ user.validation_level.name }}
-                                            <span class="text-xs text-muted-foreground">(N{{ user.validation_level.order }})</span>
-                                        </span>
+                                        <div v-if="user.validation_levels && user.validation_levels.length > 0" class="flex flex-col gap-0.5">
+                                            <span v-for="level in user.validation_levels" :key="level.id" class="text-sm text-foreground">
+                                                {{ level.circuit?.name }} — {{ level.name }}
+                                                <span class="text-xs text-muted-foreground">(N{{ level.order }})</span>
+                                            </span>
+                                        </div>
                                         <span v-else class="text-xs text-muted-foreground">-</span>
                                     </td>
                                     <td class="hidden px-4 py-4 text-sm text-muted-foreground xl:table-cell sm:px-6">

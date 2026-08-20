@@ -82,11 +82,23 @@ class DashboardController extends Controller
 
     private function validatorDashboard(User $user): Response
     {
-        $levelOrder = $user->validationLevel?->order;
+        $levels = $user->validationLevels;
 
-        $pendingCount = $levelOrder
-            ? PurchaseOrder::where('status', 'pending')->where('current_level_order', $levelOrder)->count()
-            : PurchaseOrder::where('status', 'pending')->count();
+        $scopeToLevels = function ($query) use ($levels) {
+            if ($levels->isEmpty()) {
+                return;
+            }
+
+            $query->where(function ($q) use ($levels) {
+                foreach ($levels as $level) {
+                    $q->orWhere(fn ($qq) => $qq->where('circuit_id', $level->circuit_id)->where('current_level_order', $level->order));
+                }
+            });
+        };
+
+        $pendingQuery = PurchaseOrder::where('status', 'pending');
+        $scopeToLevels($pendingQuery);
+        $pendingCount = $pendingQuery->count();
 
         $stats = [
             'pending'     => $pendingCount,
@@ -94,12 +106,9 @@ class DashboardController extends Controller
             'my_rejected' => $user->validationLogs()->where('action', 'rejected')->count(),
         ];
 
-        $recentOrders = PurchaseOrder::with(['user', 'boutique'])
-            ->where('status', 'pending')
-            ->when($levelOrder, fn ($q) => $q->where('current_level_order', $levelOrder))
-            ->latest()
-            ->limit(8)
-            ->get();
+        $recentQuery = PurchaseOrder::with(['user', 'boutique'])->where('status', 'pending');
+        $scopeToLevels($recentQuery);
+        $recentOrders = $recentQuery->latest()->limit(8)->get();
 
         $totalLevels = ValidationLevel::count();
 
@@ -110,7 +119,7 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard', [
             'stats'             => $stats,
             'recentOrders'      => $recentOrders,
-            'validationLevel'   => $user->validationLevel,
+            'validationLevels'  => $levels,
             'totalLevels'       => $totalLevels,
             'activeDelegations' => $activeDelegations,
         ]);

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Article;
 use App\Models\Boutique;
+use App\Models\Circuit;
 use App\Models\Fournisseur;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
@@ -20,7 +21,8 @@ class DemoDataSeeder extends Seeder
     public function run(): void
     {
         $roles      = Role::pluck('id', 'slug');
-        $levels     = ValidationLevel::orderBy('order')->get();
+        $achatCircuitId = Circuit::where('code', 'achat')->value('id');
+        $levels     = ValidationLevel::where('circuit_id', $achatCircuitId)->orderBy('order')->get();
         $boutiques  = Boutique::orderBy('name')->get()->values();
         $fournisseurs = Fournisseur::where('is_active', true)->get();
         $articles     = Article::where('is_active', true)->get();
@@ -30,29 +32,38 @@ class DemoDataSeeder extends Seeder
             [
                 'name'                => 'Pape Ibrahima Ndiaye',
                 'email'               => 'p.ndiaye@construcsen.com',
-                'validation_level_id' => $levels->firstWhere('order', 1)?->id,
+                'level'               => $levels->firstWhere('order', 1),
             ],
             [
                 'name'                => 'Aminata Diop',
                 'email'               => 'a.diop@construcsen.com',
-                'validation_level_id' => $levels->firstWhere('order', 2)?->id,
+                'level'               => $levels->firstWhere('order', 2),
             ],
             [
                 'name'                => 'Moussa Sall',
                 'email'               => 'm.sall@construcsen.com',
-                'validation_level_id' => $levels->firstWhere('order', 3)?->id,
+                'level'               => $levels->firstWhere('order', 3),
             ],
         ];
 
         $validateurUsers = [];
         foreach ($validateurs as $data) {
-            $validateurUsers[] = User::firstOrCreate(
+            $level = $data['level'];
+            unset($data['level']);
+
+            $user = User::firstOrCreate(
                 ['email' => $data['email']],
                 array_merge($data, [
                     'password' => Hash::make('password'),
                     'role_id'  => $roles['validateur'],
                 ])
             );
+
+            if ($level) {
+                $user->validationLevels()->syncWithoutDetaching([$level->id]);
+            }
+
+            $validateurUsers[] = $user;
         }
 
         // ── Demandeurs ─────────────────────────────────────────────────────────
@@ -177,6 +188,7 @@ class DemoDataSeeder extends Seeder
 
                 $order = PurchaseOrder::create([
                     'user_id'             => $demandeur->id,
+                    'circuit_id'          => $achatCircuitId,
                     'boutique_id'         => $demandeur->boutique_id,
                     'fournisseur_id'      => $orderFournisseur?->id,
                     'title'               => $template['title'],

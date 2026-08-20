@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem, type ValidationLevel } from '@/types';
+import { type BreadcrumbItem, type Circuit, type ValidationLevel } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Loader2, Save } from 'lucide-vue-next';
 import { computed } from 'vue';
@@ -8,6 +8,7 @@ import { computed } from 'vue';
 const props = defineProps<{
     level?: ValidationLevel;
     nextOrder?: number;
+    circuits: Circuit[];
 }>();
 
 const isEdit = computed(() => !!props.level);
@@ -19,6 +20,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const form = useForm({
+    circuit_id: props.level?.circuit_id ?? props.circuits[0]?.id ?? null,
     name: props.level?.name ?? '',
     order: props.level?.order ?? props.nextOrder ?? 1,
     description: props.level?.description ?? '',
@@ -54,6 +56,18 @@ const submit = () => {
             <form @submit.prevent="submit">
                 <div class="rounded-2xl border bg-card p-6 shadow-sm flex flex-col gap-4">
                     <h2 class="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Configuration du niveau</h2>
+
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium text-foreground">Circuit <span class="text-red-500">*</span></label>
+                        <select
+                            v-model.number="form.circuit_id"
+                            class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-colors"
+                            :class="{ 'border-red-400': form.errors.circuit_id }"
+                        >
+                            <option v-for="circuit in circuits" :key="circuit.id" :value="circuit.id">{{ circuit.name }}</option>
+                        </select>
+                        <p v-if="form.errors.circuit_id" class="text-xs text-red-500">{{ form.errors.circuit_id }}</p>
+                    </div>
 
                     <div class="grid grid-cols-3 gap-4">
                         <div class="flex flex-col gap-1.5">

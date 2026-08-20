@@ -3,8 +3,10 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -20,7 +22,6 @@ class User extends Authenticatable
         'password',
         'sage_collaborateur_code',
         'role_id',
-        'validation_level_id',
         'boutique_id',
         'signature_path',
         'onboarding_completed_at',
@@ -54,9 +55,14 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
-    public function validationLevel(): BelongsTo
+    public function validationLevels(): BelongsToMany
     {
-        return $this->belongsTo(ValidationLevel::class);
+        return $this->belongsToMany(ValidationLevel::class, 'user_validation_levels');
+    }
+
+    public function validationLevelForCircuit(int $circuitId): ?ValidationLevel
+    {
+        return $this->validationLevels->firstWhere('circuit_id', $circuitId);
     }
 
     public function boutique(): BelongsTo
@@ -93,41 +99,36 @@ class User extends Authenticatable
     }
 
     /**
-     * Returns all validation level orders this user can act on
-     * (own level + delegated levels).
+     * Returns all validation levels this user can act on
+     * (own levels, across all circuits + delegated levels).
      */
-    public function validatableLevelOrders(): array
+    public function validatableLevels(): Collection
     {
-        $orders = [];
-
-        if ($this->validationLevel) {
-            $orders[] = $this->validationLevel->order;
-        }
-
         $delegated = $this->activeDelegationsReceived()
             ->with('validationLevel')
             ->get()
-            ->pluck('validationLevel.order')
-            ->filter()
-            ->toArray();
+            ->pluck('validationLevel')
+            ->filter();
 
-        return array_values(array_unique(array_merge($orders, $delegated)));
+        return $this->validationLevels
+            ->concat($delegated)
+            ->unique('id')
+            ->values();
     }
 
     /**
-     * If the user is validating at $levelOrder via delegation,
+     * If the user is validating at $validationLevelId via delegation,
      * returns the delegator's id; otherwise null.
      */
-    public function getDelegatorIdForLevel(int $levelOrder): ?int
+    public function getDelegatorIdForLevel(int $validationLevelId): ?int
     {
-        if ($this->validationLevel?->order === $levelOrder) {
+        if ($this->validationLevels->contains('id', $validationLevelId)) {
             return null; // own level, not delegated
         }
 
         return $this->activeDelegationsReceived()
-            ->with('validationLevel')
             ->get()
-            ->first(fn ($d) => $d->validationLevel?->order === $levelOrder)
+            ->first(fn ($d) => $d->validation_level_id === $validationLevelId)
             ?->delegator_id;
     }
 
@@ -146,9 +147,13 @@ class User extends Authenticatable
         return $this->role?->slug === 'validateur';
     }
 
-    public function isValidateurNiveau1(): bool
+    public function isFirstLevelValidatorOf(?int $circuitId): bool
     {
-        return $this->isValidateur() && $this->validationLevel?->order === 1;
+        if (! $circuitId || ! $this->isValidateur()) {
+            return false;
+        }
+
+        return $this->validationLevelForCircuit($circuitId)?->order === 1;
     }
 
     public function canValidate(): bool

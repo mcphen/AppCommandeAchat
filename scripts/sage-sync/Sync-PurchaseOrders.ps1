@@ -206,7 +206,7 @@ Write-Log "Watermark actuel : $($watermark.ToString('o'))"
 $projectCodeSelect = if ($ProjectCodeColumn) { ", d.$ProjectCodeColumn AS DO_ProjetCode" } else { "" }
 $entetes = Invoke-SqlQuery $conn @"
 SELECT d.DO_Piece, d.DO_Date, d.DO_Tiers, d.DO_TotalHT, d.DO_TotalTTC, d.cbModification, d.DO_Cloture,
-       d.CO_No, col.CO_Nom, col.CO_Prenom, col.CO_EMail,
+       d.DO_Souche, d.CO_No, col.CO_Nom, col.CO_Prenom, col.CO_EMail,
        ct.CT_Intitule, ct.CT_Adresse, ct.CT_Ville, ct.CT_Telephone, ct.CT_EMail AS CT_Email, ct.CT_Siret
        $projectCodeSelect
 FROM F_DOCENTETE d
@@ -307,6 +307,7 @@ foreach ($entete in $entetes) {
             montant_ht   = Get-SafeDouble $entete.DO_TotalHT
             montant_ttc  = Get-SafeDouble $entete.DO_TotalTTC
             cloture      = ($entete.DO_Cloture -isnot [System.DBNull] -and [int]$entete.DO_Cloture -eq 1)
+            do_souche    = if ($entete.DO_Souche -isnot [System.DBNull]) { [int]$entete.DO_Souche } else { 0 }
             projet_code  = if ($ProjectCodeColumn) { Get-SafeNullableTrim $entete.DO_ProjetCode } else { $null }
             lignes       = @(
                 foreach ($ligne in $lignes) {

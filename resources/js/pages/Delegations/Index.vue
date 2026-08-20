@@ -15,7 +15,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 interface UserRef { id: number; name: string }
-interface LevelRef { id: number; name: string; order: number }
+interface LevelRef { id: number; name: string; order: number; circuit?: { id: number; name: string } }
 
 interface Delegation {
     id: number;
@@ -162,7 +162,7 @@ const activeDelegationsReceived = computed(() =>
                                 class="rounded-lg border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                 required>
                             <option value="">Sélectionner un niveau</option>
-                            <option v-for="l in levels" :key="l.id" :value="l.id">N{{ l.order }} — {{ l.name }}</option>
+                            <option v-for="l in levels" :key="l.id" :value="l.id">{{ l.circuit?.name }} — N{{ l.order }} — {{ l.name }}</option>
                         </select>
                         <p v-if="form.errors.validation_level_id" class="text-xs text-red-500">{{ form.errors.validation_level_id }}</p>
                     </div>

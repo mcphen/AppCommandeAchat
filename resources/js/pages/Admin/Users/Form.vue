@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type Boutique, type BreadcrumbItem, type Role, type User, type ValidationLevel } from '@/types';
+import { type Boutique, type BreadcrumbItem, type Circuit, type Role, type User, type ValidationLevel } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { ArrowLeft, Loader2, Save } from 'lucide-vue-next';
 import { computed, watch } from 'vue';
@@ -9,6 +9,7 @@ const props = defineProps<{
     user?: User;
     roles: Role[];
     levels: ValidationLevel[];
+    circuits: Circuit[];
     boutiques: Boutique[];
 }>();
 
@@ -20,17 +21,32 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: isEdit.value ? 'Modifier' : 'Nouvel utilisateur', href: '#' },
 ];
 
+// Un select par circuit, garde sa propre valeur (id de niveau ou '') independamment des autres.
+const levelByCircuit = Object.fromEntries(
+    props.circuits.map(circuit => [
+        circuit.id,
+        props.user?.validation_levels?.find(l => l.circuit_id === circuit.id)?.id.toString() ?? '',
+    ])
+) as Record<number, string>;
+
 const form = useForm({
     name: props.user?.name ?? '',
     email: props.user?.email ?? '',
     password: '',
     password_confirmation: '',
     role_id: props.user?.role_id?.toString() ?? '',
-    validation_level_id: props.user?.validation_level_id?.toString() ?? '',
+    validation_level_ids: levelByCircuit,
     boutique_id: props.user?.boutique_id?.toString() ?? '',
 });
 
+const levelsForCircuit = (circuitId: number) => props.levels.filter(l => l.circuit_id === circuitId);
+
 const submit = () => {
+    form.transform((data) => ({
+        ...data,
+        validation_level_ids: Object.values(data.validation_level_ids).filter(Boolean),
+    }));
+
     if (isEdit.value) {
         form.put(route('admin.users.update', props.user!.id));
     } else {
@@ -44,7 +60,9 @@ const needsBoutique = computed(() => selectedRole.value?.slug === 'demandeur');
 
 watch(needsBoutique, (value) => {
     if (value) {
-        form.validation_level_id = '';
+        for (const circuitId of Object.keys(form.validation_level_ids)) {
+            form.validation_level_ids[Number(circuitId)] = '';
+        }
         return;
     }
 
@@ -164,26 +182,32 @@ watch(needsBoutique, (value) => {
                         </p>
                     </div>
 
-                    <div class="flex flex-col gap-1.5">
+                    <div class="flex flex-col gap-3">
                         <label class="text-sm font-medium text-foreground">
                             Niveau de validation
                             <span v-if="needsLevel" class="text-xs font-normal text-muted-foreground">(optionnel pour admin)</span>
                         </label>
-                        <select
-                            v-model="form.validation_level_id"
-                            :disabled="!form.role_id || needsBoutique"
-                            class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:cursor-not-allowed disabled:text-black/60 disabled:opacity-50"
-                        >
-                            <option value="">-- Aucun niveau --</option>
-                            <option v-for="level in levels" :key="level.id" :value="level.id">
-                                Niveau {{ level.order }} — {{ level.name }}
-                            </option>
-                        </select>
-                        <p class="text-xs text-muted-foreground">
-                            <template v-if="selectedRole?.slug === 'validateur'">Requis pour un validateur — définit à quel niveau il peut valider.</template>
-                            <template v-else-if="selectedRole?.slug === 'admin'">L'admin peut être assigné à un niveau pour participer au circuit.</template>
+                        <p class="text-xs text-muted-foreground -mt-2">
+                            <template v-if="selectedRole?.slug === 'validateur'">Un niveau par circuit au maximum — laisser sur « Aucun » pour un circuit où il ne valide pas.</template>
+                            <template v-else-if="selectedRole?.slug === 'admin'">L'admin peut être assigné à un niveau par circuit pour y participer.</template>
                             <template v-else>Non applicable pour le rôle Demandeur.</template>
                         </p>
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <div v-for="circuit in circuits" :key="circuit.id" class="flex flex-col gap-1.5">
+                                <label class="text-xs font-medium text-muted-foreground">Niveau — {{ circuit.name }}</label>
+                                <select
+                                    v-model="form.validation_level_ids[circuit.id]"
+                                    :disabled="!form.role_id || needsBoutique"
+                                    class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:cursor-not-allowed disabled:text-black/60 disabled:opacity-50"
+                                >
+                                    <option value="">-- Aucun --</option>
+                                    <option v-for="level in levelsForCircuit(circuit.id)" :key="level.id" :value="level.id.toString()">
+                                        Niveau {{ level.order }} — {{ level.name }}
+                                    </option>
+                                </select>
+                            </div>
+                        </div>
+                        <p v-if="form.errors.validation_level_ids" class="text-xs text-red-500">{{ form.errors.validation_level_ids }}</p>
                     </div>
                 </div>
 

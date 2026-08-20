@@ -13,10 +13,14 @@ class RestartPurchaseOrderValidationService
 {
     public function restart(PurchaseOrder $purchaseOrder, bool $force = false): PurchaseOrder
     {
-        $firstLevel = ValidationLevel::first_level();
+        if (! $purchaseOrder->circuit_id) {
+            throw new RuntimeException('Cette commande n\'a pas de circuit de validation déterminé.');
+        }
+
+        $firstLevel = ValidationLevel::first_level($purchaseOrder->circuit_id);
 
         if (! $firstLevel) {
-            throw new RuntimeException('Aucun niveau de validation n\'est configuré.');
+            throw new RuntimeException('Aucun niveau de validation n\'est configuré pour ce circuit.');
         }
 
         $order = DB::transaction(function () use ($purchaseOrder, $firstLevel, $force) {

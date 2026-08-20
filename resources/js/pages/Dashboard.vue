@@ -62,7 +62,7 @@ const props = defineProps<{
     totalBoutiques?: number;
     boutiqueStats?: BoutiqueStat[];
     boutique?: Boutique | null;
-    validationLevel?: ValidationLevel | null;
+    validationLevels?: ValidationLevel[];
     monthlyData?: {
         labels: string[];
         pending: number[];
@@ -442,19 +442,16 @@ const hasBarData = computed(() =>
             <!-- ===== VALIDATEUR ===== -->
             <template v-else-if="role === 'validateur'">
 
-                <!-- Bandeau niveau -->
-                <div v-if="validationLevel" class="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-indigo-100/50 p-4 flex items-center gap-4 sm:p-5">
+                <!-- Bandeau niveau(x) -->
+                <div v-if="validationLevels && validationLevels.length > 0" class="rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-indigo-100/50 p-4 flex items-center gap-4 sm:p-5">
                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-indigo-100">
                         <Layers class="h-6 w-6 text-indigo-600" />
                     </div>
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-0.5">Votre niveau de validation</p>
-                        <p class="text-base font-bold text-indigo-800">
-                            Niveau {{ validationLevel.order }}
-                            <template v-if="totalLevels"> / {{ totalLevels }}</template>
-                            — {{ validationLevel.name }}
+                        <p class="text-xs font-semibold uppercase tracking-wide text-indigo-500 mb-0.5">Vos niveaux de validation</p>
+                        <p v-for="level in validationLevels" :key="level.id" class="text-base font-bold text-indigo-800">
+                            {{ level.circuit?.name }} — Niveau {{ level.order }} — {{ level.name }}
                         </p>
-                        <p v-if="validationLevel.description" class="text-xs text-indigo-600 mt-0.5">{{ validationLevel.description }}</p>
                     </div>
                 </div>
 

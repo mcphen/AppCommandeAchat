@@ -17,12 +17,12 @@ class DelegationController extends Controller
     {
         $user = $request->user();
 
-        $given = ValidationDelegation::with(['delegatee', 'validationLevel'])
+        $given = ValidationDelegation::with(['delegatee', 'validationLevel.circuit'])
             ->when(! $user->isAdmin(), fn ($q) => $q->where('delegator_id', $user->id))
             ->orderByDesc('created_at')
             ->get();
 
-        $received = ValidationDelegation::with(['delegator', 'validationLevel'])
+        $received = ValidationDelegation::with(['delegator', 'validationLevel.circuit'])
             ->where('delegatee_id', $user->id)
             ->orderByDesc('created_at')
             ->get();
@@ -32,7 +32,7 @@ class DelegationController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $levels = ValidationLevel::orderBy('order')->get(['id', 'name', 'order']);
+        $levels = ValidationLevel::with('circuit')->orderBy('circuit_id')->orderBy('order')->get();
 
         return Inertia::render('Delegations/Index', [
             'given'    => $given,
@@ -58,7 +58,7 @@ class DelegationController extends Controller
         // Validateur ne peut déléguer que son propre niveau
         if (! $user->isAdmin()) {
             abort_unless(
-                $user->validation_level_id == $data['validation_level_id'],
+                $user->validationLevels->contains('id', $data['validation_level_id']),
                 403,
                 'Vous ne pouvez déléguer que votre propre niveau de validation.'
             );

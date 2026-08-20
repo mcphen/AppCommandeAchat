@@ -49,8 +49,19 @@ export interface Role {
     slug: 'admin' | 'demandeur' | 'validateur';
 }
 
+export interface Circuit {
+    id: number;
+    code: string;
+    name: string;
+    is_active: boolean;
+    validation_levels_count?: number;
+    purchase_orders_count?: number;
+}
+
 export interface ValidationLevel {
     id: number;
+    circuit_id: number;
+    circuit?: Circuit;
     name: string;
     order: number;
     type: 'validation' | 'approbation';
@@ -80,10 +91,9 @@ export interface User {
     email: string;
     avatar?: string;
     role_id?: number;
-    validation_level_id?: number;
     boutique_id?: number | null;
     role?: Role;
-    validation_level?: ValidationLevel;
+    validation_levels?: ValidationLevel[];
     boutique?: Boutique | null;
     email_verified_at: string | null;
     created_at: string;
@@ -127,10 +137,12 @@ export interface PurchaseOrderReception {
 export interface PurchaseOrder {
     id: number;
     user_id: number;
+    circuit_id?: number | null;
     boutique_id?: number | null;
     fournisseur_id?: number | null;
     project_id?: number | null;
     user?: User;
+    circuit?: Circuit | null;
     boutique?: Boutique | null;
     fournisseur?: Fournisseur | null;
     project?: Project | null;

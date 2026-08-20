@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Circuit;
 use App\Models\ValidationLevel;
 use Illuminate\Database\Seeder;
 
@@ -9,6 +10,8 @@ class ValidationLevelSeeder extends Seeder
 {
     public function run(): void
     {
+        $achatId = Circuit::where('code', 'achat')->value('id');
+
         $levels = [
             ['name' => 'Responsable Approvisionnement', 'order' => 1, 'type' => 'validation', 'description' => 'Première validation par le responsable approvisionnement du dépôt'],
             ['name' => 'Directeur Administratif et Financier', 'order' => 2, 'type' => 'validation', 'description' => 'Validation financière et budgétaire par le DAF'],
@@ -17,7 +20,10 @@ class ValidationLevelSeeder extends Seeder
         ];
 
         foreach ($levels as $level) {
-            ValidationLevel::firstOrCreate(['order' => $level['order']], $level);
+            ValidationLevel::firstOrCreate(
+                ['circuit_id' => $achatId, 'order' => $level['order']],
+                [...$level, 'circuit_id' => $achatId]
+            );
         }
     }
 }

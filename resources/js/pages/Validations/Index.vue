@@ -1,24 +1,37 @@
 <script setup lang="ts">
 import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type Boutique, type BreadcrumbItem, type PaginatedData, type PurchaseOrder, type SharedData } from '@/types';
+import { type Boutique, type BreadcrumbItem, type Circuit, type PaginatedData, type PurchaseOrder, type SharedData } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { Building2, Calendar, CheckSquare, Clock, Eye, FileText, Filter, Paperclip, RotateCcw } from 'lucide-vue-next';
 import { computed } from 'vue';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Tableau de bord', href: '/dashboard' },
-    { title: 'Validations', href: '/validations' },
-];
-
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     orders: PaginatedData<PurchaseOrder>;
     boutiques: Boutique[];
+    circuits: Circuit[];
     levelsCount: number;
     filters: {
         boutique_id?: string;
+        circuit_id?: string;
     };
-}>();
+    listRouteName?: string;
+    breadcrumbLabel?: string;
+    breadcrumbHref?: string;
+    pageTitle?: string;
+    hideCircuitFilter?: boolean;
+}>(), {
+    listRouteName: 'validations.index',
+    breadcrumbLabel: 'Validations',
+    breadcrumbHref: '/validations',
+    pageTitle: 'Validations',
+    hideCircuitFilter: false,
+});
+
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    { title: 'Tableau de bord', href: '/dashboard' },
+    { title: props.breadcrumbLabel, href: props.breadcrumbHref },
+]);
 
 const page = usePage<SharedData>();
 const user = page.props.auth.user;
@@ -41,7 +54,17 @@ const progressLabel = (order: PurchaseOrder, levelsCount: number) => {
 const applyBoutiqueFilter = (event: Event) => {
     const value = (event.target as HTMLSelectElement).value;
 
-    router.get(route('validations.index'), { boutique_id: value || undefined }, {
+    router.get(route(props.listRouteName), { boutique_id: value || undefined, circuit_id: props.filters.circuit_id || undefined }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+    });
+};
+
+const applyCircuitFilter = (event: Event) => {
+    const value = (event.target as HTMLSelectElement).value;
+
+    router.get(route(props.listRouteName), { circuit_id: value || undefined, boutique_id: props.filters.boutique_id || undefined }, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
@@ -49,26 +72,31 @@ const applyBoutiqueFilter = (event: Event) => {
 };
 
 const resetFilters = () => {
-    router.get(route('validations.index'), {}, {
+    router.get(route(props.listRouteName), {}, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
     });
 };
 
-const hasActiveFilters = computed(() => !!props.filters.boutique_id);
+const hasActiveFilters = computed(() => !!props.filters.boutique_id || !!props.filters.circuit_id);
 </script>
 
 <template>
-    <Head title="Validations" />
+    <Head :title="pageTitle" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-4 p-3 sm:gap-6 sm:p-6">
             <div class="flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                    <h1 class="text-xl font-bold text-foreground sm:text-2xl">Validations</h1>
+                    <h1 class="text-xl font-bold text-foreground sm:text-2xl">{{ pageTitle }}</h1>
                     <p class="mt-1 truncate text-sm text-muted-foreground">
                         <template v-if="user?.role?.slug === 'admin'">Toutes les commandes en attente</template>
-                        <template v-else>Niveau - <span class="font-medium text-foreground">{{ user?.validation_level?.name }}</span></template>
+                        <template v-else>
+                            Niveau -
+                            <span class="font-medium text-foreground">
+                                {{ user?.validation_levels?.map(l => `${l.circuit?.name} — ${l.name}`).join(', ') }}
+                            </span>
+                        </template>
                     </p>
                 </div>
                 <div v-if="orders.total > 0" class="flex shrink-0 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 sm:px-4">
@@ -80,19 +108,32 @@ const hasActiveFilters = computed(() => !!props.filters.boutique_id);
 
             <div class="rounded-2xl border bg-card p-4 shadow-sm">
                 <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                    <div class="w-full max-w-sm">
-                        <label class="mb-1.5 block text-sm font-medium text-foreground">Filtrer par société</label>
-                        <select
-                            :value="filters.boutique_id ?? ''"
-                            class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-black transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            @change="applyBoutiqueFilter"
-                        >
-                            <option value="">Toutes les sociétés</option>
-                            <option v-for="boutique in boutiques" :key="boutique.id" :value="boutique.id">{{ boutique.name }}</option>
-                        </select>
+                    <div class="flex w-full flex-col gap-3 sm:flex-row">
+                        <div class="w-full max-w-sm">
+                            <label class="mb-1.5 block text-sm font-medium text-foreground">Filtrer par société</label>
+                            <select
+                                :value="filters.boutique_id ?? ''"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-black transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                @change="applyBoutiqueFilter"
+                            >
+                                <option value="">Toutes les sociétés</option>
+                                <option v-for="boutique in boutiques" :key="boutique.id" :value="boutique.id">{{ boutique.name }}</option>
+                            </select>
+                        </div>
+                        <div v-if="!hideCircuitFilter" class="w-full max-w-sm">
+                            <label class="mb-1.5 block text-sm font-medium text-foreground">Filtrer par circuit</label>
+                            <select
+                                :value="filters.circuit_id ?? ''"
+                                class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm text-black transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                @change="applyCircuitFilter"
+                            >
+                                <option value="">Tous les circuits</option>
+                                <option v-for="circuit in circuits" :key="circuit.id" :value="circuit.id">{{ circuit.name }}</option>
+                            </select>
+                        </div>
                     </div>
                     <button
-                        v-if="filters.boutique_id"
+                        v-if="hasActiveFilters"
                         type="button"
                         class="rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
                         @click="resetFilters"
@@ -124,7 +165,12 @@ const hasActiveFilters = computed(() => !!props.filters.boutique_id);
                                                 <FileText class="h-4 w-4 text-amber-600" />
                                             </div>
                                             <div class="min-w-0">
-                                                <p class="max-w-[140px] truncate font-semibold text-foreground sm:max-w-xs">{{ order.title }}</p>
+                                                <div class="flex items-center gap-2">
+                                                    <p class="max-w-[140px] truncate font-semibold text-foreground sm:max-w-xs">{{ order.title }}</p>
+                                                    <span v-if="order.circuit" class="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300">
+                                                        {{ order.circuit.name }}
+                                                    </span>
+                                                </div>
                                                 <p class="mt-0.5 line-clamp-1 max-w-[140px] text-xs text-muted-foreground sm:max-w-xs">{{ order.description }}</p>
                                                 <p class="mt-1 text-xs text-muted-foreground">{{ progressLabel(order, levelsCount) }}</p>
                                                 <p v-if="order.attachments?.length" class="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">

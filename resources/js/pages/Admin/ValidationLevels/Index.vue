@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
-import { type BreadcrumbItem, type ValidationLevel } from '@/types';
+import { type BreadcrumbItem, type Circuit, type ValidationLevel } from '@/types';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import { CheckCircle2, Loader2, Pencil, Plus, Save, Settings, ShieldCheck, Trash2, Users, X } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 
-const props = defineProps<{ levels: (ValidationLevel & { validators_count: number })[] }>();
+const props = defineProps<{
+    levels: (ValidationLevel & { validators_count: number })[];
+    circuits: Circuit[];
+}>();
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Tableau de bord', href: '/dashboard' },
@@ -20,10 +23,18 @@ const totalValidators = computed(() => props.levels.reduce((s, l) => s + (l.vali
 const levelsWithValidators = computed(() => props.levels.filter(l => l.validators_count > 0).length);
 const levelsWithout = computed(() => props.levels.filter(l => l.validators_count === 0).length);
 
-// ── nextOrder calculé côté front ─────────────────────────────────────────────
-const nextOrder = computed(() =>
-    props.levels.length > 0 ? Math.max(...props.levels.map(l => l.order)) + 1 : 1
+// ── Regroupement par circuit ─────────────────────────────────────────────────
+const groupedLevels = computed(() =>
+    props.circuits.map(circuit => ({
+        circuit,
+        levels: props.levels.filter(l => l.circuit_id === circuit.id),
+    }))
 );
+
+const nextOrderFor = (circuitId: number | null) =>
+    !circuitId
+        ? 1
+        : (Math.max(0, ...props.levels.filter(l => l.circuit_id === circuitId).map(l => l.order)) + 1);
 
 // ── Suppression ──────────────────────────────────────────────────────────────
 const deleteLevel = async (level: ValidationLevel) => {
@@ -48,26 +59,29 @@ const showModal = ref(false);
 const editingLevel = ref<(ValidationLevel & { validators_count: number }) | null>(null);
 
 const form = useForm({
+    circuit_id: null as number | null,
     name: '',
     order: 1,
     description: '',
     type: 'validation',
 });
 
-const openModal = () => {
+const openModal = (circuitId?: number) => {
     editingLevel.value = null;
     form.reset();
     form.clearErrors();
-    form.order = nextOrder.value;
+    form.circuit_id = circuitId ?? props.circuits[0]?.id ?? null;
+    form.order = nextOrderFor(form.circuit_id);
     showModal.value = true;
 };
 
 const openEditModal = (level: ValidationLevel & { validators_count: number }) => {
     editingLevel.value = level;
-    form.name        = level.name;
-    form.order       = level.order;
-    form.description = level.description ?? '';
-    form.type        = level.type;
+    form.circuit_id   = level.circuit_id;
+    form.name         = level.name;
+    form.order        = level.order;
+    form.description  = level.description ?? '';
+    form.type         = level.type;
     form.clearErrors();
     showModal.value = true;
 };
@@ -100,8 +114,8 @@ const submit = () => {
             <!-- ── Header ────────────────────────────────────────────────── -->
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold text-foreground">Circuit de validation</h1>
-                    <p class="text-sm text-muted-foreground">Configurez les niveaux d'approbation des bons de commande.</p>
+                    <h1 class="text-2xl font-bold text-foreground">Circuits de validation</h1>
+                    <p class="text-sm text-muted-foreground">Configurez les niveaux d'approbation par circuit (Achat, Prestation...).</p>
                 </div>
                 <div class="inline-flex items-center gap-2 self-start rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary">
                     <ShieldCheck class="h-4 w-4" />
@@ -120,7 +134,7 @@ const submit = () => {
                             <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Workflow d'approbation</p>
                             <h2 class="mt-1 text-xl font-semibold text-foreground">Niveaux de validation</h2>
                             <p class="mt-1 text-sm text-muted-foreground">
-                                Définissez les étapes que chaque bon de commande doit franchir avant d'être approuvé.
+                                Chaque circuit (voir Admin &gt; Circuits) a sa propre séquence de niveaux que les commandes doivent franchir.
                             </p>
                         </div>
                     </div>
@@ -157,201 +171,115 @@ const submit = () => {
                 </div>
             </section>
 
-            <!-- ── Bouton action ─────────────────────────────────────────── -->
-            <div class="flex flex-wrap items-center gap-2">
-                <button
-                    @click="openModal"
-                    class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                >
-                    <Plus class="h-4 w-4" />
-                    Ajouter un niveau
-                </button>
-            </div>
-
-            <!-- ── Stats cards ───────────────────────────────────────────── -->
-            <section v-if="levels.length > 0" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div class="rounded-2xl border bg-card p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Niveaux</p>
-                    <p class="mt-2 text-2xl font-bold text-foreground">{{ levels.length }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">étapes de validation</p>
-                </div>
-                <div class="rounded-2xl border bg-card p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Validateurs</p>
-                    <p class="mt-2 text-2xl font-bold text-blue-600 dark:text-blue-300">{{ totalValidators }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">utilisateurs assignés</p>
-                </div>
-                <div class="rounded-2xl border bg-card p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Couverts</p>
-                    <p class="mt-2 text-2xl font-bold text-emerald-600 dark:text-emerald-300">{{ levelsWithValidators }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">niveaux avec validateurs</p>
-                </div>
-                <div class="rounded-2xl border bg-card p-4 shadow-sm">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">À couvrir</p>
-                    <p class="mt-2 text-2xl font-bold" :class="levelsWithout > 0 ? 'text-amber-600 dark:text-amber-300' : 'text-foreground'">{{ levelsWithout }}</p>
-                    <p class="mt-1 text-xs text-muted-foreground">niveaux sans validateurs</p>
-                </div>
-            </section>
-
-            <!-- ── État vide ─────────────────────────────────────────────── -->
+            <!-- ── État vide global ──────────────────────────────────────── -->
             <EmptyState
-                v-if="levels.length === 0"
+                v-if="circuits.length === 0"
                 :icon="Settings"
                 icon-bg="bg-slate-100 dark:bg-slate-800"
                 icon-color="text-slate-500 dark:text-slate-400"
-                title="Aucun niveau configuré"
-                description="Définissez les niveaux d'approbation du circuit de validation. Les commandes passeront par chaque niveau avant d'être approuvées."
-            >
-                <button
-                    @click="openModal"
-                    class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                >
-                    <Plus class="h-4 w-4" />
-                    Créer le premier niveau
-                </button>
-            </EmptyState>
+                title="Aucun circuit configuré"
+                description="Créez d'abord un circuit (Achat, Prestation de service...) depuis Admin > Circuits avant de lui définir des niveaux."
+            />
 
-            <template v-else>
-                <!-- ── Circuit visuel ─────────────────────────────────────── -->
-                <div class="rounded-2xl border bg-card shadow-sm overflow-hidden">
-                    <div class="border-b bg-muted/30 px-6 py-3.5">
-                        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                            Circuit de validation ({{ levels.length }} niveau{{ levels.length !== 1 ? 'x' : '' }})
-                        </p>
-                    </div>
-                    <div class="p-6">
-                        <div class="flex flex-wrap items-center gap-0">
-                            <template v-for="(level, idx) in levels" :key="level.id">
-                                <div class="flex flex-col items-center">
-                                    <div
-                                        class="w-44 rounded-2xl border-2 bg-card p-4 text-center transition-all hover:shadow-md"
-                                        :class="level.validators_count === 0 ? 'border-amber-200 dark:border-amber-900' : 'border-border hover:border-primary/30'"
-                                    >
-                                        <div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                                            {{ level.order }}
-                                        </div>
-                                        <p class="font-semibold text-foreground text-sm">{{ level.name }}</p>
-                                        <span
-                                            class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
-                                            :class="level.type === 'approbation'
-                                                ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
-                                                : 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'"
+            <!-- ── Une section par circuit ───────────────────────────────── -->
+            <template v-for="group in (circuits.length > 0 ? groupedLevels : [])" :key="group.circuit.id">
+                <div class="flex items-center justify-between gap-2">
+                    <h2 class="text-lg font-bold text-foreground">{{ group.circuit.name }}</h2>
+                    <button
+                        @click="openModal(group.circuit.id)"
+                        class="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+                    >
+                        <Plus class="h-4 w-4" />
+                        Ajouter un niveau
+                    </button>
+                </div>
+
+                <EmptyState
+                    v-if="group.levels.length === 0"
+                    :icon="Settings"
+                    icon-bg="bg-slate-100 dark:bg-slate-800"
+                    icon-color="text-slate-500 dark:text-slate-400"
+                    title="Aucun niveau configuré"
+                    :description="`Définissez les niveaux d'approbation du circuit « ${group.circuit.name} ».`"
+                />
+
+                <template v-else>
+                    <!-- ── Circuit visuel ─────────────────────────────────── -->
+                    <div class="rounded-2xl border bg-card shadow-sm overflow-hidden">
+                        <div class="border-b bg-muted/30 px-6 py-3.5">
+                            <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                {{ group.circuit.name }} ({{ group.levels.length }} niveau{{ group.levels.length !== 1 ? 'x' : '' }})
+                            </p>
+                        </div>
+                        <div class="p-6">
+                            <div class="flex flex-wrap items-center gap-0">
+                                <template v-for="(level, idx) in group.levels" :key="level.id">
+                                    <div class="flex flex-col items-center">
+                                        <div
+                                            class="w-44 rounded-2xl border-2 bg-card p-4 text-center transition-all hover:shadow-md"
+                                            :class="level.validators_count === 0 ? 'border-amber-200 dark:border-amber-900' : 'border-border hover:border-primary/30'"
                                         >
-                                            {{ level.type === 'approbation' ? 'Approbation' : 'Validation' }}
-                                        </span>
-                                        <p v-if="level.description" class="mt-1 text-xs text-muted-foreground line-clamp-2">{{ level.description }}</p>
-                                        <div class="mt-3 flex items-center justify-center gap-1 text-xs"
-                                            :class="level.validators_count === 0 ? 'text-amber-600 dark:text-amber-300' : 'text-muted-foreground'">
-                                            <Users class="h-3 w-3" />
-                                            {{ level.validators_count }} validateur{{ level.validators_count !== 1 ? 's' : '' }}
-                                        </div>
-                                        <div class="mt-3 flex items-center justify-center gap-1">
-                                            <button
-                                                @click="openEditModal(level)"
-                                                class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                                            <div class="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
+                                                {{ level.order }}
+                                            </div>
+                                            <p class="font-semibold text-foreground text-sm">{{ level.name }}</p>
+                                            <span
+                                                class="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                                                :class="level.type === 'approbation'
+                                                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
+                                                    : 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'"
                                             >
-                                                <Pencil class="h-3 w-3" />
-                                            </button>
-                                            <button
-                                                @click="deleteLevel(level)"
-                                                class="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
-                                            >
-                                                <Trash2 class="h-3 w-3" />
-                                            </button>
+                                                {{ level.type === 'approbation' ? 'Approbation' : 'Validation' }}
+                                            </span>
+                                            <p v-if="level.description" class="mt-1 text-xs text-muted-foreground line-clamp-2">{{ level.description }}</p>
+                                            <div class="mt-3 flex items-center justify-center gap-1 text-xs"
+                                                :class="level.validators_count === 0 ? 'text-amber-600 dark:text-amber-300' : 'text-muted-foreground'">
+                                                <Users class="h-3 w-3" />
+                                                {{ level.validators_count }} validateur{{ level.validators_count !== 1 ? 's' : '' }}
+                                            </div>
+                                            <div class="mt-3 flex items-center justify-center gap-1">
+                                                <button
+                                                    @click="openEditModal(level)"
+                                                    class="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+                                                >
+                                                    <Pencil class="h-3 w-3" />
+                                                </button>
+                                                <button
+                                                    @click="deleteLevel(level)"
+                                                    class="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+                                                >
+                                                    <Trash2 class="h-3 w-3" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <!-- Flèche -->
-                                <div v-if="idx < levels.length - 1" class="flex items-center px-2 text-muted-foreground">
+                                    <!-- Flèche -->
+                                    <div v-if="idx < group.levels.length - 1" class="flex items-center px-2 text-muted-foreground">
+                                        <div class="h-px w-6 bg-border" />
+                                        <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </div>
+                                </template>
+
+                                <!-- Flèche finale + Approuvée -->
+                                <div class="flex items-center px-2 text-muted-foreground">
                                     <div class="h-px w-6 bg-border" />
                                     <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                                     </svg>
                                 </div>
-                            </template>
-
-                            <!-- Flèche finale + Approuvée -->
-                            <div class="flex items-center px-2 text-muted-foreground">
-                                <div class="h-px w-6 bg-border" />
-                                <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-                                </svg>
-                            </div>
-                            <div class="w-32 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 text-center dark:border-emerald-900 dark:bg-emerald-950/30">
-                                <div class="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white">
-                                    <CheckCircle2 class="h-5 w-5" />
+                                <div class="w-32 rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 text-center dark:border-emerald-900 dark:bg-emerald-950/30">
+                                    <div class="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500 text-white">
+                                        <CheckCircle2 class="h-5 w-5" />
+                                    </div>
+                                    <p class="font-semibold text-emerald-700 text-sm dark:text-emerald-300">Approuvée</p>
                                 </div>
-                                <p class="font-semibold text-emerald-700 text-sm dark:text-emerald-300">Approuvée</p>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <!-- ── Tableau détaillé ───────────────────────────────────── -->
-                <div class="rounded-2xl border bg-card shadow-sm overflow-hidden">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="border-b bg-muted/30">
-                                <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ordre</th>
-                                <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Nom</th>
-                                <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Type</th>
-                                <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</th>
-                                <th class="px-6 py-3.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Validateurs</th>
-                                <th class="px-6 py-3.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y">
-                            <tr v-for="level in levels" :key="level.id" class="hover:bg-muted/20 transition-colors">
-                                <td class="px-6 py-4">
-                                    <div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                                        {{ level.order }}
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 font-semibold text-foreground">{{ level.name }}</td>
-                                <td class="px-6 py-4">
-                                    <span
-                                        class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium"
-                                        :class="level.type === 'approbation'
-                                            ? 'bg-violet-100 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300'
-                                            : 'bg-blue-100 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300'"
-                                    >
-                                        {{ level.type === 'approbation' ? 'Approbation' : 'Validation' }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-sm text-muted-foreground max-w-xs">{{ level.description ?? '—' }}</td>
-                                <td class="px-6 py-4">
-                                    <span
-                                        class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-                                        :class="level.validators_count === 0
-                                            ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-300 dark:border-amber-900'
-                                            : 'bg-muted text-foreground'"
-                                    >
-                                        <Users class="h-3 w-3" />
-                                        {{ level.validators_count }}
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <div class="flex items-center justify-end gap-1">
-                                        <button
-                                            @click="openEditModal(level)"
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
-                                        >
-                                            <Pencil class="h-3.5 w-3.5" />
-                                            Modifier
-                                        </button>
-                                        <button
-                                            @click="deleteLevel(level)"
-                                            class="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-medium text-red-700 transition-colors hover:bg-red-100 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
-                                        >
-                                            <Trash2 class="h-3.5 w-3.5" />
-                                            Supprimer
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+                </template>
             </template>
 
         </div>
@@ -393,7 +321,7 @@ const submit = () => {
                                         {{ editingLevel ? `Modifier — ${editingLevel.name}` : 'Nouveau niveau de validation' }}
                                     </h2>
                                     <p class="text-xs text-muted-foreground">
-                                        {{ editingLevel ? `Niveau ${editingLevel.order} du circuit d'approbation` : 'Ajouter une étape au circuit d\'approbation' }}
+                                        {{ editingLevel ? `Niveau ${editingLevel.order} du circuit ${editingLevel.circuit?.name}` : 'Ajouter une étape au circuit d\'approbation' }}
                                     </p>
                                 </div>
                             </div>
@@ -404,6 +332,22 @@ const submit = () => {
 
                         <!-- Formulaire -->
                         <form @submit.prevent="submit" class="flex flex-col gap-4 p-6">
+
+                            <!-- Circuit -->
+                            <div class="flex flex-col gap-1.5">
+                                <label class="text-sm font-medium text-foreground" for="modal-circuit">
+                                    Circuit <span class="text-red-500">*</span>
+                                </label>
+                                <select
+                                    id="modal-circuit"
+                                    v-model.number="form.circuit_id"
+                                    class="h-10 w-full rounded-xl border border-input bg-background px-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                    :class="{ 'border-red-400': form.errors.circuit_id }"
+                                >
+                                    <option v-for="circuit in circuits" :key="circuit.id" :value="circuit.id">{{ circuit.name }}</option>
+                                </select>
+                                <p v-if="form.errors.circuit_id" class="text-xs text-red-500">{{ form.errors.circuit_id }}</p>
+                            </div>
 
                             <div class="grid grid-cols-3 gap-4">
                                 <!-- Ordre -->

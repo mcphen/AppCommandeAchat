@@ -7,12 +7,7 @@ import { AlertCircle, Bell, Building2, CheckCircle2, ChevronDown, Download, Eye,
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Tableau de bord', href: '/dashboard' },
-    { title: 'Commandes', href: '/purchase-orders' },
-];
-
-const props = defineProps<{
+const props = withDefaults(defineProps<{
     orders: PaginatedData<PurchaseOrder>;
     amountTotal: number;
     boutiques: Boutique[];
@@ -32,7 +27,33 @@ const props = defineProps<{
         level_order?: string;
         search?: string;
     };
-}>();
+    listRouteName?: string;
+    exportRouteName?: string;
+    breadcrumbLabel?: string;
+    breadcrumbHref?: string;
+    pageTitleAdmin?: string;
+    pageTitleUser?: string;
+    eyebrowAdmin?: string;
+    eyebrowUser?: string;
+    descriptionAdmin?: string;
+    descriptionUser?: string;
+}>(), {
+    listRouteName: 'purchase-orders.index',
+    exportRouteName: 'purchase-orders.export',
+    breadcrumbLabel: 'Commandes',
+    breadcrumbHref: '/purchase-orders',
+    pageTitleAdmin: 'Commandes du groupe',
+    pageTitleUser: 'Mes commandes',
+    eyebrowAdmin: 'Pilotage des achats',
+    eyebrowUser: 'Suivi des achats',
+    descriptionAdmin: 'Visualisez les demandes du groupe, leur circuit de validation et leur niveau de progression.',
+    descriptionUser: 'Retrouvez vos demandes d achat, leurs statuts et les actions utiles depuis une seule page.',
+});
+
+const breadcrumbs = computed<BreadcrumbItem[]>(() => [
+    { title: 'Tableau de bord', href: '/dashboard' },
+    { title: props.breadcrumbLabel, href: props.breadcrumbHref },
+]);
 
 const page = usePage<SharedData>();
 const user = computed(() => page.props.auth.user);
@@ -126,7 +147,7 @@ const applyFilters = () => {
     Object.entries(localFilters.value).forEach(([key, value]) => {
         if (value) params[key] = value;
     });
-    router.get(route('purchase-orders.index'), params, {
+    router.get(route(props.listRouteName), params, {
         preserveState: true,
         preserveScroll: true,
         replace: true,
@@ -135,7 +156,7 @@ const applyFilters = () => {
 
 const resetFilters = () => {
     localFilters.value = { search: '', boutique_id: '', project_id: '', status: '', user_id: '', date_from: '', date_to: '', amount_min: '', amount_max: '', level_order: '' };
-    router.get(route('purchase-orders.index'), {}, { preserveState: true, preserveScroll: true, replace: true });
+    router.get(route(props.listRouteName), {}, { preserveState: true, preserveScroll: true, replace: true });
 };
 
 const exportUrl = (format: string) => {
@@ -144,7 +165,7 @@ const exportUrl = (format: string) => {
         if (value) params.append(key, value);
     });
     const qs = params.toString();
-    return route('purchase-orders.export', { format }) + (qs ? `?${qs}` : '');
+    return route(props.exportRouteName, { format }) + (qs ? `?${qs}` : '');
 };
 
 const openOrderInNewTab = (order: PurchaseOrder) => {
@@ -171,21 +192,17 @@ const remindDemandeur = async (order: PurchaseOrder) => {
 </script>
 
 <template>
-    <Head :title="isAdmin ? 'Commandes du groupe' : 'Mes commandes'" />
+    <Head :title="isAdmin ? pageTitleAdmin : pageTitleUser" />
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto max-w-7xl space-y-6 px-3 py-4 sm:px-6 sm:py-6">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                        {{ isAdmin ? 'Pilotage des achats' : 'Suivi des achats' }}
+                        {{ isAdmin ? eyebrowAdmin : eyebrowUser }}
                     </p>
-                    <h1 class="mt-1 text-2xl font-bold text-foreground">{{ isAdmin ? 'Commandes du groupe' : 'Mes commandes' }}</h1>
+                    <h1 class="mt-1 text-2xl font-bold text-foreground">{{ isAdmin ? pageTitleAdmin : pageTitleUser }}</h1>
                     <p class="mt-1 text-sm text-muted-foreground">
-                        {{
-                            isAdmin
-                                ? 'Visualisez les demandes du groupe, leur circuit de validation et leur niveau de progression.'
-                                : 'Retrouvez vos demandes d achat, leurs statuts et les actions utiles depuis une seule page.'
-                        }}
+                        {{ isAdmin ? descriptionAdmin : descriptionUser }}
                     </p>
                 </div>
 
@@ -547,7 +564,12 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                         </div>
 
                                         <div class="min-w-0">
-                                            <p class="truncate font-semibold text-foreground">{{ order.title }}</p>
+                                            <div class="flex items-center gap-2">
+                                                <p class="truncate font-semibold text-foreground">{{ order.title }}</p>
+                                                <span v-if="order.circuit" class="shrink-0 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700 dark:bg-indigo-950/30 dark:text-indigo-300">
+                                                    {{ order.circuit.name }}
+                                                </span>
+                                            </div>
                                             <span v-if="order.project" class="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 font-mono text-[11px] font-bold text-amber-700">
                                                 <HardHat class="h-3 w-3" />
                                                 {{ order.project.name }}

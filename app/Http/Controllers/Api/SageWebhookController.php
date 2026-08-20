@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Models\Circuit;
 use App\Models\Fournisseur;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderLine;
@@ -40,6 +41,7 @@ class SageWebhookController extends Controller
             'montant_ttc'             => ['nullable', 'numeric', 'min:0'],
             'cloture'                 => ['nullable', 'boolean'],
             'projet_code'             => ['nullable', 'string', 'max:255'],
+            'do_souche'               => ['nullable', 'integer', 'in:0,1'],
             'lignes'                  => ['required', 'array', 'min:1'],
             'lignes.*.article'        => ['required', 'string', 'max:255'],
             'lignes.*.designation'    => ['nullable', 'string', 'max:255'],
@@ -99,10 +101,19 @@ class SageWebhookController extends Controller
             'email'   => $data['tiers_email'] ?? null,
             'siret'   => $data['tiers_siret'] ?? null,
         ]);
-        $firstLevel  = ValidationLevel::first_level();
+        // DO_Souche cote Sage : 0 = achat matiere, 1 = facture de prestataire. Chaque
+        // valeur route vers son propre circuit de validation (cf. Admin > Circuits).
+        $circuitCode = (int) ($data['do_souche'] ?? 0) === 1 ? 'prestation' : 'achat';
+        $circuitId   = Circuit::where('code', $circuitCode)->value('id');
+
+        if (! $circuitId) {
+            throw new RuntimeException("Circuit de validation '{$circuitCode}' introuvable.");
+        }
+
+        $firstLevel = ValidationLevel::first_level($circuitId);
 
         if (! $firstLevel) {
-            throw new RuntimeException('Aucun niveau de validation configuré.');
+            throw new RuntimeException("Aucun niveau de validation configuré pour le circuit '{$circuitCode}'.");
         }
 
         $amount = $data['montant_ht'] ?? collect($data['lignes'])
@@ -134,6 +145,10 @@ class SageWebhookController extends Controller
         // commande "receptionnee" sans qu'une vraie reception ait ete saisie cote app.
         $attributes = [
             'user_id'             => $userId,
+            // Le circuit (achat/prestation) n'est reevalue que tant que la commande est
+            // en brouillon : une fois entree en validation, on ne le change plus, meme si
+            // DO_Souche change cote Sage a la resynchro suivante (cf. current_level_order).
+            'circuit_id'          => $targetStatus === 'draft' ? $circuitId : $existing->circuit_id,
             'fournisseur_id'      => $fournisseur->id,
             'title'               => $data['numero'],
             'description'         => "Commande importée automatiquement depuis Sage100 (fournisseur : {$fournisseur->name}).",
@@ -207,9 +222,9 @@ class SageWebhookController extends Controller
             }
         }
         // Pas de notification aux validateurs ici : une commande n'entre en 'pending'
-        // que si elle avait deja une approbation reelle (cf. $hasApprovalProgress),
-        // jamais fraichement via le sync. La notification des validateurs se fait
-        // uniquement lors d'une vraie soumission (PurchaseOrderController::submit).
+        // que si elle avait deja ete soumise (cf. $hasSubmissionProgress), jamais
+        // fraichement via le sync. La notification des validateurs se fait uniquement
+        // lors d'une vraie soumission (PurchaseOrderController::submit).
 
         return $order;
     }

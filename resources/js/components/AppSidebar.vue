@@ -10,7 +10,7 @@ import {
 import { type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
 import {
-    LayoutDashboard, ShoppingCart, CheckSquare,
+    LayoutDashboard, ShoppingCart, CheckSquare, GitBranch,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
     FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal, ShieldAlert,
 } from 'lucide-vue-next';
@@ -34,6 +34,12 @@ const mainNav = computed(() => {
             icon: ShoppingCart,
             key: 'purchase-orders',
         });
+        items.push({
+            title: 'Prestations',
+            href: route('prestations.index'),
+            icon: GitBranch,
+            key: 'prestations',
+        });
     }
 
     if (role.value === 'demandeur' || role.value === 'admin') {
@@ -51,6 +57,12 @@ const mainNav = computed(() => {
             href: route('validations.index'),
             icon: CheckSquare,
             key: 'validations',
+        });
+        items.push({
+            title: 'Validations Prestations',
+            href: route('prestations.validations.index'),
+            icon: CheckSquare,
+            key: 'prestations-validations',
         });
         items.push({
             title: 'Délégations',
@@ -81,6 +93,7 @@ const adminNav = computed(() => {
     return [
         { title: 'Sociétés',             href: route('admin.boutiques.index'),         icon: Building2,  key: 'admin-boutiques' },
         { title: 'Utilisateurs',         href: route('admin.users.index'),             icon: Users,      key: 'admin-users' },
+        { title: 'Circuits',             href: route('admin.circuits.index'),          icon: GitBranch,  key: 'admin-circuits' },
         { title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings,   key: 'admin-levels' },
         { title: 'Catégories',           href: route('admin.categories.index'),        icon: FolderTree, key: 'admin-categories' },
         { title: 'Articles',             href: route('admin.articles.index'),          icon: Package,    key: 'admin-articles' },
@@ -205,9 +218,11 @@ const adminNav = computed(() => {
                     <span class="text-xs text-sidebar-foreground/70 font-medium">
                         {{ user?.role?.name ?? 'Sans rôle' }}
                     </span>
-                    <template v-if="user?.validation_level">
+                    <template v-if="user?.validation_levels && user.validation_levels.length > 0">
                         <ChevronRight class="h-3 w-3 text-sidebar-foreground/30" />
-                        <span class="text-xs text-sidebar-foreground/70">{{ user.validation_level.name }}</span>
+                        <span class="text-xs text-sidebar-foreground/70">
+                            {{ user.validation_levels.map(l => l.name).join(', ') }}
+                        </span>
                     </template>
                 </div>
             </div>

@@ -6,6 +6,7 @@ use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Admin\ArticleController;
 use App\Http\Controllers\Admin\BoutiqueController;
+use App\Http\Controllers\Admin\CircuitController;
 use App\Http\Controllers\Admin\BudgetController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\FournisseurArticleController;
@@ -36,6 +37,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Commandes : consultation (import automatique depuis Sage100, plus de création manuelle) (Demandeur + Validateur + Admin)
     Route::middleware('role:demandeur,validateur,admin')->group(function () {
         Route::resource('purchase-orders', PurchaseOrderController::class)->only(['index', 'show']);
+
+        // Prestations de service : meme donnees que purchase-orders, mais figees sur le
+        // circuit "prestation" (DO_Souche=1 cote Sage), section separee dans le menu.
+        Route::get('prestations', [PurchaseOrderController::class, 'prestations'])->name('prestations.index');
     });
 
     // Commandes : confirmation d'ordre et réceptions (Demandeur + Admin uniquement)
@@ -91,12 +96,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('purchase-orders/export/{format}', [PurchaseOrderController::class, 'export'])
         ->name('purchase-orders.export')
         ->where('format', 'csv|excel|pdf');
+    Route::get('prestations/export/{format}', [PurchaseOrderController::class, 'prestationsExport'])
+        ->name('prestations.export')
+        ->where('format', 'csv|excel|pdf');
     Route::get('attachments/{attachment}/download', [AttachmentController::class, 'download'])
         ->name('attachments.download');
 
     // Validations (Validateur + Admin)
     Route::middleware('role:validateur,admin')->group(function () {
         Route::get('/validations', [ValidationController::class, 'index'])->name('validations.index');
+        Route::get('/prestations/validations', [ValidationController::class, 'prestations'])->name('prestations.validations.index');
         Route::get('/validations/{purchase_order}', [ValidationController::class, 'show'])->name('validations.show');
         Route::post('/validations/{purchase_order}/approve', [ValidationController::class, 'approve'])->name('validations.approve');
         Route::post('/validations/{purchase_order}/reject', [ValidationController::class, 'reject'])->name('validations.reject');
@@ -126,6 +135,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Administration (Admin uniquement)
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('boutiques', BoutiqueController::class)->except(['show']);
+        Route::resource('circuits', CircuitController::class)->except(['show']);
         Route::post('users/bulk-reset-password', [AdminUserController::class, 'bulkResetPassword'])->name('users.bulk-reset-password');
         Route::resource('users', AdminUserController::class)->except(['show']);
         Route::resource('validation-levels', ValidationLevelController::class)->except(['show']);

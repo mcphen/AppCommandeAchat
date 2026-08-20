@@ -3,13 +3,20 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ValidationLevel extends Model
 {
-    protected $fillable = ['name', 'order', 'description', 'type'];
+    protected $fillable = ['circuit_id', 'name', 'order', 'description', 'type'];
 
     protected $casts = ['order' => 'integer'];
+
+    public function circuit(): BelongsTo
+    {
+        return $this->belongsTo(Circuit::class);
+    }
 
     public function isApproval(): bool
     {
@@ -26,9 +33,9 @@ class ValidationLevel extends Model
         return $this->isApproval() ? 'approuvée' : 'validée';
     }
 
-    public function validators(): HasMany
+    public function validators(): BelongsToMany
     {
-        return $this->hasMany(User::class, 'validation_level_id');
+        return $this->belongsToMany(User::class, 'user_validation_levels');
     }
 
     public function validationLogs(): HasMany
@@ -36,13 +43,13 @@ class ValidationLevel extends Model
         return $this->hasMany(ValidationLog::class);
     }
 
-    public static function nextAfter(int $order): ?self
+    public static function nextAfter(int $order, int $circuitId): ?self
     {
-        return self::where('order', '>', $order)->orderBy('order')->first();
+        return self::where('circuit_id', $circuitId)->where('order', '>', $order)->orderBy('order')->first();
     }
 
-    public static function first_level(): ?self
+    public static function first_level(int $circuitId): ?self
     {
-        return self::orderBy('order')->first();
+        return self::where('circuit_id', $circuitId)->orderBy('order')->first();
     }
 }

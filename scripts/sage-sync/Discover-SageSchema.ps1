@@ -251,7 +251,73 @@ GROUP BY d.DO_Domaine, d.DO_Type
 ORDER BY d.DO_Domaine, d.DO_Type
 "@ | Format-Table -AutoSize
 
+Write-Host "`n=== 13. Colonne DO_Souche sur F_DOCENTETE (le dev Sage annonce 0=achat / 1=service) ===" -ForegroundColor Cyan
+$souche = Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_DOCENTETE' AND COLUMN_NAME = 'DO_Souche'"
+if ($souche | Select-Object -First 1) {
+    $souche | Format-Table -AutoSize
+
+    Write-Host "`n--- 13a. Repartition DO_Domaine/DO_Type/DO_Souche (pour situer 0=achat / 1=service) ---" -ForegroundColor Cyan
+    Invoke-Query $conn @"
+SELECT DO_Domaine, DO_Type, DO_Souche, COUNT(*) AS Nombre, MIN(DO_Piece) AS ExemplePiece
+FROM F_DOCENTETE
+WHERE DO_Domaine = 1 AND DO_Type = 12
+GROUP BY DO_Domaine, DO_Type, DO_Souche
+ORDER BY DO_Domaine, DO_Type, DO_Souche
+"@ | Format-Table -AutoSize
+
+    Write-Host "`n--- 13b. Croisement DO_Souche avec les tiers 'PRESTATAIRE...' (pour verifier 1=service) ---" -ForegroundColor Cyan
+    Invoke-Query $conn @"
+SELECT d.DO_Souche, COUNT(*) AS Nombre, SUM(CASE WHEN ct.CT_Intitule LIKE '%PRESTATAIRE%' THEN 1 ELSE 0 END) AS NbPrestataires
+FROM F_DOCENTETE d
+LEFT JOIN F_COMPTET ct ON ct.CT_Num = d.DO_Tiers
+WHERE d.DO_Domaine = 1 AND d.DO_Type = 12
+GROUP BY d.DO_Souche
+ORDER BY d.DO_Souche
+"@ | Format-Table -AutoSize
+} else {
+    Write-Host "Colonne DO_Souche absente de F_DOCENTETE chez ce client : l'info du dev Sage ne s'applique" -ForegroundColor Yellow
+    Write-Host "peut-etre qu'a une autre version/parametrage. Verifier avec lui le nom exact de la colonne." -ForegroundColor Yellow
+}
+
+Write-Host "`n=== 14. Colonne DO_CodeService sur F_DOCENTETE (piste alternative pour achat vs service) ===" -ForegroundColor Cyan
+Write-Host "DO_Souche vaut toujours 0 sur les BC chez ce client (section 13) : ne distingue rien ici." -ForegroundColor DarkGray
+Write-Host "DO_CodeService est repere en section 2, son nom suggere un lien avec la notion 'service'." -ForegroundColor DarkGray
+$codeService = Invoke-Query $conn "SELECT COLUMN_NAME, DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'F_DOCENTETE' AND COLUMN_NAME = 'DO_CodeService'"
+if ($codeService | Select-Object -First 1) {
+    $codeService | Format-Table -AutoSize
+
+    Write-Host "`n--- 14a. Valeurs distinctes de DO_CodeService sur les BC fournisseur (DO_Domaine=1, DO_Type=12) ---" -ForegroundColor Cyan
+    Invoke-Query $conn @"
+SELECT DO_CodeService, COUNT(*) AS Nombre, MIN(DO_Piece) AS ExemplePiece
+FROM F_DOCENTETE
+WHERE DO_Domaine = 1 AND DO_Type = 12
+GROUP BY DO_CodeService
+ORDER BY Nombre DESC
+"@ | Format-Table -AutoSize
+
+    Write-Host "`n--- 14b. Croisement DO_CodeService avec les tiers 'PRESTATAIRE...' (pour verifier si ca isole les services) ---" -ForegroundColor Cyan
+    Invoke-Query $conn @"
+SELECT d.DO_CodeService, COUNT(*) AS Nombre, SUM(CASE WHEN ct.CT_Intitule LIKE '%PRESTATAIRE%' THEN 1 ELSE 0 END) AS NbPrestataires,
+       MIN(CASE WHEN ct.CT_Intitule LIKE '%PRESTATAIRE%' THEN ct.CT_Intitule END) AS ExemplePrestataire
+FROM F_DOCENTETE d
+LEFT JOIN F_COMPTET ct ON ct.CT_Num = d.DO_Tiers
+WHERE d.DO_Domaine = 1 AND d.DO_Type = 12
+GROUP BY d.DO_CodeService
+ORDER BY d.DO_CodeService
+"@ | Format-Table -AutoSize
+
+    Write-Host "`n--- 14c. Echantillon de BC avec DO_CodeService renseigne (pour voir a quoi ca ressemble) ---" -ForegroundColor Cyan
+    Invoke-Query $conn @"
+SELECT TOP 20 DO_Piece, DO_Date, DO_Tiers, DO_CodeService
+FROM F_DOCENTETE
+WHERE DO_Domaine = 1 AND DO_Type = 12 AND DO_CodeService IS NOT NULL AND DO_CodeService <> ''
+ORDER BY DO_Date DESC
+"@ | Format-Table -AutoSize
+} else {
+    Write-Host "Colonne DO_CodeService absente de F_DOCENTETE chez ce client." -ForegroundColor Yellow
+}
+
 $conn.Close()
 Write-Host "`n=== Termine ===" -ForegroundColor Green
-Write-Host "Copie/colle le resultat de la section 4 (DO_Type) et 5 (echantillon) pour qu'on identifie" -ForegroundColor Green
-Write-Host "ensemble quel DO_Type correspond aux bons de commande fournisseur." -ForegroundColor Green
+Write-Host "Copie/colle le resultat de la section 4 (DO_Type), 5 (echantillon), 13 (DO_Souche) et 14" -ForegroundColor Green
+Write-Host "(DO_CodeService) pour qu'on identifie ensemble le bon critere achat/service." -ForegroundColor Green

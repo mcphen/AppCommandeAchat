@@ -121,12 +121,12 @@ class SageWebhookController extends Controller
         // circuit de validation : elle est (re)mise en 'draft' (en attente de completion)
         // tant que le demandeur ne l'a pas soumise lui-meme depuis l'app (avec au moins
         // une piece jointe obligatoire, cf. PurchaseOrderController::submit). Seule
-        // exception : si un validateur a deja reellement approuve un niveau, on ne
-        // touche pas au statut/niveau en cours pour ne pas effacer sa decision a chaque
-        // resynchro Sage (qui peut arriver toutes les 1 a 10 min sur un simple changement
-        // de reception, sans rapport avec la validation).
-        $hasApprovalProgress = $existing?->validationLogs()->where('action', 'approved')->exists() ?? false;
-        $targetStatus = $hasApprovalProgress ? 'pending' : 'draft';
+        // exception : si la commande a deja ete soumise (ou a fortiori validee/rejetee),
+        // on ne touche pas au statut/niveau en cours pour ne pas effacer la soumission
+        // a chaque resynchro Sage (qui peut arriver toutes les 1 a 10 min sur un simple
+        // changement de reception, sans rapport avec la validation).
+        $hasSubmissionProgress = $existing && $existing->status !== 'draft';
+        $targetStatus = $hasSubmissionProgress ? $existing->status : 'draft';
 
         // Le suivi de livraison (delivery_status, fully_received_at, receptions) est gere
         // exclusivement depuis l'app (reception manuelle par un utilisateur) : le sync Sage

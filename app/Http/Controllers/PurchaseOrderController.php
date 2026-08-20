@@ -452,6 +452,7 @@ class PurchaseOrderController extends Controller
         $purchaseOrder->load([
             'user',
             'boutique',
+            'circuit',
             'fournisseur',
             'attachments',
             'lines.article.category',
@@ -460,7 +461,7 @@ class PurchaseOrderController extends Controller
             'validationLogs.user',
         ]);
 
-        $levels   = ValidationLevel::orderBy('order')->get();
+        $levels   = ValidationLevel::where('circuit_id', $purchaseOrder->circuit_id)->orderBy('order')->get();
         $settings = AppSetting::allAsArray();
 
         // Logo en base64 pour DomPDF

@@ -72,7 +72,11 @@
         .sig-name    { font-size: 10px; font-weight: 600; color: #0f172a; margin-top: 4px; }
         .sig-date    { font-size: 9px; color: #94a3b8; margin-top: 2px; }
         .sig-pending { margin-top: 28px; border-top: 1px solid #e2e8f0; }
-        .sig-ok      { display:inline-block; border:3px solid #059669; color:#059669; font-size:18px; font-weight:800; letter-spacing:0.1em; padding:2px 12px; border-radius:6px; transform:rotate(-6deg); margin-top:10px; }
+
+        /* ── Cachet d'approbation (ex: DGA) — en haut a droite, au-dessus du numero ── */
+        .approval-stamp      { text-align: right; margin-bottom: 8px; }
+        .approval-stamp .ok  { display:inline-block; border:3px solid #059669; color:#059669; font-size:18px; font-weight:800; letter-spacing:0.12em; padding:3px 14px; border-radius:6px; transform:rotate(-6deg); }
+        .approval-stamp .who { margin-top:3px; font-size:8px; color:#059669; font-weight:600; }
 
         /* ── Attachments ──────────────────────────────────────── */
         .att-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #f1f5f9; font-size: 10px; }
@@ -83,18 +87,26 @@
         .footer-txt { font-size: 9px; color: #94a3b8; }
     </style>
 </head>
+@php
+    $companyName    = $company['company_name']    ?? config('app.name');
+    $companyAddress = $company['company_address'] ?? null;
+    $companyPhone   = $company['company_phone']   ?? null;
+    $companyEmail   = $company['company_email']   ?? null;
+    $companyNif     = $company['company_nif']     ?? null;
+    $companyRccm    = $company['company_rccm']    ?? null;
+
+    // Le niveau de type "approbation" (ex: DGA) est affiche a part, comme un
+    // cachet en haut a droite, plutot que dans la rangee de signatures du bas.
+    $approvalLevel = $levels->first(fn ($l) => $l->isApproval());
+    $approvalLog   = $approvalLevel
+        ? $order->validationLogs->where('action', 'approved')->firstWhere('validation_level_id', $approvalLevel->id)
+        : null;
+    $signatureLevels = $levels->reject(fn ($l) => $l->isApproval());
+@endphp
 <body>
 <div class="page">
 
     {{-- ── Header ──────────────────────────────────────────────────────── --}}
-    @php
-        $companyName    = $company['company_name']    ?? config('app.name');
-        $companyAddress = $company['company_address'] ?? null;
-        $companyPhone   = $company['company_phone']   ?? null;
-        $companyEmail   = $company['company_email']   ?? null;
-        $companyNif     = $company['company_nif']     ?? null;
-        $companyRccm    = $company['company_rccm']    ?? null;
-    @endphp
     <div class="header">
         <div class="header-left">
             {{-- Logo entreprise --}}
@@ -126,6 +138,12 @@
             </div>
         </div>
         <div class="header-right">
+            @if($approvalLog)
+            <div class="approval-stamp">
+                <div class="ok">OK</div>
+                <div class="who">{{ $approvalLevel->name }} — {{ $approvalLog->user?->name ?? '—' }}<br>{{ \Carbon\Carbon::parse($approvalLog->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
+            </div>
+            @endif
             <div class="bc-label">Numéro de commande</div>
             @if($order->title)
                 <div class="bc-number">{{ $order->title }}</div>
@@ -247,11 +265,11 @@
     @endif
 
     {{-- ── Signatures ────────────────────────────────────────────────────── --}}
-    @if($order->status === 'approved' || $order->delivery_status)
+    @if($signatureLevels->isNotEmpty() && ($order->status !== 'draft'))
     <div class="section" style="margin-top:8px;">
         <div class="section-title">Signatures et approbations</div>
         <div class="signatures">
-            @foreach($levels as $level)
+            @foreach($signatureLevels as $level)
                 @php
                     $log = $order->validationLogs->where('action', 'approved')->firstWhere('validation_level_id', $level->id);
                     $sigImg = null;
@@ -267,15 +285,11 @@
                     <div class="sig-box">
                         <div class="sig-label">{{ $level->name }}</div>
                         @if($log)
-                            @if($loop->last)
-                                <div class="sig-ok">OK</div>
-                            @else
-                                @if($sigImg)
-                                    <img src="{{ $sigImg }}" class="sig-image" alt="Signature {{ $log->user?->name }}" />
-                                @endif
-                                <div class="sig-name">{{ $log->user?->name ?? '—' }}</div>
-                                <div class="sig-date">{{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
+                            @if($sigImg)
+                                <img src="{{ $sigImg }}" class="sig-image" alt="Signature {{ $log->user?->name }}" />
                             @endif
+                            <div class="sig-name">{{ $log->user?->name ?? '—' }}</div>
+                            <div class="sig-date">{{ \Carbon\Carbon::parse($log->created_at)->locale('fr')->isoFormat('DD MMM YYYY') }}</div>
                         @else
                             <div class="sig-pending"></div>
                         @endif

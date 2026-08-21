@@ -122,6 +122,9 @@
             @if($order->fournisseur)
             <p style="margin-top:2px;">Fournisseur : <strong>{{ $order->fournisseur->name }}</strong> ({{ $order->fournisseur->code }})</p>
             @endif
+            @if($order->project)
+            <p style="margin-top:2px;">Chantier : <strong>{{ $order->project->name }}</strong></p>
+            @endif
             @php
                 $statusLabels   = ['draft' => 'Brouillon', 'pending' => 'En attente', 'approved' => 'Approuvée', 'rejected' => 'Refusée'];
                 $deliveryLabels = ['ordered' => 'Commandée', 'partially_received' => 'Reçue partiellement', 'received' => 'Reçue entièrement'];
@@ -177,6 +180,12 @@
                         <div class="info-label">Demandeur</div>
                         <div class="info-value">{{ $order->user?->name ?? '—' }}</div>
                     </div>
+                    @if($order->project)
+                    <div class="info-row">
+                        <div class="info-label">Chantier</div>
+                        <div class="info-value">{{ $order->project->name }}</div>
+                    </div>
+                    @endif
                     @if($order->submitted_at)
                     <div class="info-row">
                         <div class="info-label">Soumise le</div>

@@ -5,7 +5,7 @@ import { type BreadcrumbItem, type PurchaseOrder, type PurchaseOrderLine, type V
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import {
     ArrowLeft, Building2, Calendar, CheckCircle2, Clock, DollarSign,
-    Download, FileDown, FileText, Paperclip, Pencil, Truck,
+    Download, FileDown, FileText, HardHat, Paperclip, Pencil, Truck,
     User, XCircle, Package, ShoppingCart, ClipboardCheck, X, AlertCircle, Receipt,
     TrendingDown, TrendingUp, Tag, RotateCcw, Upload, Send, Bell, Trash2,
 } from 'lucide-vue-next';
@@ -454,6 +454,13 @@ const submitReception = () => {
                                 <div>
                                     <p class="text-xs text-muted-foreground">Société</p>
                                     <p class="text-sm font-medium text-foreground">{{ order.boutique.name }} <span class="text-muted-foreground">({{ order.boutique.code }})</span></p>
+                                </div>
+                            </div>
+                            <div v-if="order.project" class="flex items-center gap-3">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-50"><HardHat class="h-4 w-4 text-amber-600" /></div>
+                                <div>
+                                    <p class="text-xs text-muted-foreground">Chantier</p>
+                                    <p class="text-sm font-medium text-foreground">{{ order.project.name }}</p>
                                 </div>
                             </div>
                             <div v-if="order.fournisseur" class="flex items-center gap-3">

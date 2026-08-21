@@ -452,6 +452,7 @@ class PurchaseOrderController extends Controller
         $purchaseOrder->load([
             'user',
             'boutique',
+            'project',
             'circuit',
             'fournisseur',
             'attachments',

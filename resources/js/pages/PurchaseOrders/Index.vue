@@ -534,6 +534,9 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                     Société
                                 </th>
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
+                                    Chantier
+                                </th>
+                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
                                     Montant HT
                                 </th>
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
@@ -590,6 +593,14 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                         <Building2 class="h-3.5 w-3.5" />
                                         {{ order.boutique?.name ?? 'Non renseignee' }}
                                     </div>
+                                </td>
+
+                                <td class="hidden px-4 py-4 lg:table-cell">
+                                    <div v-if="order.project" class="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                                        <HardHat class="h-3.5 w-3.5" />
+                                        {{ order.project.name }}
+                                    </div>
+                                    <span v-else class="text-xs text-muted-foreground">—</span>
                                 </td>
 
                                 <td class="hidden px-4 py-4 font-medium text-foreground lg:table-cell">{{ formatAmount(order.amount) }}</td>

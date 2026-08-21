@@ -35,7 +35,11 @@ const page = usePage();
 const authUser = computed(() => (page.props as any).auth?.user);
 const isAdmin  = computed(() => authUser.value?.role?.slug === 'admin');
 const isCreator = computed(() => authUser.value?.id === props.order.user_id);
-const isValidateurNiveau1 = computed(() => authUser.value?.role?.slug === 'validateur' && authUser.value?.validation_level?.order === 1);
+const isValidateurNiveau1 = computed(() => {
+    if (authUser.value?.role?.slug !== 'validateur') return false;
+    const level = authUser.value?.validation_levels?.find((l: { circuit_id: number }) => l.circuit_id === props.order.circuit_id);
+    return level?.order === 1;
+});
 const canEditAttachments = computed(() => props.order.status === 'draft' && (isAdmin.value || isCreator.value || isValidateurNiveau1.value));
 
 // ─── Status configs ──────────────────────────────────────────────────────────

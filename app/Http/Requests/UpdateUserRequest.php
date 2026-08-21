@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Models\Role;
 use App\Models\ValidationLevel;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -27,11 +26,7 @@ class UpdateUserRequest extends FormRequest
             'role_id'                 => ['required', 'exists:roles,id'],
             'validation_level_ids'    => ['nullable', 'array'],
             'validation_level_ids.*'  => ['integer', 'exists:validation_levels,id'],
-            'boutique_id'             => [
-                Rule::requiredIf(fn () => Role::whereKey($this->input('role_id'))->value('slug') === 'demandeur'),
-                'nullable',
-                'exists:boutiques,id',
-            ],
+            'boutique_id'             => ['nullable', 'exists:boutiques,id'],
         ];
     }
 

@@ -3,7 +3,7 @@ import EmptyState from '@/components/EmptyState.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type PaginatedData, type Project, type PurchaseOrder, type SharedData, type User, type ValidationLevel } from '@/types';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { AlertCircle, Bell, Building2, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, HardHat, RotateCcw, Search, ShieldCheck, ShoppingCart, X } from 'lucide-vue-next';
+import { AlertCircle, Bell, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, HardHat, RotateCcw, Search, ShieldCheck, ShoppingCart, X } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
 import { computed, ref } from 'vue';
 
@@ -530,9 +530,6 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                         <thead>
                             <tr class="border-b bg-muted/20">
                                 <th class="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Commande</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground md:table-cell">
-                                    Société
-                                </th>
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
                                     Chantier
                                 </th>
@@ -585,13 +582,6 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                                 Refuse par {{ rejectedBy(order)?.user?.name }} ({{ rejectedBy(order)?.validation_level?.name }})
                                             </p>
                                         </div>
-                                    </div>
-                                </td>
-
-                                <td class="hidden px-4 py-4 md:table-cell">
-                                    <div class="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">
-                                        <Building2 class="h-3.5 w-3.5" />
-                                        {{ order.boutique?.name ?? 'Non renseignee' }}
                                     </div>
                                 </td>
 

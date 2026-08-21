@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import { type Boutique, type BreadcrumbItem, type Circuit, type Role, type User, type ValidationLevel } from '@/types';
 import { Head, Link, useForm } from '@inertiajs/vue3';
@@ -162,7 +162,7 @@ watch(needsBoutique, (value) => {
                     <div class="flex flex-col gap-1.5">
                         <label class="text-sm font-medium text-foreground">
                             Société
-                            <span v-if="needsBoutique" class="text-red-500">*</span>
+                            <span class="text-xs font-normal text-muted-foreground">(optionnel)</span>
                         </label>
                         <select
                             v-model="form.boutique_id"
@@ -170,15 +170,15 @@ watch(needsBoutique, (value) => {
                             class="h-10 w-full cursor-pointer appearance-none rounded-xl border border-input bg-background px-4 text-sm text-black focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:cursor-not-allowed disabled:text-black/60 disabled:opacity-50"
                             :class="{ 'border-red-400': form.errors.boutique_id }"
                         >
-                            <option value="">-- SÃƒÂ©lectionner une société --</option>
+                            <option value="">-- Selectionner une societe --</option>
                             <option v-for="boutique in boutiques" :key="boutique.id" :value="boutique.id">
                                 {{ boutique.name }} <template v-if="boutique.city">({{ boutique.city }})</template>
                             </option>
                         </select>
                         <p v-if="form.errors.boutique_id" class="text-xs text-red-500">{{ form.errors.boutique_id }}</p>
                         <p class="text-xs text-muted-foreground">
-                            <template v-if="needsBoutique">Obligatoire pour rattacher ce demandeur ÃƒÂ  une société.</template>
-                            <template v-else>Les validateurs et admins restent rattachÃƒÂ©s au groupe.</template>
+                            <template v-if="needsBoutique">Facultatif : rattachez ce demandeur a une societe si besoin.</template>
+                            <template v-else>Les validateurs et admins restent rattaches au groupe.</template>
                         </p>
                     </div>
 

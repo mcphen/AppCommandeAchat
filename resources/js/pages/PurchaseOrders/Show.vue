@@ -3,9 +3,10 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import OrderDiscussion from '@/components/OrderDiscussion.vue';
 import { type BreadcrumbItem, type PurchaseOrder, type PurchaseOrderLine, type ValidationLevel } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
 import {
     ArrowLeft, Building2, Calendar, CheckCircle2, Clock, DollarSign,
-    Download, FileDown, FileText, HardHat, Paperclip, Pencil, Truck,
+    Download, FileDown, FileText, HardHat, Loader2, Paperclip, Pencil, Truck,
     User, XCircle, Package, ShoppingCart, ClipboardCheck, X, AlertCircle, Receipt,
     TrendingDown, TrendingUp, Tag, RotateCcw, Upload, Send, Bell, Trash2,
 } from 'lucide-vue-next';
@@ -143,22 +144,77 @@ const restartValidation = async () => {
 // ─── Pièces jointes & soumission (commandes importées de Sage, statut 'draft') ──
 const attachmentInput = ref<HTMLInputElement | null>(null);
 const attachmentForm = useForm({ files: [] as File[] });
+const uploadingAttachments = ref(false);
+
+const MAX_ATTACHMENT_SIZE_MB = 5; // doit rester aligné avec AttachmentController::store (max:5120 Ko)
 
 const onAttachmentFilesChange = (e: Event) => {
     const files = (e.target as HTMLInputElement).files;
     attachmentForm.files = files ? Array.from(files) : [];
 };
 
-const uploadAttachments = () => {
+const uploadAttachments = async () => {
     if (! attachmentForm.files.length) return;
-    attachmentForm.post(route('attachments.store', props.order.id), {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            attachmentForm.reset('files');
-            if (attachmentInput.value) attachmentInput.value.value = '';
-        },
-    });
+
+    const tooLarge = attachmentForm.files.filter((f) => f.size > MAX_ATTACHMENT_SIZE_MB * 1024 * 1024);
+    if (tooLarge.length) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Fichier trop volumineux',
+            html: `Taille maximale autorisée : ${MAX_ATTACHMENT_SIZE_MB} Mo.<br><br>Fichier(s) concerné(s) :<br><strong>${tooLarge.map((f) => f.name).join(', ')}</strong>`,
+            confirmButtonColor: '#2563eb',
+        });
+        return;
+    }
+
+    const formData = new FormData();
+    attachmentForm.files.forEach((file) => formData.append('files[]', file));
+
+    uploadingAttachments.value = true;
+    try {
+        await axios.post(route('attachments.store', props.order.id), formData);
+
+        attachmentForm.reset('files');
+        if (attachmentInput.value) attachmentInput.value.value = '';
+
+        router.reload({ only: ['order'] });
+
+        Swal.fire({
+            icon: 'success',
+            title: 'Pièce(s) jointe(s) ajoutée(s)',
+            confirmButtonColor: '#2563eb',
+            timer: 1800,
+            showConfirmButton: false,
+        });
+    } catch (error: any) {
+        const status = error?.response?.status;
+
+        if (status === 413) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Fichier trop volumineux',
+                text: 'Le serveur a refusé le fichier car il dépasse la taille maximale acceptée. Réduisez sa taille ou contactez un administrateur.',
+                confirmButtonColor: '#2563eb',
+            });
+        } else if (status === 422) {
+            const messages: string[] = error?.response?.data?.errors?.['files.0'] ?? error?.response?.data?.errors?.files ?? ['Fichier(s) invalide(s).'];
+            Swal.fire({
+                icon: 'warning',
+                title: 'Fichier(s) refusé(s)',
+                html: messages.join('<br>'),
+                confirmButtonColor: '#2563eb',
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: "Échec de l'envoi",
+                text: "Une erreur est survenue lors de l'envoi de la pièce jointe. Réessayez.",
+                confirmButtonColor: '#2563eb',
+            });
+        }
+    } finally {
+        uploadingAttachments.value = false;
+    }
 };
 
 const deleteAttachment = async (attachmentId: number) => {
@@ -723,14 +779,14 @@ const submitReception = () => {
                                     v-if="attachmentForm.files.length"
                                     type="button"
                                     class="ml-auto inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
-                                    :disabled="attachmentForm.processing"
+                                    :disabled="uploadingAttachments"
                                     @click="uploadAttachments"
                                 >
-                                    <Upload class="h-3.5 w-3.5" />
-                                    Envoyer
+                                    <Loader2 v-if="uploadingAttachments" class="h-3.5 w-3.5 animate-spin" />
+                                    <Upload v-else class="h-3.5 w-3.5" />
+                                    {{ uploadingAttachments ? 'Envoi...' : 'Envoyer' }}
                                 </button>
                             </div>
-                            <p v-if="attachmentForm.errors.files" class="text-xs text-red-600">{{ attachmentForm.errors.files }}</p>
                         </div>
                     </div>
                 </div>

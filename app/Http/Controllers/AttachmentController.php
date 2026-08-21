@@ -37,7 +37,7 @@ class AttachmentController extends Controller
 
         $data = $request->validate([
             'files'   => ['required', 'array', 'min:1'],
-            'files.*' => ['file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png'],
+            'files.*' => ['file', 'max:5120', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png'],
         ]);
 
         foreach ($data['files'] as $file) {

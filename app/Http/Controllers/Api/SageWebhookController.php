@@ -85,6 +85,49 @@ class SageWebhookController extends Controller
         ], 201);
     }
 
+    /**
+     * Liste les BC deja importes dans l'app mais sans chantier rattache, pour le
+     * script de rattrapage Upgrade-PurchaseOrder.ps1 (le chantier n'est pas encore
+     * fiabilise cote sync principal, cf. -ProjectCodeColumn dans Sync-PurchaseOrders.ps1).
+     */
+    public function missingProject(): JsonResponse
+    {
+        $numeros = PurchaseOrder::whereNotNull('sage_reference')
+            ->whereNull('project_id')
+            ->pluck('sage_reference');
+
+        return response()->json(['numeros' => $numeros]);
+    }
+
+    /**
+     * Rattache a posteriori un chantier a un BC deja importe, sans repasser tout le
+     * payload webhook (evite de relire entete+lignes juste pour ce champ).
+     */
+    public function updateProject(Request $request, string $numero): JsonResponse
+    {
+        $data = $request->validate([
+            'projet_code' => ['required', 'string', 'max:255'],
+        ]);
+
+        $order = PurchaseOrder::where('sage_reference', $numero)->first();
+
+        if (! $order) {
+            return response()->json(['message' => "Commande {$numero} introuvable."], 404);
+        }
+
+        $project = Project::findOrCreateFromCode($data['projet_code']);
+
+        $order->update([
+            'project_id'   => $project->id,
+            'project_code' => $data['projet_code'],
+        ]);
+
+        return response()->json([
+            'sage_reference' => $order->sage_reference,
+            'project'        => ['id' => $project->id, 'code' => $project->code, 'name' => $project->name],
+        ]);
+    }
+
     private function upsertOrder(array $data): PurchaseOrder
     {
         $existing = PurchaseOrder::where('sage_reference', $data['numero'])->first();

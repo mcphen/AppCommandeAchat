@@ -296,6 +296,30 @@ chaque clé présente ; celles absentes restent désactivées sans bloquer les a
 `ProjectCodeColumn` (`DO_Ref`) est volontairement laissé de côté tant que sa sémantique
 "chantier" n'est pas confirmée sur un échantillon plus large de bons de commande.
 
+### Rattrapage chantier (`Upgrade-PurchaseOrder.ps1`)
+
+Le sync principal laisse `-ProjectCodeColumn ""` (chantier désactivé, cf. tableau
+ci-dessus) tant que l'hypothèse `DO_Ref` n'est pas confirmée sur un plus grand
+échantillon. `Upgrade-PurchaseOrder.ps1` sert de script de rattrapage ponctuel
+(à lancer manuellement, pas planifié) une fois l'hypothèse validée :
+
+1. Demande à l'app `GET /api/sage/purchase-orders/missing-project` la liste des
+   BC déjà importés mais sans chantier (`project_id NULL`).
+2. Lit `DO_Ref` côté Sage pour chacun (une seule requête sur `F_DOCENTETE`, pas
+   de boucle pièce-par-piece — même raison qu'étape 4 point 2 ci-dessus).
+3. Renvoie le chantier trouvé via `PATCH /api/sage/purchase-orders/{numero}/project`
+   (endpoint dédié, ne repasse pas tout le payload webhook).
+
+```powershell
+.\Upgrade-PurchaseOrder.ps1 -SqlServer "localhost\SQL2019" -Database "CONSTRUCSEN2024" `
+    -ApiBaseUrl "https://achats.construcsen.com" -ApiToken "xxxxx" -DryRun
+```
+
+Une fois `-ProjectCodeColumn "DO_Ref"` activé dans `Sync-PurchaseOrders.ps1`
+(ou `sage-sync.config.json`), les nouveaux BC arrivent avec leur chantier dès
+l'import et ce script de rattrapage n'est plus utile que pour l'historique déjà
+importé avant l'activation.
+
 ### Fichiers Laravel côté app
 
 - `routes/api.php` — route du webhook

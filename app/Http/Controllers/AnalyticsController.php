@@ -20,12 +20,102 @@ class AnalyticsController extends Controller
         return Inertia::render('Analytics', [
             'blockedOrders'       => $this->getBlockedOrders(),
             'topFournisseurs'     => $this->getTopFournisseurs(),
-            'topCategories'       => $this->getTopCategories(),
+            'topProjects'         => $this->getTopProjects(),
             'monthlyByBoutique'   => $this->getMonthlyByBoutique(),
+            'approvedByPeriod'    => $this->getApprovedAmountByPeriod(),
             'deliveredByPeriod'   => $this->getDeliveredAmountByPeriod(),
             'fournisseurLeadTimes' => $this->getFournisseurLeadTimes(),
             'validationDelays'    => $this->getValidationDelays(),
             'rejectionRates'      => $this->getRejectionRates(),
+        ]);
+    }
+
+    public function projects(Request $request): Response
+    {
+        $dateFrom = $request->date('date_from')?->startOfDay() ?? now()->subMonths(11)->startOfMonth();
+        $dateTo = $request->date('date_to')?->endOfDay() ?? now()->endOfMonth();
+        $groupBy = in_array($request->string('group_by')->toString(), ['monthly', 'quarterly', 'annual'], true)
+            ? $request->string('group_by')->toString()
+            : 'monthly';
+
+        $base = DB::table('purchase_orders as po')
+            ->join('projects as p', 'po.project_id', '=', 'p.id')
+            ->where('po.status', 'approved')
+            ->whereBetween(DB::raw('COALESCE(po.order_date, DATE(po.created_at))'), [$dateFrom->toDateString(), $dateTo->toDateString()]);
+
+        if ($request->filled('project_id')) {
+            $base->where('po.project_id', $request->integer('project_id'));
+        }
+
+        $total = (float) (clone $base)->sum('po.amount');
+        $ordersCount = (int) (clone $base)->distinct()->count('po.id');
+        $projects = (clone $base)
+            ->select('p.id', 'p.code', 'p.name', DB::raw('SUM(po.amount) as total'), DB::raw('COUNT(po.id) as orders_count'), DB::raw('AVG(po.amount) as average'))
+            ->groupBy('p.id', 'p.code', 'p.name')
+            ->orderByDesc('total')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'code' => $row->code,
+                'name' => $row->name,
+                'total' => (float) $row->total,
+                'orders_count' => (int) $row->orders_count,
+                'average' => (float) $row->average,
+                'share' => $total > 0 ? round((float) $row->total * 100 / $total, 1) : 0,
+            ]);
+
+        $periodExpression = match ($groupBy) {
+            'quarterly' => 'CONCAT(YEAR(COALESCE(po.order_date, po.created_at)), \'-Q\', QUARTER(COALESCE(po.order_date, po.created_at)))',
+            'annual' => 'CAST(YEAR(COALESCE(po.order_date, po.created_at)) AS CHAR)',
+            default => 'DATE_FORMAT(COALESCE(po.order_date, po.created_at), \'%Y-%m\')',
+        };
+        $evolution = (clone $base)
+            ->select(DB::raw($periodExpression.' as period'), DB::raw('SUM(po.amount) as total'), DB::raw('COUNT(po.id) as orders_count'))
+            ->groupBy('period')
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($row) => ['period' => $row->period, 'total' => (float) $row->total, 'orders_count' => (int) $row->orders_count]);
+
+        $tranches = [
+            ['key' => 'under_1m', 'label' => 'Moins de 1 M', 'min' => 0, 'max' => 1000000],
+            ['key' => '1m_5m', 'label' => '1 à 5 M', 'min' => 1000000, 'max' => 5000000],
+            ['key' => '5m_20m', 'label' => '5 à 20 M', 'min' => 5000000, 'max' => 20000000],
+            ['key' => 'over_20m', 'label' => 'Plus de 20 M', 'min' => 20000000, 'max' => null],
+        ];
+        $trancheData = collect($tranches)->map(function ($tranche) use ($base) {
+            $query = (clone $base)->where('po.amount', '>=', $tranche['min']);
+            $tranche['max'] === null ? $query : $query->where('po.amount', '<', $tranche['max']);
+            return [
+                'key' => $tranche['key'],
+                'label' => $tranche['label'],
+                'total' => (float) $query->sum('po.amount'),
+                'orders_count' => (int) $query->count('po.id'),
+            ];
+        });
+
+        $topSuppliers = DB::table('purchase_order_lines as pol')
+            ->join('purchase_orders as po', 'pol.purchase_order_id', '=', 'po.id')
+            ->join('fournisseurs as f', 'pol.fournisseur_id', '=', 'f.id')
+            ->where('po.status', 'approved')
+            ->whereBetween(DB::raw('COALESCE(po.order_date, DATE(po.created_at))'), [$dateFrom->toDateString(), $dateTo->toDateString()])
+            ->when($request->filled('project_id'), fn ($query) => $query->where('po.project_id', $request->integer('project_id')))
+            ->select('f.name', DB::raw('SUM(pol.quantity * pol.unit_price) as total'), DB::raw('COUNT(DISTINCT po.id) as orders_count'))
+            ->groupBy('f.id', 'f.name')->orderByDesc('total')->limit(10)->get();
+
+        $orders = (clone $base)
+            ->select('po.id', 'po.title', 'po.order_number', 'po.order_date', 'po.created_at', 'po.amount', 'po.amount_ttc', 'p.name as project_name')
+            ->orderByDesc(DB::raw('COALESCE(po.order_date, po.created_at)'))
+            ->paginate(15)->withQueryString();
+
+        return Inertia::render('Analytics/Projects', [
+            'filters' => ['date_from' => $dateFrom->toDateString(), 'date_to' => $dateTo->toDateString(), 'group_by' => $groupBy, 'project_id' => $request->string('project_id')->toString()],
+            'projectOptions' => DB::table('projects')->orderBy('name')->get(['id', 'code', 'name']),
+            'summary' => ['total' => $total, 'orders_count' => $ordersCount, 'projects_count' => $projects->count(), 'average' => $ordersCount > 0 ? $total / $ordersCount : 0],
+            'projects' => $projects,
+            'evolution' => $evolution,
+            'tranches' => $trancheData,
+            'topSuppliers' => $topSuppliers,
+            'orders' => $orders,
         ]);
     }
 
@@ -212,28 +302,67 @@ class AnalyticsController extends Controller
             ->toArray();
     }
 
-    private function getTopCategories(): array
+    private function getTopProjects(): array
     {
-        return DB::table('purchase_order_lines as pol')
-            ->join('articles as a', 'pol.article_id', '=', 'a.id')
-            ->join('categories as c', 'a.category_id', '=', 'c.id')
-            ->join('purchase_orders as po', 'pol.purchase_order_id', '=', 'po.id')
+        $grandTotal = (float) DB::table('purchase_orders')->where('status', 'approved')->whereNotNull('project_id')->sum('amount');
+
+        return DB::table('purchase_orders as po')
+            ->join('projects as p', 'po.project_id', '=', 'p.id')
             ->where('po.status', 'approved')
             ->select(
-                'c.name',
-                DB::raw('SUM(pol.quantity * pol.unit_price) as total'),
-                DB::raw('COUNT(DISTINCT po.id) as orders_count')
+                'p.id',
+                'p.code',
+                'p.name',
+                DB::raw('SUM(po.amount) as total'),
+                DB::raw('COUNT(po.id) as orders_count')
             )
-            ->groupBy('c.id', 'c.name')
+            ->groupBy('p.id', 'p.code', 'p.name')
             ->orderByDesc('total')
             ->limit(5)
             ->get()
             ->map(fn ($r) => [
+                'id'           => (int) $r->id,
+                'code'         => $r->code,
                 'name'         => $r->name,
                 'total'        => (float) $r->total,
                 'orders_count' => (int) $r->orders_count,
+                'share'        => $grandTotal > 0 ? round((float) $r->total * 100 / $grandTotal, 1) : 0,
             ])
             ->toArray();
+    }
+
+    private function getApprovedAmountByPeriod(): array
+    {
+        $definitions = [
+            'monthly' => [
+                'keys' => collect(range(11, 0))->map(fn ($i) => now()->subMonths($i)->format('Y-m')),
+                'expression' => 'DATE_FORMAT(COALESCE(order_date, created_at), \'%Y-%m\')',
+                'label' => fn ($key) => Carbon::createFromFormat('Y-m', $key)->translatedFormat('M Y'),
+            ],
+            'quarterly' => [
+                'keys' => collect(range(7, 0))->map(fn ($i) => tap(now()->startOfQuarter()->subQuarters($i), fn () => null))->map(fn ($date) => $date->year.'-Q'.$date->quarter),
+                'expression' => 'CONCAT(YEAR(COALESCE(order_date, created_at)), \'-Q\', QUARTER(COALESCE(order_date, created_at)))',
+                'label' => fn ($key) => str_replace('-Q', ' T', $key),
+            ],
+            'annual' => [
+                'keys' => collect(range(4, 0))->map(fn ($i) => (string) now()->subYears($i)->year),
+                'expression' => 'CAST(YEAR(COALESCE(order_date, created_at)) AS CHAR)',
+                'label' => fn ($key) => $key,
+            ],
+        ];
+
+        return collect($definitions)->map(function ($definition) {
+            $totals = DB::table('purchase_orders')
+                ->where('status', 'approved')
+                ->select(DB::raw($definition['expression'].' as period'), DB::raw('SUM(amount) as total'))
+                ->groupBy('period')
+                ->pluck('total', 'period');
+
+            return [
+                'labels' => $definition['keys']->map($definition['label'])->values()->all(),
+                'data' => $definition['keys']->map(fn ($key) => (float) ($totals[$key] ?? 0))->values()->all(),
+            ];
+        })->all();
     }
 
     private function getMonthlyByBoutique(): array

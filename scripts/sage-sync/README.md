@@ -279,7 +279,7 @@ de démo "Bijouterie"), voici ce qui existe réellement chez ce client :
 
 | Donnée | Colonne standard supposée (fausse) | Vrai nom chez Construcsen | Config à ajouter |
 |---|---|---|---|
-| Code affaire/chantier | `DO_ProjetCode` | Pas de module Affaires (`F_AFFAIRE` absente). `DO_Ref` (`F_DOCENTETE`) contient déjà des libellés qui ressemblent à des chantiers (`"SOMONE/PLOMBERIE"`, `"SN HLM BAMBILOR"`) — hypothèse à valider sur plus d'exemples avant activation | `"ProjectCodeColumn": "DO_Ref"` (après validation) |
+| Code affaire/chantier | `DO_ProjetCode` | Pas de module Affaires (`F_AFFAIRE` absente). `DO_Ref` (`F_DOCENTETE`) contient déjà des libellés qui ressemblent à des chantiers (`"SOMONE/PLOMBERIE"`, `"SN HLM BAMBILOR"`) — confirmé le 2026-08-24 sur `BC4167` (`DO_Ref = "SOMONE/CAISSE 1"`) | `"ProjectCodeColumn": "DO_Ref"` (activé le 2026-08-24) |
 | TVA + remise ligne | `DL_Taux1` / `DL_Remise01` | Pas de taux exploitable simplement (`DL_Taxe1`/`DL_Remise01REM_Valeur`+`REM_Type` ont une sémantique ambiguë). Sage calcule déjà `DL_MontantHT`/`DL_MontantTTC` par ligne : le script déduit lui-même le taux effectif à partir de ces deux montants | `"LineAmountHtColumn": "DL_MontantHT"`, `"LineAmountTtcColumn": "DL_MontantTTC"` |
 | Famille article | `AR_FamilleCode` | `FA_CodeFamille` (`F_ARTICLE`) | `"ArticleFamilyColumn": "FA_CodeFamille"` |
 | Unité de ligne | `DL_UniteVente` | Aucune colonne texte sur `F_DOCLIGNE` (seulement `AR_UniteVen`, un code numérique sur l'article renvoyant à une table de paramètres non explorée) | reste désactivé |
@@ -293,8 +293,15 @@ chaque clé présente ; celles absentes restent désactivées sans bloquer les a
 "ArticleFamilyColumn": "FA_CodeFamille"
 ```
 
-`ProjectCodeColumn` (`DO_Ref`) est volontairement laissé de côté tant que sa sémantique
-"chantier" n'est pas confirmée sur un échantillon plus large de bons de commande.
+`ProjectCodeColumn` (`DO_Ref`) activé le 2026-08-24 après confirmation sur `BC4167`
+(`DO_Ref = "SOMONE/CAISSE 1"`, cohérent avec le chantier attendu). Ajouter dans
+`sage-sync.config.json` (fichier non commité, présent uniquement sur le serveur) :
+```json
+"ProjectCodeColumn": "DO_Ref"
+```
+Les BC déjà importés avant activation ne récupèrent pas le chantier rétroactivement
+par le sync — utiliser `Upgrade-PurchaseOrder.ps1` / `Run-Upgrade.ps1` pour ceux-là
+(cf. section dédiée ci-dessous).
 
 ### Rattrapage chantier (`Upgrade-PurchaseOrder.ps1`)
 

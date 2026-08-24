@@ -158,10 +158,27 @@ class PurchaseOrderController extends Controller
         if ($request->filled('search')) {
             $search = $request->string('search');
             $query->where(function ($q) use ($search) {
-                $q->where('title', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                $q->where('title', 'like', "'%'.$search.'%'")
+                  ->orWhere('description', 'like', "'%'.$search.'%'");
             });
         }
+
+        if ($request->filled('column_order')) {
+            $search = $request->string('column_order')->toString();
+            $query->where(fn ($q) => $q->where('title', 'like', '%'.$search.'%')->orWhere('description', 'like', '%'.$search.'%'));
+        }
+        if ($request->filled('column_project')) {
+            $search = $request->string('column_project')->toString();
+            $query->whereHas('project', fn ($q) => $q->where('name', 'like', '%'.$search.'%')->orWhere('code', 'like', '%'.$search.'%'));
+        }
+        if ($request->filled('column_amount')) $query->where('amount', $request->number('column_amount'));
+        if ($request->filled('column_amount_ttc')) $query->where('amount_ttc', $request->number('column_amount_ttc'));
+        if ($request->filled('column_status')) $query->where('status', $request->string('column_status'));
+        if ($request->filled('column_user') && $user->isAdmin()) {
+            $search = $request->string('column_user')->toString();
+            $query->whereHas('user', fn ($q) => $q->where('name', 'like', '%'.$search.'%'));
+        }
+        if ($request->filled('column_date')) $query->whereDate('order_date', $request->string('column_date'));
 
         return $query;
     }
@@ -179,6 +196,13 @@ class PurchaseOrderController extends Controller
             'amount_max'  => $request->string('amount_max')->toString(),
             'level_order' => $request->string('level_order')->toString(),
             'search'      => $request->string('search')->toString(),
+            'column_order' => $request->string('column_order')->toString(),
+            'column_project' => $request->string('column_project')->toString(),
+            'column_amount' => $request->string('column_amount')->toString(),
+            'column_amount_ttc' => $request->string('column_amount_ttc')->toString(),
+            'column_status' => $request->string('column_status')->toString(),
+            'column_user' => $request->string('column_user')->toString(),
+            'column_date' => $request->string('column_date')->toString(),
         ];
     }
 

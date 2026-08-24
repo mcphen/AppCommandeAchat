@@ -136,7 +136,7 @@ WHERE DO_Domaine = 1 AND DO_Type = 12
 $conn.Close()
 
 $chantierParPiece = @{}
-foreach ($row in $entetes.Rows) {
+foreach ($row in $entetes) {
     $piece = Get-SafeTrim $row.DO_Piece
     if (-not $piece) { continue }
     $chantierParPiece[$piece] = Get-SafeTrim $row.DO_Ref

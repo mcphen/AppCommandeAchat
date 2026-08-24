@@ -4,7 +4,7 @@ import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import {
     AlertTriangle, ArrowRight, BarChart2, Clock, ShoppingBag,
-    Tag, TrendingUp, Users, CheckCircle2, XCircle, Timer, PackageCheck,
+    HardHat, TrendingUp, Users, CheckCircle2, XCircle, Timer, PackageCheck,
     Download, Truck,
 } from 'lucide-vue-next';
 import {
@@ -85,8 +85,9 @@ interface RejectionRate {
 const props = defineProps<{
     blockedOrders: BlockedOrder[];
     topFournisseurs: TopItem[];
-    topCategories: TopItem[];
+    topProjects: (TopItem & { id: number; code: string; share: number })[];
     monthlyByBoutique: MonthlyByBoutique;
+    approvedByPeriod: { monthly: PeriodSeries; quarterly: PeriodSeries; annual: PeriodSeries };
     deliveredByPeriod: { monthly: PeriodSeries; quarterly: PeriodSeries };
     fournisseurLeadTimes: LeadTimeEntry[];
     validationDelays: { byLevel: DelayEntry[]; byValidator: ValidatorDelay[] };
@@ -118,12 +119,12 @@ const topFournisseursData = computed(() => ({
     }],
 }));
 
-// ---- Top catégories (horizontal bar) ----
-const topCategoriesData = computed(() => ({
-    labels: props.topCategories.map(c => c.name),
+// ---- Top chantiers (horizontal bar) ----
+const topProjectsData = computed(() => ({
+    labels: props.topProjects.map(c => c.name),
     datasets: [{
         label: 'Montant approuvé',
-        data: props.topCategories.map(c => c.total),
+        data: props.topProjects.map(c => c.total),
         backgroundColor: ['#10b981cc', '#34d399cc', '#6ee7b7cc', '#a7f3d0cc', '#d1fae5cc'],
         borderRadius: 6,
         borderSkipped: false,
@@ -177,6 +178,21 @@ const hasLineData = computed(() =>
     props.monthlyByBoutique.datasets.some(d => d.data.some(v => v > 0))
 );
 
+// ---- Montant engagé par période ----
+const approvedPeriod = ref<'monthly' | 'quarterly' | 'annual'>('monthly');
+const approvedSeries = computed(() => props.approvedByPeriod[approvedPeriod.value]);
+const approvedTotal = computed(() => approvedSeries.value.data.reduce((sum, value) => sum + value, 0));
+const hasApprovedData = computed(() => approvedSeries.value.data.some(value => value > 0));
+const approvedBarData = computed(() => ({
+    labels: approvedSeries.value.labels,
+    datasets: [{
+        label: 'BC approuvés',
+        data: approvedSeries.value.data,
+        backgroundColor: '#10b981cc',
+        borderRadius: 6,
+        borderSkipped: false,
+    }],
+}));
 // ---- Montant livré par période (mensuel / trimestriel) ----
 const deliveredPeriod = ref<'monthly' | 'quarterly'>('monthly');
 
@@ -382,25 +398,27 @@ const leadTimeBadgeClass = (days: number) => {
                     </ul>
                 </div>
 
-                <!-- Top catégories -->
+                <!-- Top chantiers -->
                 <div class="rounded-2xl border bg-card p-5 shadow-sm">
                     <div class="mb-4 flex items-center gap-2">
-                        <div class="rounded-lg bg-emerald-50 p-1.5"><Tag class="h-4 w-4 text-emerald-600" /></div>
-                        <h2 class="font-semibold text-foreground">Top 5 catégories</h2>
-                        <span class="ml-auto text-xs text-muted-foreground">par montant approuvé</span>
+                        <div class="rounded-lg bg-emerald-50 p-1.5"><HardHat class="h-4 w-4 text-emerald-600" /></div>
+                        <h2 class="font-semibold text-foreground">Top 5 chantiers</h2>
+                        <Link :href="route('analytics.projects')" class="ml-auto inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-muted">
+                            Analyser <ArrowRight class="h-3.5 w-3.5" />
+                        </Link>
                     </div>
-                    <div v-if="topCategories.length === 0" class="flex h-32 items-center justify-center text-sm text-muted-foreground">
+                    <div v-if="topProjects.length === 0" class="flex h-32 items-center justify-center text-sm text-muted-foreground">
                         Pas encore de données
                     </div>
                     <div v-else class="h-44">
-                        <Bar :data="topCategoriesData" :options="horizontalBarOptions" />
+                        <Bar :data="topProjectsData" :options="horizontalBarOptions" />
                     </div>
-                    <ul v-if="topCategories.length > 0" class="mt-4 divide-y divide-border">
-                        <li v-for="(c, i) in topCategories" :key="c.name"
+                    <ul v-if="topProjects.length > 0" class="mt-4 divide-y divide-border">
+                        <li v-for="(c, i) in topProjects" :key="c.name"
                             class="flex items-center justify-between py-2 text-sm">
                             <div class="flex items-center gap-2">
                                 <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-xs font-bold text-emerald-700">{{ i + 1 }}</span>
-                                <span class="font-medium text-foreground">{{ c.name }}</span>
+                                <span class="font-medium text-foreground">{{ c.name }}</span><span class="text-xs text-muted-foreground">{{ c.share }} %</span>
                             </div>
                             <div class="flex items-center gap-3">
                                 <span class="text-xs text-muted-foreground">{{ c.orders_count }} cmd</span>
@@ -431,6 +449,23 @@ const leadTimeBadgeClass = (days: number) => {
             </section>
 
             <!-- ============================== -->
+            <section>
+                <div class="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div class="flex items-center gap-2">
+                        <ShoppingBag class="h-4 w-4 text-emerald-500" />
+                        <h2 class="font-semibold text-foreground">Montant des bons de commande approuvés</h2>
+                        <span class="text-xs text-muted-foreground">engagements d’achat</span>
+                    </div>
+                    <div class="inline-flex self-start rounded-lg border bg-muted/40 p-0.5 text-xs font-medium sm:ml-auto">
+                        <button v-for="period in (['monthly', 'quarterly', 'annual'] as const)" :key="period" class="rounded-md px-3 py-1.5 transition-colors" :class="approvedPeriod === period ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'" @click="approvedPeriod = period">{{ period === 'monthly' ? 'Mensuel' : period === 'quarterly' ? 'Trimestriel' : 'Annuel' }}</button>
+                    </div>
+                </div>
+                <div class="rounded-2xl border bg-card p-5 shadow-sm">
+                    <div class="mb-4 flex items-baseline gap-2"><span class="text-2xl font-bold text-foreground">{{ formatAmount(approvedTotal) }}</span><span class="text-xs text-muted-foreground">total affiché sur la période</span></div>
+                    <div v-if="!hasApprovedData" class="flex h-40 items-center justify-center text-sm text-muted-foreground">Aucun bon de commande approuvé sur cette période</div>
+                    <div v-else class="h-56"><Bar :data="approvedBarData" :options="deliveredBarOptions" /></div>
+                </div>
+            </section>
             <!-- 3bis. MONTANT LIVRÉ PAR PÉRIODE -->
             <!-- ============================== -->
             <section>

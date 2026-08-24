@@ -5,7 +5,7 @@ import { type Boutique, type BreadcrumbItem, type PaginatedData, type Project, t
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import { AlertCircle, Bell, CheckCircle2, ChevronDown, Download, Eye, FileSpreadsheet, FileText, Filter, HardHat, RotateCcw, Search, ShieldCheck, ShoppingCart, X } from 'lucide-vue-next';
 import Swal from 'sweetalert2';
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
 const props = withDefaults(defineProps<{
     orders: PaginatedData<PurchaseOrder>;
@@ -26,6 +26,13 @@ const props = withDefaults(defineProps<{
         amount_max?: string;
         level_order?: string;
         search?: string;
+        column_order?: string;
+        column_project?: string;
+        column_amount?: string;
+        column_amount_ttc?: string;
+        column_status?: string;
+        column_user?: string;
+        column_date?: string;
     };
     listRouteName?: string;
     exportRouteName?: string;
@@ -87,7 +94,19 @@ const localFilters = ref({
     level_order: props.filters.level_order ?? '',
 });
 
-const activeFilterCount = computed(() => Object.values(localFilters.value).filter((value) => value !== '').length);
+const columnFilters = ref({
+    column_order: props.filters.column_order ?? '',
+    column_project: props.filters.column_project ?? '',
+    column_amount: props.filters.column_amount ?? '',
+    column_amount_ttc: props.filters.column_amount_ttc ?? '',
+    column_status: props.filters.column_status ?? '',
+    column_user: props.filters.column_user ?? '',
+    column_date: props.filters.column_date ?? '',
+});
+let columnFilterTimer: ReturnType<typeof setTimeout> | undefined;
+const columnFilterClass = 'h-9 w-full rounded-lg border border-input bg-background px-2 text-xs font-normal normal-case tracking-normal focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+
+const activeFilterCount = computed(() => Object.values({ ...localFilters.value, ...columnFilters.value }).filter((value) => value !== '').length);
 const hasActiveFilters = computed(() => activeFilterCount.value > 0);
 const visibleOrders = computed(() => props.orders.data);
 const draftCount = computed(() => visibleOrders.value.filter((order) => order.status === 'draft').length);
@@ -144,7 +163,7 @@ const rejectedBy = (order: PurchaseOrder) => {
 
 const applyFilters = () => {
     const params: Record<string, string> = {};
-    Object.entries(localFilters.value).forEach(([key, value]) => {
+    Object.entries({ ...localFilters.value, ...columnFilters.value }).forEach(([key, value]) => {
         if (value) params[key] = value;
     });
     router.get(route(props.listRouteName), params, {
@@ -154,14 +173,25 @@ const applyFilters = () => {
     });
 };
 
+const applyColumnFilters = (immediate = false) => {
+    if (columnFilterTimer) clearTimeout(columnFilterTimer);
+    if (immediate) return applyFilters();
+    columnFilterTimer = setTimeout(applyFilters, 400);
+};
+
+onBeforeUnmount(() => {
+    if (columnFilterTimer) clearTimeout(columnFilterTimer);
+});
+
 const resetFilters = () => {
     localFilters.value = { search: '', boutique_id: '', project_id: '', status: '', user_id: '', date_from: '', date_to: '', amount_min: '', amount_max: '', level_order: '' };
+    columnFilters.value = { column_order: '', column_project: '', column_amount: '', column_amount_ttc: '', column_status: '', column_user: '', column_date: '' };
     router.get(route(props.listRouteName), {}, { preserveState: true, preserveScroll: true, replace: true });
 };
 
 const exportUrl = (format: string) => {
     const params = new URLSearchParams();
-    Object.entries(localFilters.value).forEach(([key, value]) => {
+    Object.entries({ ...localFilters.value, ...columnFilters.value }).forEach(([key, value]) => {
         if (value) params.append(key, value);
     });
     const qs = params.toString();
@@ -547,6 +577,16 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                     Date
                                 </th>
                                 <th class="sticky right-0 z-10 bg-muted/95 px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] backdrop-blur">Actions</th>
+                            </tr>
+                            <tr class="border-b bg-muted/10">
+                                <th class="px-3 py-2"><input v-model="columnFilters.column_order" type="search" placeholder="Filtrer commande…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
+                                <th class="hidden px-3 py-2 lg:table-cell"><input v-model="columnFilters.column_project" type="search" placeholder="Filtrer chantier…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
+                                <th class="hidden px-3 py-2 lg:table-cell"><input v-model="columnFilters.column_amount" type="number" min="0" placeholder="Montant exact" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
+                                <th class="hidden px-3 py-2 lg:table-cell"><input v-model="columnFilters.column_amount_ttc" type="number" min="0" placeholder="Montant exact" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
+                                <th class="px-3 py-2"><select v-model="columnFilters.column_status" :class="columnFilterClass" @change="applyColumnFilters(true)"><option value="">Tous</option><option v-for="(config, value) in statusConfig" :key="value" :value="value">{{ config.label }}</option></select></th>
+                                <th v-if="isAdmin" class="hidden px-3 py-2 xl:table-cell"><input v-model="columnFilters.column_user" type="search" placeholder="Filtrer demandeur…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
+                                <th class="hidden px-3 py-2 xl:table-cell"><input v-model="columnFilters.column_date" type="date" :class="columnFilterClass" @change="applyColumnFilters(true)" /></th>
+                                <th class="sticky right-0 z-10 bg-muted/95 px-3 py-2 text-right"><button v-if="Object.values(columnFilters).some(Boolean)" type="button" class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" @click="columnFilters = { column_order: '', column_project: '', column_amount: '', column_amount_ttc: '', column_status: '', column_user: '', column_date: '' }; applyColumnFilters(true)"><X class="h-3.5 w-3.5" /> Effacer</button></th>
                             </tr>
                         </thead>
 

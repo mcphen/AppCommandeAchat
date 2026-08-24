@@ -129,6 +129,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('purchase-orders.remind');
 
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+        Route::get('/analytics/projects', [AnalyticsController::class, 'projects'])->name('analytics.projects');
         Route::get('/analytics/export/delivered', [AnalyticsController::class, 'exportDelivered'])->name('analytics.export-delivered');
     });
 

@@ -62,8 +62,8 @@ const chartOptions = {
     maintainAspectRatio: false,
     plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx: any) => ' ' + formatAmount(ctx.raw) } } },
     scales: {
-        x: { grid: { display: false }, border: { display: false } },
-        y: { grid: { color: '#f1f5f9' }, border: { display: false }, ticks: { callback: (value: any) => formatAmountShort(value) } },
+        x: { grid: { display: false }, border: { display: false }, ticks: { color: '#64748b' } },
+        y: { grid: { color: '#e2e8f0' }, border: { display: false }, ticks: { color: '#64748b', callback: (value: any) => formatAmountShort(value) } },
     },
 };
 const horizontalOptions = { ...chartOptions, indexAxis: 'y' as const };
@@ -84,7 +84,7 @@ const projectData = computed(() => ({
 <template>
     <Head title="Analyse des chantiers" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="mx-auto max-w-7xl space-y-6 px-3 py-4 sm:px-6 sm:py-6">
+        <div class="mx-auto max-w-7xl space-y-6 px-3 py-4 text-foreground sm:px-6 sm:py-6">
             <header class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <Link :href="route('analytics.index')" class="mb-3 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft class="h-4 w-4" /> Retour à l’analytique</Link>

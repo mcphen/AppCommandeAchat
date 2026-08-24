@@ -104,7 +104,7 @@ const columnFilters = ref({
     column_date: props.filters.column_date ?? '',
 });
 let columnFilterTimer: ReturnType<typeof setTimeout> | undefined;
-const columnFilterClass = 'h-9 w-full rounded-lg border border-input bg-background px-2 text-xs font-normal normal-case tracking-normal focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
+const columnFilterClass = 'h-9 w-full rounded-lg border border-slate-300 bg-white px-2 text-xs font-normal text-slate-950 normal-case tracking-normal placeholder:text-slate-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20';
 
 const activeFilterCount = computed(() => Object.values({ ...localFilters.value, ...columnFilters.value }).filter((value) => value !== '').length);
 const hasActiveFilters = computed(() => activeFilterCount.value > 0);
@@ -224,7 +224,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
 <template>
     <Head :title="isAdmin ? pageTitleAdmin : pageTitleUser" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="mx-auto max-w-7xl space-y-6 px-3 py-4 sm:px-6 sm:py-6">
+        <div class="purchase-orders-page mx-auto max-w-7xl space-y-6 px-3 py-4 sm:px-6 sm:py-6">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
@@ -515,24 +515,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                 </div>
             </section>
             <EmptyState
-                v-if="orders.data.length === 0 && hasActiveFilters"
-                :icon="Filter"
-                icon-bg="bg-slate-100"
-                icon-color="text-slate-400"
-                title="Aucun resultat"
-                description="Aucune commande ne correspond aux filtres appliques. Ajustez les criteres ou relancez une recherche plus large."
-            >
-                <button
-                    class="inline-flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-                    @click="resetFilters"
-                >
-                    <RotateCcw class="h-4 w-4" />
-                    Reinitialiser les filtres
-                </button>
-            </EmptyState>
-
-            <EmptyState
-                v-else-if="orders.data.length === 0"
+                v-if="orders.data.length === 0 && !hasActiveFilters"
                 :icon="ShoppingCart"
                 icon-bg="bg-primary/10"
                 icon-color="text-primary"
@@ -545,7 +528,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                     <div>
                         <h2 class="text-base font-semibold text-foreground">Liste des commandes</h2>
                         <p class="mt-1 text-sm text-muted-foreground">
-                            {{ orders.from }} a {{ orders.to }} sur {{ orders.total }} commande(s) affichee(s).
+                            <template v-if="orders.total > 0">{{ orders.from }} à {{ orders.to }} sur {{ orders.total }} commande(s) affichée(s).</template><template v-else>Aucune commande ne correspond aux filtres saisis.</template>
                         </p>
                     </div>
 
@@ -576,7 +559,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">
                                     Date
                                 </th>
-                                <th class="sticky right-0 z-10 bg-muted/95 px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] backdrop-blur">Actions</th>
+                                <th class="sticky right-0 z-10 bg-white px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] backdrop-blur">Actions</th>
                             </tr>
                             <tr class="border-b bg-muted/10">
                                 <th class="px-3 py-2"><input v-model="columnFilters.column_order" type="search" placeholder="Filtrer commande…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
@@ -586,11 +569,23 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                 <th class="px-3 py-2"><select v-model="columnFilters.column_status" :class="columnFilterClass" @change="applyColumnFilters(true)"><option value="">Tous</option><option v-for="(config, value) in statusConfig" :key="value" :value="value">{{ config.label }}</option></select></th>
                                 <th v-if="isAdmin" class="hidden px-3 py-2 xl:table-cell"><input v-model="columnFilters.column_user" type="search" placeholder="Filtrer demandeur…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
                                 <th class="hidden px-3 py-2 xl:table-cell"><input v-model="columnFilters.column_date" type="date" :class="columnFilterClass" @change="applyColumnFilters(true)" /></th>
-                                <th class="sticky right-0 z-10 bg-muted/95 px-3 py-2 text-right"><button v-if="Object.values(columnFilters).some(Boolean)" type="button" class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" @click="columnFilters = { column_order: '', column_project: '', column_amount: '', column_amount_ttc: '', column_status: '', column_user: '', column_date: '' }; applyColumnFilters(true)"><X class="h-3.5 w-3.5" /> Effacer</button></th>
+                                <th class="sticky right-0 z-10 bg-white px-3 py-2 text-right"><button v-if="Object.values(columnFilters).some(Boolean)" type="button" class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" @click="columnFilters = { column_order: '', column_project: '', column_amount: '', column_amount_ttc: '', column_status: '', column_user: '', column_date: '' }; applyColumnFilters(true)"><X class="h-3.5 w-3.5" /> Effacer</button></th>
                             </tr>
                         </thead>
 
                         <tbody class="divide-y divide-border/60">
+                            <tr v-if="orders.data.length === 0">
+                                <td :colspan="isAdmin ? 8 : 7" class="px-5 py-14 text-center">
+                                    <div class="mx-auto flex max-w-md flex-col items-center">
+                                        <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500"><Search class="h-5 w-5" /></div>
+                                        <h3 class="mt-3 font-semibold text-slate-950">Aucun résultat trouvé</h3>
+                                        <p class="mt-1 text-sm text-slate-600">Modifiez les critères dans la ligne de filtres ci-dessus ou réinitialisez-les.</p>
+                                        <button type="button" class="mt-4 inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50" @click="resetFilters">
+                                            <RotateCcw class="h-4 w-4" /> Réinitialiser les filtres
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
                             <tr
                                 v-for="order in orders.data"
                                 :key="order.id"
@@ -734,3 +729,19 @@ const remindDemandeur = async (order: PurchaseOrder) => {
         </div>
     </AppLayout>
 </template>
+
+<style scoped>
+.purchase-orders-page input,
+.purchase-orders-page select {
+    background-color: #fff !important;
+    color: #0f172a !important;
+}
+.purchase-orders-page input::placeholder {
+    color: #94a3b8 !important;
+    opacity: 1;
+}
+.purchase-orders-page select option {
+    background-color: #fff;
+    color: #0f172a;
+}
+</style>

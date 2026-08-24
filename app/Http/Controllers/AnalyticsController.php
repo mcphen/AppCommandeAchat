@@ -21,7 +21,7 @@ class AnalyticsController extends Controller
             'blockedOrders'       => $this->getBlockedOrders(),
             'topFournisseurs'     => $this->getTopFournisseurs(),
             'topProjects'         => $this->getTopProjects(),
-            'monthlyByBoutique'   => $this->getMonthlyByBoutique(),
+            'purchasesByProject'   => $this->getPurchasesByProjectPeriod(),
             'approvedByPeriod'    => $this->getApprovedAmountByPeriod(),
             'deliveredByPeriod'   => $this->getDeliveredAmountByPeriod(),
             'fournisseurLeadTimes' => $this->getFournisseurLeadTimes(),
@@ -261,7 +261,7 @@ class AnalyticsController extends Controller
 
     private function getBlockedOrders(): array
     {
-        return PurchaseOrder::with(['user', 'boutique'])
+        return PurchaseOrder::with('user')
             ->where('status', 'pending')
             ->whereNotNull('submitted_at')
             ->where('submitted_at', '<', now()->subDays(3))
@@ -274,7 +274,6 @@ class AnalyticsController extends Controller
                 'submitted_at' => $o->submitted_at?->toISOString(),
                 'days_waiting' => (int) now()->diffInDays($o->submitted_at),
                 'user_name'    => $o->user->name,
-                'boutique_name' => $o->boutique?->name ?? '—',
             ])
             ->toArray();
     }
@@ -365,60 +364,42 @@ class AnalyticsController extends Controller
         })->all();
     }
 
-    private function getMonthlyByBoutique(): array
+    private function getPurchasesByProjectPeriod(): array
     {
-        $months = [];
-        for ($i = 5; $i >= 0; $i--) {
-            $months[] = now()->subMonths($i)->format('Y-m');
-        }
+        $periods = [
+            'monthly' => ['keys' => collect(range(11, 0))->map(fn ($i) => now()->subMonths($i)->format('Y-m')), 'sql' => 'DATE_FORMAT(COALESCE(po.order_date, po.created_at), \'%Y-%m\')', 'label' => fn ($key) => Carbon::createFromFormat('Y-m', $key)->translatedFormat('M Y')],
+            'quarterly' => ['keys' => collect(range(7, 0))->map(function ($i) { $date = now()->startOfQuarter()->subQuarters($i); return $date->year.'-Q'.$date->quarter; }), 'sql' => 'CONCAT(YEAR(COALESCE(po.order_date, po.created_at)), \'-Q\', QUARTER(COALESCE(po.order_date, po.created_at)))', 'label' => fn ($key) => str_replace('-Q', ' T', $key)],
+            'annual' => ['keys' => collect(range(4, 0))->map(fn ($i) => (string) now()->subYears($i)->year), 'sql' => 'CAST(YEAR(COALESCE(po.order_date, po.created_at)) AS CHAR)', 'label' => fn ($key) => $key],
+        ];
+        $colors = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6'];
 
-        $labels = array_map(
-            fn ($m) => Carbon::createFromFormat('Y-m', $m)->translatedFormat('M Y'),
-            $months
-        );
+        return collect($periods)->map(function ($period) use ($colors) {
+            $projectIds = DB::table('purchase_orders as po')
+                ->where('po.status', 'approved')->whereNotNull('po.project_id')
+                ->whereIn(DB::raw($period['sql']), $period['keys']->all())
+                ->select('po.project_id', DB::raw('SUM(po.amount) as total'))
+                ->groupBy('po.project_id')->orderByDesc('total')->limit(5)->pluck('po.project_id');
 
-        $rows = DB::table('purchase_orders as po')
-            ->join('boutiques as b', 'po.boutique_id', '=', 'b.id')
-            ->where('po.status', 'approved')
-            ->whereIn(DB::raw("DATE_FORMAT(po.created_at, '%Y-%m')"), $months)
-            ->select(
-                'b.id',
-                'b.name',
-                DB::raw("DATE_FORMAT(po.created_at, '%Y-%m') as month"),
-                DB::raw('SUM(po.amount) as total')
-            )
-            ->groupBy('b.id', 'b.name', 'month')
-            ->get();
+            $rows = DB::table('purchase_orders as po')->join('projects as p', 'po.project_id', '=', 'p.id')
+                ->where('po.status', 'approved')->whereIn('po.project_id', $projectIds)
+                ->whereIn(DB::raw($period['sql']), $period['keys']->all())
+                ->select('p.id', 'p.name', DB::raw($period['sql'].' as period'), DB::raw('SUM(po.amount) as total'))
+                ->groupBy('p.id', 'p.name', 'period')->get();
 
-        $boutiquesMap = $rows->pluck('name', 'id')->unique();
+            $projects = $rows->groupBy('id')->sortByDesc(fn ($items) => $items->sum('total'));
+            $datasets = $projects->values()->map(function ($items, $index) use ($period, $colors) {
+                $color = $colors[$index % count($colors)];
+                return [
+                    'label' => $items->first()->name,
+                    'data' => $period['keys']->map(fn ($key) => (float) (optional($items->firstWhere('period', $key))->total ?? 0))->all(),
+                    'borderColor' => $color, 'backgroundColor' => $color.'22',
+                    'tension' => 0.35, 'fill' => false, 'pointRadius' => 4, 'pointHoverRadius' => 6,
+                ];
+            })->all();
 
-        $palette = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4', '#f97316'];
-        $datasets = [];
-        $i = 0;
-
-        foreach ($boutiquesMap as $boutiqueId => $boutiqueName) {
-            $data = [];
-            foreach ($months as $month) {
-                $row    = $rows->first(fn ($r) => $r->id == $boutiqueId && $r->month === $month);
-                $data[] = $row ? (float) $row->total : 0;
-            }
-            $color      = $palette[$i % count($palette)];
-            $datasets[] = [
-                'label'           => $boutiqueName,
-                'data'            => $data,
-                'borderColor'     => $color,
-                'backgroundColor' => $color . '22',
-                'tension'         => 0.4,
-                'fill'            => true,
-                'pointRadius'     => 4,
-                'pointHoverRadius' => 6,
-            ];
-            $i++;
-        }
-
-        return ['labels' => $labels, 'datasets' => $datasets];
+            return ['labels' => $period['keys']->map($period['label'])->all(), 'datasets' => $datasets];
+        })->all();
     }
-
     /**
      * Montant réellement livré (reçu complètement ou partiellement), calculé
      * ligne par ligne (quantité reçue × prix unitaire) et daté de la réception,

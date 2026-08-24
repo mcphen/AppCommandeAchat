@@ -28,7 +28,6 @@ interface BlockedOrder {
     submitted_at: string;
     days_waiting: number;
     user_name: string;
-    boutique_name: string;
 }
 
 interface TopItem {
@@ -86,7 +85,7 @@ const props = defineProps<{
     blockedOrders: BlockedOrder[];
     topFournisseurs: TopItem[];
     topProjects: (TopItem & { id: number; code: string; share: number })[];
-    monthlyByBoutique: MonthlyByBoutique;
+    purchasesByProject: { monthly: MonthlyByBoutique; quarterly: MonthlyByBoutique; annual: MonthlyByBoutique };
     approvedByPeriod: { monthly: PeriodSeries; quarterly: PeriodSeries; annual: PeriodSeries };
     deliveredByPeriod: { monthly: PeriodSeries; quarterly: PeriodSeries };
     fournisseurLeadTimes: LeadTimeEntry[];
@@ -151,7 +150,7 @@ const horizontalBarOptions = {
     },
 };
 
-// ---- Dépenses mensuelles par société (line) ----
+// ---- Achats par chantier et par période (line) ----
 const lineOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -174,8 +173,10 @@ const lineOptions = {
     },
 };
 
+const projectPeriod = ref<'monthly' | 'quarterly' | 'annual'>('monthly');
+const projectSeries = computed(() => props.purchasesByProject[projectPeriod.value]);
 const hasLineData = computed(() =>
-    props.monthlyByBoutique.datasets.some(d => d.data.some(v => v > 0))
+    projectSeries.value.datasets.some(d => d.data.some(v => v > 0))
 );
 
 // ---- Montant engagé par période ----
@@ -328,7 +329,6 @@ const leadTimeBadgeClass = (days: number) => {
                             <tr>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Commande</th>
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground sm:table-cell">Demandeur</th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground md:table-cell">Société</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Montant</th>
                                 <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">Attente</th>
                                 <th class="px-4 py-3"></th>
@@ -342,7 +342,6 @@ const leadTimeBadgeClass = (days: number) => {
                                     <p class="text-xs text-muted-foreground mt-0.5">Soumis le {{ formatDate(order.submitted_at) }}</p>
                                 </td>
                                 <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">{{ order.user_name }}</td>
-                                <td class="hidden px-4 py-3 text-muted-foreground md:table-cell">{{ order.boutique_name }}</td>
                                 <td class="px-4 py-3 text-right font-semibold text-foreground">
                                     {{ formatAmountShort(order.amount) }}
                                 </td>
@@ -435,15 +434,19 @@ const leadTimeBadgeClass = (days: number) => {
             <section>
                 <div class="mb-3 flex items-center gap-2">
                     <TrendingUp class="h-4 w-4 text-indigo-500" />
-                    <h2 class="font-semibold text-foreground">Dépenses mensuelles par société</h2>
-                    <span class="ml-auto text-xs text-muted-foreground">6 derniers mois — commandes approuvées</span>
+                    <h2 class="font-semibold text-foreground">Achats par chantier</h2>
+                    <div class="ml-auto inline-flex rounded-lg border bg-muted/40 p-0.5 text-xs font-medium">
+                        <button v-for="period in (['monthly', 'quarterly', 'annual'] as const)" :key="period" class="rounded-md px-3 py-1.5 transition-colors" :class="projectPeriod === period ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'" @click="projectPeriod = period">
+                            {{ period === 'monthly' ? 'Mensuel' : period === 'quarterly' ? 'Trimestriel' : 'Annuel' }}
+                        </button>
+                    </div>
                 </div>
                 <div class="rounded-2xl border bg-card p-5 shadow-sm">
                     <div v-if="!hasLineData" class="flex h-40 items-center justify-center text-sm text-muted-foreground">
                         Pas encore de données
                     </div>
                     <div v-else class="h-64">
-                        <Line :data="monthlyByBoutique" :options="lineOptions" />
+                        <Line :data="projectSeries" :options="lineOptions" />
                     </div>
                 </div>
             </section>

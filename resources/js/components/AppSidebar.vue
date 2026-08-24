@@ -12,7 +12,7 @@ import { Link, usePage } from '@inertiajs/vue3';
 import {
     LayoutDashboard, ShoppingCart, CheckSquare, GitBranch,
     Users, Settings, ChevronRight, Shield, Building2, ClipboardList,
-    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, UserCheck, BookOpen, SlidersHorizontal, ShieldAlert, ScrollText,
+    FolderTree, Truck, Package, ClipboardCheck, PiggyBank, BarChart2, HardHat, UserCheck, BookOpen, SlidersHorizontal, ShieldAlert, ScrollText,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 
@@ -82,9 +82,10 @@ const mainNav = computed(() => {
 });
 
 const analyticsNav = computed(() => {
-    if (role.value !== 'admin') return [];
+    if (!['validateur', 'admin'].includes(role.value ?? '')) return [];
     return [
         { title: 'Analytique', href: route('analytics.index'), icon: BarChart2, key: 'analytics' },
+        { title: 'Analyse des chantiers', href: route('analytics.projects'), icon: HardHat, key: 'analytics-projects' },
     ];
 });
 

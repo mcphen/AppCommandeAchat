@@ -49,8 +49,8 @@ const props = withDefaults(defineProps<{
     exportRouteName: 'purchase-orders.export',
     breadcrumbLabel: 'Commandes',
     breadcrumbHref: '/purchase-orders',
-    pageTitleAdmin: 'Commandes du groupe',
-    pageTitleUser: 'Mes commandes',
+    pageTitleAdmin: 'Liste des bons de commande',
+    pageTitleUser: 'Liste des bons de commande',
     eyebrowAdmin: 'Pilotage des achats',
     eyebrowUser: 'Suivi des achats',
     descriptionAdmin: 'Visualisez les demandes du groupe, leur circuit de validation et leur niveau de progression.',
@@ -66,19 +66,7 @@ const page = usePage<SharedData>();
 const user = computed(() => page.props.auth.user);
 const isAdmin = computed(() => user.value?.role?.slug === 'admin');
 
-const showFilters = ref(
-    !!(
-        props.filters.boutique_id ||
-        props.filters.project_id ||
-        props.filters.status ||
-        props.filters.user_id ||
-        props.filters.date_from ||
-        props.filters.date_to ||
-        props.filters.amount_min ||
-        props.filters.amount_max ||
-        props.filters.level_order
-    ),
-);
+const showFilters = ref(false);
 const showExportMenu = ref(false);
 
 const localFilters = ref({
@@ -224,16 +212,10 @@ const remindDemandeur = async (order: PurchaseOrder) => {
 <template>
     <Head :title="isAdmin ? pageTitleAdmin : pageTitleUser" />
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="purchase-orders-page mx-auto max-w-7xl space-y-6 px-3 py-4 sm:px-6 sm:py-6">
+        <div class="purchase-orders-page mx-auto max-w-7xl space-y-4 px-3 py-4 sm:px-6 sm:py-5">
             <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                        {{ isAdmin ? eyebrowAdmin : eyebrowUser }}
-                    </p>
                     <h1 class="mt-1 text-2xl font-bold text-foreground">{{ isAdmin ? pageTitleAdmin : pageTitleUser }}</h1>
-                    <p class="mt-1 text-sm text-muted-foreground">
-                        {{ isAdmin ? descriptionAdmin : descriptionUser }}
-                    </p>
                 </div>
 
                 <div class="inline-flex items-center gap-2 self-start rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-sm font-semibold text-primary">
@@ -242,7 +224,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                 </div>
             </div>
 
-            <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <section v-if="showFilters" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div class="rounded-2xl border bg-card p-4 shadow-sm">
                     <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total</p>
                     <p class="mt-2 text-2xl font-bold text-foreground">{{ orders.total }}</p>
@@ -284,7 +266,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                     <div class="relative">
                         <div v-if="showExportMenu" class="fixed inset-0 z-10" @click="showExportMenu = false" />
                         <button
-                            class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                            class="inline-flex items-center gap-2 rounded-xl border border-slate-900 bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-slate-800"
                             @click="showExportMenu = !showExportMenu"
                         >
                             <Download class="h-4 w-4" />
@@ -317,19 +299,18 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                     </div>
 
                     <button
-                        class="inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors"
-                        :class="showFilters ? 'border-primary bg-primary/5 text-primary' : 'text-foreground hover:bg-muted'"
+                        class="inline-flex items-center gap-2 rounded-xl border border-amber-500 bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
                         @click="showFilters = !showFilters"
                     >
                         <Filter class="h-4 w-4" />
                         Filtres
-                        <span v-if="activeFilterCount > 0" class="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                        <span v-if="activeFilterCount > 0" class="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1.5 text-[10px] font-bold text-amber-700">
                             {{ activeFilterCount }}
                         </span>
                     </button>
 
                     <button
-                        class="inline-flex items-center gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/10"
+                        class="inline-flex items-center gap-2 rounded-xl border border-indigo-600 bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-indigo-700"
                         @click="applyFilters"
                     >
                         Rechercher
@@ -337,7 +318,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
 
                 </div>
             </div>
-            <section class="rounded-2xl border bg-card shadow-sm">
+            <section v-if="showFilters" class="rounded-2xl border bg-card shadow-sm">
                 <div class="flex flex-col gap-2 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 class="text-base font-semibold text-foreground">Filtres et pilotage</h2>

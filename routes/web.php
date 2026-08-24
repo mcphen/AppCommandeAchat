@@ -121,13 +121,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/audit/export/{format}', [AuditController::class, 'export'])->name('audit.export')->where('format', 'pdf|excel');
     });
 
-    // Analytique (Admin uniquement)
+    // Actions de supervision (Admin uniquement)
     Route::middleware('role:admin')->group(function () {
         Route::post('purchase-orders/{purchase_order}/restart-validation', [PurchaseOrderController::class, 'restartValidation'])
             ->name('purchase-orders.restart-validation');
         Route::post('purchase-orders/{purchase_order}/remind', [PurchaseOrderController::class, 'remind'])
             ->name('purchase-orders.remind');
+    });
 
+    // Analytique (Validateur + Admin)
+    Route::middleware('role:validateur,admin')->group(function () {
         Route::get('/analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
         Route::get('/analytics/projects', [AnalyticsController::class, 'projects'])->name('analytics.projects');
         Route::get('/analytics/export/delivered', [AnalyticsController::class, 'exportDelivered'])->name('analytics.export-delivered');

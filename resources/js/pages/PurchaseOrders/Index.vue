@@ -527,12 +527,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
                                     Chantier
                                 </th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
-                                    Montant HT
-                                </th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
-                                    Montant TTC
-                                </th>
+                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">Montants</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</th>
                                 <th v-if="isAdmin" class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">
                                     Demandeur
@@ -545,8 +540,12 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                             <tr class="border-b bg-muted/10">
                                 <th class="px-3 py-2"><input v-model="columnFilters.column_order" type="search" placeholder="Filtrer commande…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
                                 <th class="hidden px-3 py-2 lg:table-cell"><input v-model="columnFilters.column_project" type="search" placeholder="Filtrer chantier…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
-                                <th class="hidden px-3 py-2 lg:table-cell"><input v-model="columnFilters.column_amount" type="number" min="0" placeholder="Montant exact" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
-                                <th class="hidden px-3 py-2 lg:table-cell"><input v-model="columnFilters.column_amount_ttc" type="number" min="0" placeholder="Montant exact" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
+                                <th class="hidden px-3 py-2 lg:table-cell">
+                                    <div class="grid min-w-64 grid-cols-2 gap-2">
+                                        <input v-model="columnFilters.column_amount" type="number" min="0" placeholder="HT exact" aria-label="Filtrer le montant HT" :class="columnFilterClass" @input="applyColumnFilters()" />
+                                        <input v-model="columnFilters.column_amount_ttc" type="number" min="0" placeholder="TTC exact" aria-label="Filtrer le montant TTC" :class="columnFilterClass" @input="applyColumnFilters()" />
+                                    </div>
+                                </th>
                                 <th class="px-3 py-2"><select v-model="columnFilters.column_status" :class="columnFilterClass" @change="applyColumnFilters(true)"><option value="">Tous</option><option v-for="(config, value) in statusConfig" :key="value" :value="value">{{ config.label }}</option></select></th>
                                 <th v-if="isAdmin" class="hidden px-3 py-2 xl:table-cell"><input v-model="columnFilters.column_user" type="search" placeholder="Filtrer demandeur…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
                                 <th class="hidden px-3 py-2 xl:table-cell"><input v-model="columnFilters.column_date" type="date" :class="columnFilterClass" @change="applyColumnFilters(true)" /></th>
@@ -556,7 +555,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
 
                         <tbody class="divide-y divide-border/60">
                             <tr v-if="orders.data.length === 0">
-                                <td :colspan="isAdmin ? 8 : 7" class="px-5 py-14 text-center">
+                                <td :colspan="isAdmin ? 7 : 6" class="px-5 py-14 text-center">
                                     <div class="mx-auto flex max-w-md flex-col items-center">
                                         <div class="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-500"><Search class="h-5 w-5" /></div>
                                         <h3 class="mt-3 font-semibold text-slate-950">Aucun résultat trouvé</h3>
@@ -609,10 +608,17 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                     <span v-else class="text-xs text-muted-foreground">—</span>
                                 </td>
 
-                                <td class="hidden px-4 py-4 font-medium text-foreground lg:table-cell">{{ formatAmount(order.amount) }}</td>
-
-                                <td class="hidden px-4 py-4 font-medium text-foreground lg:table-cell">
-                                    {{ order.amount_ttc ? formatAmount(order.amount_ttc) : '—' }}
+                                <td class="hidden px-4 py-4 lg:table-cell">
+                                    <div class="space-y-1">
+                                        <div class="flex items-baseline justify-between gap-3">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">HT</span>
+                                            <span class="font-semibold text-slate-950">{{ formatAmount(order.amount) }}</span>
+                                        </div>
+                                        <div class="flex items-baseline justify-between gap-3">
+                                            <span class="text-[10px] font-semibold uppercase tracking-wide text-indigo-500">TTC</span>
+                                            <span class="text-sm font-medium text-slate-700">{{ order.amount_ttc ? formatAmount(order.amount_ttc) : '—' }}</span>
+                                        </div>
+                                    </div>
                                 </td>
 
                                 <td class="px-4 py-4">

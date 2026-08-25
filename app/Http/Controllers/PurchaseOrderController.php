@@ -328,7 +328,10 @@ class PurchaseOrderController extends Controller
             'validationLogs.user',
             'validationLogs.delegatedBy',
             'receptions.receiver',
-            'receptions.lines',
+            'receptions.lines.transferLines',
+            'receptions.transfers.project',
+            'receptions.transfers.actor',
+            'receptions.transfers.lines',
             'comments.user',
         ]);
 
@@ -378,6 +381,7 @@ class PurchaseOrderController extends Controller
             'order'   => $purchaseOrder,
             'levels'  => $levels,
             'savings' => $savings,
+            'projects' => Project::where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
         ]);
     }
 

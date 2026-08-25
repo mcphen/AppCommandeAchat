@@ -127,7 +127,8 @@ class PurchaseOrder extends Model
 
     public function canReceive(): bool
     {
-        return in_array($this->delivery_status, ['ordered', 'partially_received']);
+        return $this->status === 'approved'
+            && in_array($this->delivery_status, ['ordered', 'partially_received']);
     }
 
     public function deliveryStatusLabel(): string

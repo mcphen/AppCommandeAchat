@@ -25,6 +25,7 @@ class ReceptionController extends Controller
                 'lines.receptionLines',
                 'receptions.receiver',
             ])
+            ->where('status', 'approved')
             ->whereNotNull('delivery_status')
             ->latest('ordered_at');
 
@@ -69,7 +70,8 @@ class ReceptionController extends Controller
 
     private function countForUser($user, string $status): int
     {
-        $q = PurchaseOrder::where('delivery_status', $status);
+        $q = PurchaseOrder::where('status', 'approved')
+            ->where('delivery_status', $status);
         if (! $user->isAdmin()) $q->where('user_id', $user->id);
         return $q->count();
     }

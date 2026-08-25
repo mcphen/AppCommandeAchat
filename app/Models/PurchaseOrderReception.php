@@ -40,6 +40,11 @@ class PurchaseOrderReception extends Model
         return $this->hasMany(PurchaseOrderReceptionLine::class, 'reception_id');
     }
 
+    public function transfers(): HasMany
+    {
+        return $this->hasMany(ReceptionTransfer::class, 'reception_id');
+    }
+
     public function typeLabel(): string
     {
         return $this->type === 'complete' ? 'Complète' : 'Partielle';

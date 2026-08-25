@@ -22,6 +22,11 @@ class Project extends Model
         return $this->hasMany(PurchaseOrder::class);
     }
 
+    public function receptionTransfers(): HasMany
+    {
+        return $this->hasMany(ReceptionTransfer::class);
+    }
+
     /**
      * Le code chantier vient d'un champ texte libre Sage (DO_Ref) : pas de nom distinct
      * disponible cote Sage. On cree le chantier avec le code comme nom par defaut ; le nom

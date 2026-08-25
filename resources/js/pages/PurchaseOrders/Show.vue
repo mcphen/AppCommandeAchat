@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import OrderDiscussion from '@/components/OrderDiscussion.vue';
-import { type BreadcrumbItem, type PurchaseOrder, type PurchaseOrderLine, type ValidationLevel } from '@/types';
+import { type BreadcrumbItem, type Project, type PurchaseOrder, type PurchaseOrderLine, type PurchaseOrderReception, type ValidationLevel } from '@/types';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
@@ -30,6 +30,7 @@ const props = defineProps<{
     order: PurchaseOrder;
     levels: ValidationLevel[];
     savings: SavingsData;
+    projects: Pick<Project, 'id' | 'code' | 'name'>[];
 }>();
 
 const page = usePage();
@@ -353,6 +354,58 @@ const submitReception = () => {
     };
     router.post(route('purchase-orders.receptions.store', props.order.id), payload, {
         onSuccess: () => { showModal.value = false; },
+    });
+};
+
+// ─── Transferts des réceptions vers les chantiers ─────────────────────────────
+const transferReceptionId = ref<number | null>(null);
+const transferForm = reactive({
+    project_id: '',
+    transferred_at: new Date().toISOString().slice(0, 10),
+    reference: '',
+    notes: '',
+    lines: [] as { reception_line_id: number; quantity_transferred: number; max: number; label: string }[],
+});
+
+const transferredQuantity = (line: any): number =>
+    (line.transfer_lines ?? []).reduce((sum: number, item: any) => sum + Number(item.quantity_transferred), 0);
+
+const openTransferForm = (reception: PurchaseOrderReception) => {
+    transferReceptionId.value = reception.id;
+    transferForm.project_id = props.order.project_id ? String(props.order.project_id) : '';
+    transferForm.transferred_at = new Date().toISOString().slice(0, 10);
+    transferForm.reference = '';
+    transferForm.notes = '';
+    transferForm.lines = (reception.lines ?? []).map(line => {
+        const available = Math.max(0, Number(line.quantity_received) - transferredQuantity(line));
+        return {
+            reception_line_id: line.id,
+            quantity_transferred: available,
+            max: available,
+            label: props.order.lines?.find(item => item.id === line.purchase_order_line_id)?.article?.name ?? `Ligne #${line.purchase_order_line_id}`,
+        };
+    }).filter(line => line.max > 0);
+};
+
+const submitTransfer = () => {
+    if (!transferReceptionId.value) return;
+    router.post(route('purchase-orders.receptions.transfers.store', {
+        purchase_order: props.order.id,
+        reception: transferReceptionId.value,
+    }), {
+        project_id: transferForm.project_id,
+        transferred_at: transferForm.transferred_at,
+        reference: transferForm.reference || null,
+        notes: transferForm.notes || null,
+        lines: transferForm.lines
+            .filter(line => Number(line.quantity_transferred) > 0)
+            .map(line => ({
+                reception_line_id: line.reception_line_id,
+                quantity_transferred: line.quantity_transferred,
+            })),
+    }, {
+        preserveScroll: true,
+        onSuccess: () => { transferReceptionId.value = null; },
     });
 };
 </script>
@@ -905,6 +958,81 @@ const submitReception = () => {
                                     <div v-for="rline in reception.lines" :key="rline.id" class="flex justify-between text-xs text-muted-foreground">
                                         <span>{{ order.lines?.find(l => l.id === rline.purchase_order_line_id)?.article?.name ?? `Ligne #${rline.purchase_order_line_id}` }}</span>
                                         <span class="font-medium">+{{ rline.quantity_received }}</span>
+                                    </div>
+                                </div>
+
+
+                                <!-- Affectations aux chantiers -->
+                                <div class="mt-3 border-t border-current/10 pt-3">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <p class="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                                            <HardHat class="h-3.5 w-3.5 text-amber-600" />
+                                            Transferts chantiers
+                                        </p>
+                                        <button
+                                            v-if="(isAdmin || isCreator) && reception.lines?.some(line => Number(line.quantity_received) > transferredQuantity(line))"
+                                            type="button"
+                                            class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
+                                            @click="openTransferForm(reception)"
+                                        >
+                                            Transférer
+                                        </button>
+                                        <span v-else-if="reception.lines?.length" class="text-xs font-medium text-emerald-700">Tout transféré</span>
+                                    </div>
+
+                                    <div v-if="reception.transfers?.length" class="mt-2 space-y-2">
+                                        <div v-for="transfer in reception.transfers" :key="transfer.id" class="rounded-lg border border-amber-100 bg-white/70 p-2.5">
+                                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                                <span class="text-xs font-semibold text-amber-800">{{ transfer.project?.name ?? 'Chantier' }}</span>
+                                                <span class="text-[11px] text-muted-foreground">{{ formatDateShort(transfer.transferred_at) }}</span>
+                                            </div>
+                                            <p class="mt-0.5 text-[11px] text-muted-foreground">
+                                                par {{ transfer.actor?.name ?? '—' }}
+                                                <span v-if="transfer.reference"> · Réf. {{ transfer.reference }}</span>
+                                            </p>
+                                            <div class="mt-1 space-y-0.5">
+                                                <div v-for="line in transfer.lines" :key="line.id" class="flex justify-between text-[11px] text-muted-foreground">
+                                                    <span>{{ order.lines?.find(item => item.id === reception.lines?.find(rline => rline.id === line.reception_line_id)?.purchase_order_line_id)?.article?.name ?? 'Article' }}</span>
+                                                    <span class="font-semibold">× {{ line.quantity_transferred }}</span>
+                                                </div>
+                                            </div>
+                                            <p v-if="transfer.notes" class="mt-1 text-[11px] italic text-muted-foreground">{{ transfer.notes }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="transferReceptionId === reception.id" class="mt-3 space-y-3 rounded-xl border border-amber-200 bg-white p-3">
+                                        <div class="grid gap-2 sm:grid-cols-2">
+                                            <label class="text-xs font-medium text-muted-foreground">
+                                                Chantier
+                                                <select v-model="transferForm.project_id" class="mt-1 h-9 w-full rounded-lg border bg-white px-2 text-xs">
+                                                    <option value="" disabled>Sélectionner…</option>
+                                                    <option v-for="project in projects" :key="project.id" :value="String(project.id)">{{ project.code }} — {{ project.name }}</option>
+                                                </select>
+                                            </label>
+                                            <label class="text-xs font-medium text-muted-foreground">
+                                                Date du transfert
+                                                <input v-model="transferForm.transferred_at" type="date" class="mt-1 h-9 w-full rounded-lg border bg-white px-2 text-xs" />
+                                            </label>
+                                            <label class="text-xs font-medium text-muted-foreground">
+                                                Référence
+                                                <input v-model="transferForm.reference" type="text" maxlength="100" placeholder="Bon de sortie…" class="mt-1 h-9 w-full rounded-lg border bg-white px-2 text-xs" />
+                                            </label>
+                                            <label class="text-xs font-medium text-muted-foreground">
+                                                Notes
+                                                <input v-model="transferForm.notes" type="text" maxlength="1000" class="mt-1 h-9 w-full rounded-lg border bg-white px-2 text-xs" />
+                                            </label>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <div v-for="line in transferForm.lines" :key="line.reception_line_id" class="flex items-center gap-3">
+                                                <span class="min-w-0 flex-1 truncate text-xs">{{ line.label }}</span>
+                                                <input v-model.number="line.quantity_transferred" type="number" min="0" :max="line.max" step="0.01" class="h-8 w-24 rounded-lg border px-2 text-right text-xs" />
+                                                <span class="w-20 text-[11px] text-muted-foreground">sur {{ line.max }}</span>
+                                            </div>
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <button type="button" :disabled="!transferForm.project_id" class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50" @click="submitTransfer">Enregistrer</button>
+                                            <button type="button" class="rounded-lg border px-3 py-1.5 text-xs" @click="transferReceptionId = null">Annuler</button>
+                                        </div>
                                     </div>
                                 </div>
 

@@ -28,7 +28,6 @@ const props = withDefaults(defineProps<{
         search?: string;
         column_order?: string;
         column_project?: string;
-        column_amount?: string;
         column_amount_ttc?: string;
         column_status?: string;
         column_user?: string;
@@ -85,7 +84,6 @@ const localFilters = ref({
 const columnFilters = ref({
     column_order: props.filters.column_order ?? '',
     column_project: props.filters.column_project ?? '',
-    column_amount: props.filters.column_amount ?? '',
     column_amount_ttc: props.filters.column_amount_ttc ?? '',
     column_status: props.filters.column_status ?? '',
     column_user: props.filters.column_user ?? '',
@@ -173,7 +171,7 @@ onBeforeUnmount(() => {
 
 const resetFilters = () => {
     localFilters.value = { search: '', boutique_id: '', project_id: '', status: '', user_id: '', date_from: '', date_to: '', amount_min: '', amount_max: '', level_order: '' };
-    columnFilters.value = { column_order: '', column_project: '', column_amount: '', column_amount_ttc: '', column_status: '', column_user: '', column_date: '' };
+    columnFilters.value = { column_order: '', column_project: '', column_amount_ttc: '', column_status: '', column_user: '', column_date: '' };
     router.get(route(props.listRouteName), {}, { preserveState: true, preserveScroll: true, replace: true });
 };
 
@@ -527,7 +525,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                 <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">
                                     Chantier
                                 </th>
-                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">Montants</th>
+                                <th class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:table-cell">Montant TTC</th>
                                 <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Statut</th>
                                 <th v-if="isAdmin" class="hidden px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground xl:table-cell">
                                     Demandeur
@@ -540,16 +538,12 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                             <tr class="border-b bg-muted/10">
                                 <th class="px-3 py-2"><input v-model="columnFilters.column_order" type="search" placeholder="Filtrer commande…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
                                 <th class="hidden px-3 py-2 lg:table-cell"><input v-model="columnFilters.column_project" type="search" placeholder="Filtrer chantier…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
-                                <th class="hidden px-3 py-2 lg:table-cell">
-                                    <div class="grid min-w-64 grid-cols-2 gap-2">
-                                        <input v-model="columnFilters.column_amount" type="number" min="0" placeholder="HT exact" aria-label="Filtrer le montant HT" :class="columnFilterClass" @input="applyColumnFilters()" />
-                                        <input v-model="columnFilters.column_amount_ttc" type="number" min="0" placeholder="TTC exact" aria-label="Filtrer le montant TTC" :class="columnFilterClass" @input="applyColumnFilters()" />
-                                    </div>
-                                </th>
+                                <th class="hidden px-3 py-2 lg:table-cell"><input v-model="columnFilters.column_amount_ttc" type="number" min="0" placeholder="TTC exact" aria-label="Filtrer le montant TTC" :class="columnFilterClass" @input="applyColumnFilters()" />
+                                    </th>
                                 <th class="px-3 py-2"><select v-model="columnFilters.column_status" :class="columnFilterClass" @change="applyColumnFilters(true)"><option value="">Tous</option><option v-for="(config, value) in statusConfig" :key="value" :value="value">{{ config.label }}</option></select></th>
                                 <th v-if="isAdmin" class="hidden px-3 py-2 xl:table-cell"><input v-model="columnFilters.column_user" type="search" placeholder="Filtrer demandeur…" :class="columnFilterClass" @input="applyColumnFilters()" /></th>
                                 <th class="hidden px-3 py-2 xl:table-cell"><input v-model="columnFilters.column_date" type="date" :class="columnFilterClass" @change="applyColumnFilters(true)" /></th>
-                                <th class="sticky right-0 z-10 bg-white px-3 py-2 text-right"><button v-if="Object.values(columnFilters).some(Boolean)" type="button" class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" @click="columnFilters = { column_order: '', column_project: '', column_amount: '', column_amount_ttc: '', column_status: '', column_user: '', column_date: '' }; applyColumnFilters(true)"><X class="h-3.5 w-3.5" /> Effacer</button></th>
+                                <th class="sticky right-0 z-10 bg-white px-3 py-2 text-right"><button v-if="Object.values(columnFilters).some(Boolean)" type="button" class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" @click="columnFilters = { column_order: '', column_project: '', column_amount_ttc: '', column_status: '', column_user: '', column_date: '' }; applyColumnFilters(true)"><X class="h-3.5 w-3.5" /> Effacer</button></th>
                             </tr>
                         </thead>
 
@@ -608,18 +602,7 @@ const remindDemandeur = async (order: PurchaseOrder) => {
                                     <span v-else class="text-xs text-muted-foreground">—</span>
                                 </td>
 
-                                <td class="hidden px-4 py-4 lg:table-cell">
-                                    <div class="space-y-1">
-                                        <div class="flex items-baseline justify-between gap-3">
-                                            <span class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">HT</span>
-                                            <span class="font-semibold text-slate-950">{{ formatAmount(order.amount) }}</span>
-                                        </div>
-                                        <div class="flex items-baseline justify-between gap-3">
-                                            <span class="text-[10px] font-semibold uppercase tracking-wide text-indigo-500">TTC</span>
-                                            <span class="text-sm font-medium text-slate-700">{{ order.amount_ttc ? formatAmount(order.amount_ttc) : '—' }}</span>
-                                        </div>
-                                    </div>
-                                </td>
+                                <td class="hidden px-4 py-4 font-semibold text-slate-950 lg:table-cell">{{ order.amount_ttc ? formatAmount(order.amount_ttc) : '—' }}</td>
 
                                 <td class="px-4 py-4">
                                     <span

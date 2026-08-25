@@ -49,6 +49,12 @@ const mainNav = computed(() => {
             icon: ClipboardCheck,
             key: 'receptions',
         });
+        items.push({
+            title: 'Transferts chantiers',
+            href: route('transfers.index'),
+            icon: HardHat,
+            key: 'transfers',
+        });
     }
 
     if (role.value === 'validateur' || role.value === 'admin') {

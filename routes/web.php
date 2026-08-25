@@ -23,6 +23,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PurchaseOrderController;
 use App\Http\Controllers\ReceptionController;
+use App\Http\Controllers\ReceptionTransferController;
 use App\Http\Controllers\ValidationController;
 use Illuminate\Support\Facades\Route;
 
@@ -52,6 +53,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('purchase-orders.receptions.store');
         Route::patch('purchase-orders/{purchase_order}/receptions/{reception}/invoice', [ReceptionController::class, 'updateInvoice'])
             ->name('purchase-orders.receptions.invoice');
+
+        Route::get('transfers', [ReceptionTransferController::class, 'index'])
+            ->name('transfers.index');
+        Route::post('purchase-orders/{purchase_order}/receptions/{reception}/transfers', [ReceptionTransferController::class, 'store'])
+            ->name('purchase-orders.receptions.transfers.store');
 
         // Tableau de bord réceptions / livraisons
         Route::get('receptions', [ReceptionController::class, 'index'])

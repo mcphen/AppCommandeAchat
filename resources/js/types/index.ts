@@ -112,11 +112,32 @@ export interface PurchaseOrderAttachment {
 export type OrderStatus = 'draft' | 'pending' | 'needs_revision' | 'approved' | 'rejected';
 export type DeliveryStatus = 'ordered' | 'partially_received' | 'received';
 
+export interface ReceptionTransferLine {
+    id: number;
+    transfer_id: number;
+    reception_line_id: number;
+    quantity_transferred: string;
+}
+
+export interface ReceptionTransfer {
+    id: number;
+    reception_id: number;
+    project_id: number;
+    transferred_by: number;
+    transferred_at: string;
+    reference?: string | null;
+    notes?: string | null;
+    project?: Project;
+    actor?: User;
+    lines?: ReceptionTransferLine[];
+}
+
 export interface PurchaseOrderReceptionLine {
     id: number;
     reception_id: number;
     purchase_order_line_id: number;
     quantity_received: string;
+    transfer_lines?: ReceptionTransferLine[];
 }
 
 export interface PurchaseOrderReception {
@@ -131,6 +152,7 @@ export interface PurchaseOrderReception {
     invoice_amount?: string | number | null;
     receiver?: User;
     lines?: PurchaseOrderReceptionLine[];
+    transfers?: ReceptionTransfer[];
     created_at: string;
 }
 

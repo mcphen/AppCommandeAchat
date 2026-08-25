@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PurchaseOrderReceptionLine extends Model
 {
@@ -25,5 +26,10 @@ class PurchaseOrderReceptionLine extends Model
     public function orderLine(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrderLine::class, 'purchase_order_line_id');
+    }
+
+    public function transferLines(): HasMany
+    {
+        return $this->hasMany(ReceptionTransferLine::class, 'reception_line_id');
     }
 }

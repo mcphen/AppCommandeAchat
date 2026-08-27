@@ -32,4 +32,9 @@ class PurchaseOrderReceptionLine extends Model
     {
         return $this->hasMany(ReceptionTransferLine::class, 'reception_line_id');
     }
+    public function confirmedTransferLines(): HasMany
+    {
+        return $this->hasMany(ReceptionTransferLine::class, 'reception_line_id')
+            ->whereHas('transfer', fn ($query) => $query->where('status', 'confirmed'));
+    }
 }

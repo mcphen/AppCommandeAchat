@@ -34,6 +34,16 @@ export interface SharedData {
     flash: { success?: string; error?: string };
     unread_notifications_count: number;
     show_onboarding: boolean;
+    company: {
+        name?: string;
+        address?: string | null;
+        phone?: string | null;
+        email?: string | null;
+        website?: string | null;
+        nif?: string | null;
+        rccm?: string | null;
+        logoUrl?: string | null;
+    };
     ziggy: {
         location: string;
         url: string;

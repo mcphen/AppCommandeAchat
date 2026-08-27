@@ -1,0 +1,13 @@
+<script setup lang="ts">
+import { Check, ChevronsUpDown, Search, X } from 'lucide-vue-next';
+import { computed, nextTick, ref } from 'vue';
+type Option={value:string;label:string;description?:string};
+const props=defineProps<{modelValue:string;options:Option[];placeholder?:string;emptyText?:string}>();
+const emit=defineEmits<{(e:'update:modelValue',value:string):void}>();
+const open=ref(false);const query=ref('');const input=ref<HTMLInputElement|null>(null);
+const selected=computed(()=>props.options.find(o=>o.value===props.modelValue));
+const filtered=computed(()=>{const q=query.value.toLocaleLowerCase('fr').trim();return q?props.options.filter(o=>(o.label+' '+(o.description??'')).toLocaleLowerCase('fr').includes(q)):props.options});
+function toggle(){open.value=!open.value;if(open.value){query.value='';nextTick(()=>input.value?.focus())}}
+function choose(value:string){emit('update:modelValue',value);open.value=false;query.value=''}
+</script>
+<template><div class="relative"><button type="button" class="flex h-11 w-full items-center justify-between rounded-xl border bg-white px-3 text-left text-sm" @click="toggle"><span class="min-w-0 truncate" :class="selected?'text-slate-950':'text-slate-500'">{{selected?.label||placeholder||'Sélectionner…'}}</span><span class="flex items-center gap-1"><X v-if="selected" class="h-4 w-4 text-slate-400" @click.stop="choose('')"/><ChevronsUpDown class="h-4 w-4 text-slate-500"/></span></button><div v-if="open" class="absolute z-40 mt-1 w-full overflow-hidden rounded-xl border bg-white shadow-xl"><div class="relative border-b p-2"><Search class="absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/><input ref="input" v-model="query" class="h-10 w-full rounded-lg border pl-9 pr-3 text-sm" placeholder="Rechercher…" @keydown.esc="open=false"/></div><div class="max-h-64 overflow-y-auto p-1"><button v-for="option in filtered" :key="option.value" type="button" class="flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left hover:bg-slate-100" @click="choose(option.value)"><Check class="mt-0.5 h-4 w-4 shrink-0" :class="option.value===modelValue?'text-emerald-600':'text-transparent'"/><span><strong class="block text-sm">{{option.label}}</strong><small v-if="option.description" class="text-slate-500">{{option.description}}</small></span></button><p v-if="!filtered.length" class="px-3 py-6 text-center text-sm text-slate-500">{{emptyText||'Aucun résultat'}}</p></div></div></div></template>

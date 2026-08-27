@@ -6,7 +6,6 @@ use App\Models\AppSetting;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -43,7 +42,7 @@ class HandleInertiaRequests extends Middleware
                 'website' => $settings['company_website'] ?? null,
                 'nif'     => $settings['company_nif'] ?? null,
                 'rccm'    => $settings['company_rccm'] ?? null,
-                'logoUrl' => $logoPath ? Storage::disk('public')->url($logoPath) : null,
+                'logoUrl' => $logoPath ? '/storage/' . ltrim($logoPath, '/') : null,
             ];
         } catch (\Exception) {
             return [];

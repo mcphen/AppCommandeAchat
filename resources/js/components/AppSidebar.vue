@@ -99,6 +99,7 @@ const adminNav = computed(() => {
     if (role.value !== 'admin') return [];
     return [
         { title: 'Sociétés',             href: route('admin.boutiques.index'),         icon: Building2,  key: 'admin-boutiques' },
+        { title: 'Chantiers',            href: route('admin.projects.index'),          icon: HardHat,    key: 'admin-projects' },
         { title: 'Utilisateurs',         href: route('admin.users.index'),             icon: Users,      key: 'admin-users' },
         { title: 'Circuits',             href: route('admin.circuits.index'),          icon: GitBranch,  key: 'admin-circuits' },
         { title: 'Niveaux de validation', href: route('admin.validation-levels.index'), icon: Settings,   key: 'admin-levels' },
@@ -117,14 +118,22 @@ const adminNav = computed(() => {
     <Sidebar collapsible="icon" variant="inset">
         <SidebarHeader class="border-b border-sidebar-border/40 pb-3">
             <div class="flex items-center justify-between gap-2 px-1 py-1 group-data-[collapsible=icon]:justify-center">
-                <Link :href="route('dashboard')" class="flex min-w-0 items-center gap-3">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sidebar-primary/20 text-sidebar-primary shadow-inner border border-sidebar-primary/30">
-                        <ShoppingCart class="h-4 w-4" />
-                    </div>
-                    <div class="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
-                        <span class="font-bold text-sm text-sidebar-foreground tracking-wide">AchatPro</span>
-                        <span class="text-[11px] text-sidebar-foreground/40 font-medium">Gestion des commandes</span>
-                    </div>
+                <Link :href="route('dashboard')" class="flex min-w-0 items-center gap-3 overflow-hidden">
+                    <img
+                        v-if="page.props.company?.logoUrl"
+                        :src="page.props.company.logoUrl"
+                        :alt="page.props.company.name || 'Logo de l’entreprise'"
+                        class="block max-h-12 w-auto max-w-[190px] object-contain group-data-[collapsible=icon]:max-h-9 group-data-[collapsible=icon]:max-w-9"
+                    />
+                    <template v-else>
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-sidebar-primary/30 bg-sidebar-primary/20 text-sidebar-primary shadow-inner">
+                            <ShoppingCart class="h-4 w-4" />
+                        </div>
+                        <div class="flex min-w-0 flex-col leading-tight group-data-[collapsible=icon]:hidden">
+                            <span class="text-sm font-bold tracking-wide text-sidebar-foreground">AchatPro</span>
+                            <span class="text-[11px] font-medium text-sidebar-foreground/40">Gestion des commandes</span>
+                        </div>
+                    </template>
                 </Link>
                 <div class="group-data-[collapsible=icon]:hidden">
                     <NotificationPanel />

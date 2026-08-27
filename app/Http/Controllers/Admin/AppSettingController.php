@@ -19,7 +19,7 @@ class AppSettingController extends Controller
         return Inertia::render('Admin/AppSettings/Index', [
             'settings'  => $settings,
             'logoUrl'   => isset($settings['company_logo'])
-                ? Storage::disk('public')->url($settings['company_logo'])
+                ? '/storage/' . ltrim($settings['company_logo'], '/')
                 : null,
         ]);
     }

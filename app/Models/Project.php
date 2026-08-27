@@ -42,4 +42,16 @@ class Project extends Model
             ['name' => $code, 'is_active' => true]
         );
     }
-}
+
+    public function responsibleAssignments(): HasMany
+    {
+        return $this->hasMany(ProjectResponsibleAssignment::class)->orderByDesc('starts_at');
+    }
+
+    public function currentResponsibleAssignment()
+    {
+        return $this->hasOne(ProjectResponsibleAssignment::class)
+            ->whereDate('starts_at', '<=', today())
+            ->where(fn ($query) => $query->whereNull('ends_at')->orWhereDate('ends_at', '>=', today()))
+            ->latestOfMany('starts_at');
+    }}

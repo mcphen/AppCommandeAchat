@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AccountingController;
 use App\Http\Controllers\Admin\AppSettingController;
+use App\Http\Controllers\Admin\ProjectController as AdminProjectController;
 use App\Http\Controllers\ChecklistController;
 use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\Admin\ArticleController;
@@ -62,8 +63,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('transfers', [ReceptionTransferController::class, 'index'])
             ->name('transfers.index');
+        Route::get('transfers/create', [ReceptionTransferController::class, 'create'])->name('transfers.create');
+        Route::get('transfers/export/csv', [ReceptionTransferController::class, 'export'])->name('transfers.export');
+        Route::get('transfers/{transfer}/edit', [ReceptionTransferController::class, 'edit'])->name('transfers.edit');
+        Route::put('transfers/{transfer}', [ReceptionTransferController::class, 'updateDraft'])->name('transfers.update');
+        Route::post('transfers/{transfer}/confirm', [ReceptionTransferController::class, 'confirm'])->name('transfers.confirm');
+        Route::get('transfers/{transfer}', [ReceptionTransferController::class, 'show'])->name('transfers.show');
+        Route::get('transfers/{transfer}/pdf', [ReceptionTransferController::class, 'pdf'])->name('transfers.pdf');
+        Route::post('transfers/{transfer}/cancel', [ReceptionTransferController::class, 'cancel'])->name('transfers.cancel');
+        Route::post('transfers/{transfer}/sign-dispatch', [ReceptionTransferController::class, 'signDispatch'])->name('transfers.sign-dispatch');
+        Route::post('transfers/{transfer}/sign-site', [ReceptionTransferController::class, 'signSite'])->name('transfers.sign-site');
         Route::post('purchase-orders/{purchase_order}/receptions/{reception}/transfers', [ReceptionTransferController::class, 'store'])
             ->name('purchase-orders.receptions.transfers.store');
+        Route::post('transfers/batch', [ReceptionTransferController::class, 'storeBatch'])->name('transfers.batch.store');
+        Route::post('transfers/projects', [ReceptionTransferController::class, 'storeProject'])->name('transfers.projects.store');
 
         // Tableau de bord réceptions / livraisons
         Route::get('receptions', [ReceptionController::class, 'index'])
@@ -151,6 +164,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Administration (Admin uniquement)
     Route::middleware('role:admin')->prefix('admin')->name('admin.')->group(function () {
         Route::resource('boutiques', BoutiqueController::class)->except(['show']);
+        Route::get('projects', [AdminProjectController::class, 'index'])->name('projects.index');
+        Route::get('projects/{project}', [AdminProjectController::class, 'show'])->name('projects.show');
+        Route::post('projects', [AdminProjectController::class, 'store'])->name('projects.store');
+        Route::put('projects/{project}', [AdminProjectController::class, 'update'])->name('projects.update');
+        Route::post('projects/{project}/responsibles', [AdminProjectController::class, 'assign'])->name('projects.responsibles.store');
         Route::resource('circuits', CircuitController::class)->except(['show']);
         Route::post('users/bulk-reset-password', [AdminUserController::class, 'bulkResetPassword'])->name('users.bulk-reset-password');
         Route::resource('users', AdminUserController::class)->except(['show']);

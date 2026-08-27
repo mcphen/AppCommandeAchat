@@ -1,6 +1,12 @@
 <script setup lang="ts">
-import { Link } from '@inertiajs/vue3';
-import { ShoppingCart } from 'lucide-vue-next';
+import { Link, usePage } from '@inertiajs/vue3';
+
+const page = usePage<{
+    company: {
+        name?: string;
+        logoUrl?: string | null;
+    };
+}>();
 
 defineProps<{
     title?: string;
@@ -13,11 +19,16 @@ defineProps<{
         <div class="w-full max-w-sm">
             <div class="flex flex-col gap-8">
                 <div class="flex flex-col items-center gap-4">
-                    <Link :href="route('login')" class="flex flex-col items-center gap-3 font-medium">
-                        <div class="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/30">
-                            <ShoppingCart class="h-7 w-7 text-white" />
-                        </div>
-                        <span class="text-xl font-bold tracking-tight text-foreground">AchatPro</span>
+                    <Link :href="route('login')" class="flex items-center justify-center">
+                        <img
+                            v-if="page.props.company?.logoUrl"
+                            :src="page.props.company.logoUrl"
+                            :alt="page.props.company.name || 'Logo de l’entreprise'"
+                            class="block max-h-20 w-auto max-w-[260px] object-contain"
+                        />
+                        <span v-else class="text-xl font-bold tracking-tight text-foreground">
+                            {{ page.props.company?.name || 'AchatPro' }}
+                        </span>
                     </Link>
                     <div class="space-y-1.5 text-center">
                         <h1 class="text-xl font-semibold text-foreground">{{ title }}</h1>

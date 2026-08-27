@@ -969,21 +969,20 @@ const submitTransfer = () => {
                                             <HardHat class="h-3.5 w-3.5 text-amber-600" />
                                             Transferts chantiers
                                         </p>
-                                        <button
+                                        <Link
                                             v-if="(isAdmin || isCreator) && reception.lines?.some(line => Number(line.quantity_received) > transferredQuantity(line))"
-                                            type="button"
+                                            :href="route('transfers.create', { reception_id: reception.id })"
                                             class="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 hover:bg-amber-100"
-                                            @click="openTransferForm(reception)"
                                         >
                                             Transférer
-                                        </button>
+                                        </Link>
                                         <span v-else-if="reception.lines?.length" class="text-xs font-medium text-emerald-700">Tout transféré</span>
                                     </div>
 
                                     <div v-if="reception.transfers?.length" class="mt-2 space-y-2">
                                         <div v-for="transfer in reception.transfers" :key="transfer.id" class="rounded-lg border border-amber-100 bg-white/70 p-2.5">
                                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                                <span class="text-xs font-semibold text-amber-800">{{ transfer.project?.name ?? 'Chantier' }}</span>
+                                                <div><Link :href="route('transfers.show', transfer.id)" class="font-mono text-[11px] font-bold text-blue-700">{{transfer.transfer_number||`BT-${transfer.id}`}}</Link><span class="ml-2 text-xs font-semibold text-amber-800">{{ transfer.project?.name ?? 'Chantier' }}</span></div>
                                                 <span class="text-[11px] text-muted-foreground">{{ formatDateShort(transfer.transferred_at) }}</span>
                                             </div>
                                             <p class="mt-0.5 text-[11px] text-muted-foreground">

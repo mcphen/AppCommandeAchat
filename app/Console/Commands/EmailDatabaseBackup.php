@@ -29,7 +29,7 @@ class EmailDatabaseBackup extends Command
 
         $directory = (string) config('backup.directory');
         File::ensureDirectoryExists($directory, 0700, true);
-        $this->deleteExpiredArchives($directory);
+        $this->rotateArchives($directory);
         $connectionName = DB::getDefaultConnection();
         $connection = config("database.connections.{$connectionName}");
         $driver = $connection['driver'] ?? null;
@@ -119,13 +119,24 @@ class EmailDatabaseBackup extends Command
         }
     }
 
-    private function deleteExpiredArchives(string $directory): void
+    private function rotateArchives(string $directory): void
     {
-        $expiration = now()->subDays(max(1, (int) config('backup.retention_days')))->getTimestamp();
-        foreach (File::glob($directory.DIRECTORY_SEPARATOR.'*.zip') as $archive) {
-            if (File::lastModified($archive) < $expiration) {
-                File::delete($archive);
-            }
+        $archives = File::glob($directory.DIRECTORY_SEPARATOR.'*.zip');
+
+        if ($archives === []) {
+            return;
+        }
+
+        $rotationThreshold = now()
+            ->subHours(max(1, (int) config('backup.rotation_hours')))
+            ->getTimestamp();
+        $oldestArchiveTimestamp = min(array_map(
+            fn (string $archive): int => File::lastModified($archive),
+            $archives
+        ));
+
+        if ($oldestArchiveTimestamp <= $rotationThreshold) {
+            File::delete($archives);
         }
     }
 
